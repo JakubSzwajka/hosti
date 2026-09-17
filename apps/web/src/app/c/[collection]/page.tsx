@@ -1,6 +1,5 @@
 import { CatalogScreen, EmptyCollection } from "@/app/_ui/catalog-screen";
-import { NO_COLLECTION, plural } from "@/app/_ui/format";
-import { collectionChips } from "@/app/_ui/pieces";
+import { collectionChips, NO_COLLECTION, plural } from "@/app/_ui/format";
 import { requireAdmin } from "@/server/auth/admin";
 import { listCatalog } from "@/server/catalog";
 

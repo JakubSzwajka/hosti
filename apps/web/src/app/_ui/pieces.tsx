@@ -1,6 +1,7 @@
-import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
-import { NO_COLLECTION, plural } from "@/app/_ui/format";
+import { plural } from "@/app/_ui/format";
+import { Shot } from "@/app/_ui/shot";
+import { previewGrant } from "@/server/serving/preview-token";
 
 /**
  * The small parts every catalog screen reuses: the masthead, the collection
@@ -26,25 +27,13 @@ export function Masthead({ meta, token }: { meta: string; token: string }) {
   );
 }
 
-export type ChipCount = { name: string; href: string; count: number };
-
-/** Counts across the top: all bundles, each collection, then no collection. */
-export function collectionChips(bundles: Bundle[]): ChipCount[] {
-  const named = new Map<string, number>();
-  let loose = 0;
-  for (const bundle of bundles) {
-    if (bundle.collection) named.set(bundle.collection, (named.get(bundle.collection) ?? 0) + 1);
-    else loose += 1;
-  }
-  const chips: ChipCount[] = [{ name: "all bundles", href: "/", count: bundles.length }];
-  for (const [name, count] of [...named].sort((a, b) => a[0].localeCompare(b[0]))) {
-    chips.push({ name, href: `/c/${encodeURIComponent(name)}`, count });
-  }
-  chips.push({ name: "no collection", href: `/c/${NO_COLLECTION}`, count: loose });
-  return chips;
-}
-
-export function Chips({ chips, active }: { chips: ChipCount[]; active: string }) {
+export function Chips({
+  chips,
+  active,
+}: {
+  chips: { name: string; href: string; count: number }[];
+  active: string;
+}) {
   return (
     <ul className="chips">
       {chips.map((chip) => (
@@ -100,20 +89,26 @@ function bars(seed: string, count: number, scale: number): { id: string; height:
 }
 
 /**
- * The preview a bundle would show once something screenshots its entry file.
- * Real thumbnails are a later slice, so this placeholder is drawn on purpose
- * and a bundle without one must not look broken.
+ * A bundle's preview slot. The bundle itself renders here, live, in a
+ * sandboxed frame. The drawn shape underneath is what shows while the frame
+ * is still coming, and what is left when a bundle has no revision to render.
  */
 export function Thumb({
   seed,
   size,
   href,
+  live,
+  label,
 }: {
   seed: string;
   size: "card" | "detail";
   href?: string;
+  /** The bundle slug, when it has a current revision worth framing. */
+  live?: string;
+  label?: string;
 }) {
   const card = size === "card";
+  const grant = live ? previewGrant(live) : null;
   const inside = (
     <>
       <i className="h" />
@@ -134,17 +129,15 @@ export function Thumb({
       ) : null}
     </>
   );
-  const className = card ? "thumb" : "preview";
-  if (href) {
-    return (
-      <Link className={className} href={href} aria-hidden="true" tabIndex={-1}>
-        {inside}
-      </Link>
-    );
-  }
   return (
-    <div className={className} aria-hidden="true">
+    <Shot
+      className={card ? "thumb" : "preview"}
+      src={grant?.src}
+      expiresAt={grant?.expiresAt}
+      href={href}
+      label={label ?? `Preview of ${seed}`}
+    >
       {inside}
-    </div>
+    </Shot>
   );
 }

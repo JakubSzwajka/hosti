@@ -10,6 +10,7 @@ import {
   updateBundleMeta,
 } from "@/server/catalog";
 import { PushError } from "@/server/errors";
+import { pruneRevisions } from "@/server/retention";
 import { shareLinkUrls } from "@/server/share-links";
 import { writeRevision } from "@/server/storage/revisions";
 
@@ -55,6 +56,15 @@ export async function acceptPush(request: Request, slug: string): Promise<PushRe
     byteSize: stats.byteSize,
     fileCount: stats.fileCount,
   });
+
+  // Retention runs after the pointer has moved, so the revision this push just
+  // made is the one that is safe. A failure here is not the push's failure:
+  // the bundle is live and the worst case is disk that gets reclaimed next time.
+  try {
+    await pruneRevisions(slug);
+  } catch (error) {
+    console.error(`hosti: pruning ${slug} failed`, error);
+  }
 
   const baseUrl = publicBaseUrl(request);
   return {

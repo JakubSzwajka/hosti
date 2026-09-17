@@ -87,6 +87,28 @@ export function updateBundleMeta(
   }
 }
 
+/**
+ * Move a bundle between collections, or out of every one. Unlike the push
+ * headers above, `null` here means what it says: clear it. The catalog is the
+ * only place a collection can be taken away, because a push that sets nothing
+ * must leave the label the owner chose alone.
+ */
+export function setBundleCollection(bundleId: number, collection: string | null): void {
+  db()
+    .prepare("UPDATE bundles SET collection = ? WHERE id = ?")
+    .run(collection ?? null, bundleId);
+}
+
+/** Every collection in use, sorted, for offering the ones that already exist. */
+export function listCollections(): string[] {
+  const rows = db()
+    .prepare(
+      "SELECT DISTINCT collection FROM bundles WHERE collection IS NOT NULL ORDER BY collection",
+    )
+    .all() as { collection: string }[];
+  return rows.map((row) => row.collection);
+}
+
 export function nextRevisionSeq(bundleId: number): number {
   const row = db()
     .prepare("SELECT COALESCE(MAX(seq), 0) AS max_seq FROM revisions WHERE bundle_id = ?")
@@ -116,6 +138,43 @@ export function recordRevision(input: {
   });
   const id = record();
   return toRevision(db().prepare("SELECT * FROM revisions WHERE id = ?").get(id) as RevisionRow);
+}
+
+/** A revision as retention sees it: which row, which directory, and is it live. */
+export type StoredRevision = { id: number; seq: number; current: boolean };
+
+/** Every revision of one bundle, newest first, for deciding what to prune. */
+export function revisionRecords(bundleId: number): StoredRevision[] {
+  const bundle = db()
+    .prepare("SELECT current_revision_id FROM bundles WHERE id = ?")
+    .get(bundleId) as { current_revision_id: number | null } | undefined;
+  const rows = db()
+    .prepare("SELECT id, seq FROM revisions WHERE bundle_id = ? ORDER BY seq DESC")
+    .all(bundleId) as { id: number; seq: number }[];
+  return rows.map((row) => ({
+    id: row.id,
+    seq: row.seq,
+    current: row.id === bundle?.current_revision_id,
+  }));
+}
+
+/**
+ * Drop revision rows. The caller removes the directories afterwards, so a
+ * crash in between leaves files nobody can reach rather than rows pointing at
+ * files that are gone. The current revision is refused outright: retention
+ * decides how many to keep, never whether the live one survives.
+ */
+export function deleteRevisionRows(bundleId: number, ids: number[]): void {
+  if (ids.length === 0) return;
+  const drop = db().transaction(() => {
+    const statement = db().prepare(
+      `DELETE FROM revisions
+        WHERE id = ? AND bundle_id = ?
+          AND id IS NOT (SELECT current_revision_id FROM bundles WHERE id = ?)`,
+    );
+    for (const id of ids) statement.run(id, bundleId, bundleId);
+  });
+  drop();
 }
 
 /** Every push of one bundle, newest first, with the current one marked. */

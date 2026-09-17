@@ -10,21 +10,39 @@ import { contentTypeFor } from "@/server/serving/content-type";
  * assets keep working, which is what a generated report actually needs.
  * Nothing may be framed, no form may post anywhere, no plugin may load.
  */
-export const BUNDLE_CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
-  "style-src 'self' 'unsafe-inline' data:",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' data: blob:",
-  "media-src 'self' data: blob:",
-  "worker-src 'self' blob:",
-  "frame-src 'none'",
-  "object-src 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join("; ");
+function bundleCsp(frameAncestors: string): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:",
+    "style-src 'self' 'unsafe-inline' data:",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "worker-src 'self' blob:",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    `frame-ancestors ${frameAncestors}`,
+  ].join("; ");
+}
+
+export const BUNDLE_CSP = bundleCsp("'none'");
+
+/**
+ * The same box, opened one crack: the catalog may frame its own preview route
+ * so the owner sees what a bundle looks like. Nothing else may frame it, and
+ * the guest route at `/v/` keeps `frame-ancestors 'none'`.
+ */
+export const PREVIEW_CSP = bundleCsp("'self'");
+
+/** Serving options both the guest route and the owner preview route pass down. */
+export type ServeOptions = {
+  status?: number;
+  /** Framed by the catalog, so the response carries `frame-ancestors 'self'`. */
+  embeddable?: boolean;
+};
 
 /**
  * Hosti's own pages under `/v/` are not bundles, so they do not get the bundle
@@ -49,9 +67,9 @@ export function hostiPageHeaders(extra?: HeadersInit): Headers {
   return headers;
 }
 
-export function bundleHeaders(extra?: HeadersInit): Headers {
+export function bundleHeaders(extra?: HeadersInit, options: ServeOptions = {}): Headers {
   const headers = new Headers(extra);
-  headers.set("Content-Security-Policy", BUNDLE_CSP);
+  headers.set("Content-Security-Policy", options.embeddable ? PREVIEW_CSP : BUNDLE_CSP);
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "no-referrer");
   // Deliberately no Access-Control-Allow-Origin: bundle content is same-origin only.
@@ -70,8 +88,9 @@ export async function fileResponse(
   request: Request,
   root: string,
   absolutePath: string,
-  status = 200,
+  options: ServeOptions = {},
 ): Promise<Response | null> {
+  const status = options.status ?? 200;
   let real: string;
   try {
     real = await fs.realpath(absolutePath);
@@ -84,12 +103,15 @@ export async function fileResponse(
   if (!stat?.isFile()) return null;
 
   const etag = etagFor(stat.size, stat.mtimeMs);
-  const headers = bundleHeaders({
-    "Content-Type": contentTypeFor(real),
-    ETag: etag,
-    "Last-Modified": stat.mtime.toUTCString(),
-    "Cache-Control": "no-cache",
-  });
+  const headers = bundleHeaders(
+    {
+      "Content-Type": contentTypeFor(real),
+      ETag: etag,
+      "Last-Modified": stat.mtime.toUTCString(),
+      "Cache-Control": "no-cache",
+    },
+    options,
+  );
 
   if (matchesEtag(request.headers.get("if-none-match"), etag)) {
     return new Response(null, { status: 304, headers });
@@ -133,10 +155,10 @@ const NOT_FOUND_HTML = `<!doctype html>
 `;
 
 /** Hosti's own 404. Used when the bundle has no 404.html of its own. */
-export function hostiNotFound(): Response {
+export function hostiNotFound(options: ServeOptions = {}): Response {
   return new Response(NOT_FOUND_HTML, {
     status: 404,
-    headers: bundleHeaders({ "Content-Type": "text/html; charset=utf-8" }),
+    headers: bundleHeaders({ "Content-Type": "text/html; charset=utf-8" }, options),
   });
 }
 
@@ -148,9 +170,9 @@ export function hostiPage(html: string): Response {
   });
 }
 
-export function bundleRedirect(location: string): Response {
+export function bundleRedirect(location: string, options: ServeOptions = {}): Response {
   return new Response(null, {
     status: 308,
-    headers: bundleHeaders({ Location: location }),
+    headers: bundleHeaders({ Location: location }, options),
   });
 }

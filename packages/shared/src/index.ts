@@ -105,6 +105,20 @@ export type DeletedBundleResponse = {
   deleted: true;
 };
 
+/**
+ * Body of `POST /api/v1/bundles/:slug/prune`. A push prunes on its own, so
+ * this endpoint is for a bundle nobody is pushing any more.
+ */
+export type PrunedRevisionsResponse = {
+  bundle: string;
+  /** How many revisions this server keeps, from `HOSTI_KEEP_REVISIONS`. */
+  keep: number;
+  /** Revision numbers still on disk, newest first. */
+  kept: number[];
+  /** Revision numbers this call removed. */
+  removed: number[];
+};
+
 export type ErrorResponse = {
   error: string;
   message: string;
@@ -115,6 +129,33 @@ export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/;
 
 export function isValidSlug(value: string): boolean {
   return SLUG_PATTERN.test(value);
+}
+
+/**
+ * A collection is a flat label on a bundle, never a directory, so the only
+ * shapes it cannot take are the ones a URL path segment cannot carry.
+ */
+export const COLLECTION_MAX_LENGTH = 64;
+
+/** The catalog's path for bundles in no collection, so it cannot name one. */
+export const NO_COLLECTION_PATH = "-";
+
+/** What the owner is told when a collection name will not do. */
+export const COLLECTION_RULE = `A collection is up to ${COLLECTION_MAX_LENGTH} characters, with no slash, and "${NO_COLLECTION_PATH}" is taken`;
+
+/**
+ * Trim a typed collection to what gets stored. Empty means no collection,
+ * which is how clearing one arrives. Returns `undefined` for a name Hosti
+ * refuses, so a caller can tell "clear it" apart from "that name is wrong".
+ */
+export function readCollection(value: string): string | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > COLLECTION_MAX_LENGTH) return undefined;
+  if (trimmed === NO_COLLECTION_PATH) return undefined;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are exactly what this refuses.
+  if (/[/\\\u0000-\u001f\u007f]/.test(trimmed)) return undefined;
+  return trimmed;
 }
 
 /**

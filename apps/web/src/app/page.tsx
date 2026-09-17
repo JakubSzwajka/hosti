@@ -1,6 +1,6 @@
 import { CatalogScreen, EmptyCatalog } from "@/app/_ui/catalog-screen";
 import { plural } from "@/app/_ui/format";
-import { collectionChips } from "@/app/_ui/pieces";
+import { collectionChips } from "@/app/_ui/format";
 import { requireAdmin } from "@/server/auth/admin";
 import { listCatalog } from "@/server/catalog";
 
@@ -26,8 +26,8 @@ export default async function Catalog() {
       }
       lead={
         <>
-          Everything an agent has pushed to this box. The preview is a placeholder until something
-          screenshots the bundle itself. The block on each card says{" "}
+          Everything an agent has pushed to this box. Each card runs the bundle itself, boxed in so
+          it cannot reach the catalog. The block on each card says{" "}
           <strong>who can open it without the owner password</strong>.
         </>
       }

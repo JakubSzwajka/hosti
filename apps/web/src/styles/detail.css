@@ -78,17 +78,21 @@
   gap: 44px;
   align-items: start;
 }
+/* Wide enough to read, capped so the frame stays a whole page rather than a
+   corner of one: at 720px the scale lands near half and the bundle's first
+   screen fits exactly. */
 .preview {
-  height: 190px;
+  aspect-ratio: 16 / 10;
+  max-width: 720px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   margin: 22px 0 4px;
-  padding: 22px 26px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
   overflow: hidden;
+}
+.preview .shot-art {
+  padding: 22px 26px 0;
+  gap: 9px;
 }
 .preview i {
   display: block;
@@ -226,6 +230,37 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* collection, set or cleared from the bundle page -------------------- */
+.set-collection {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.set-collection label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.set-collection input {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  width: 22ch;
+}
+.set-collection input:focus {
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+  border-color: var(--pop);
 }
 
 /* pin, on the link and on the create form ---------------------------- */

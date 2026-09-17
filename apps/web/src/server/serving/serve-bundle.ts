@@ -1,7 +1,7 @@
 import { resolveShareLink } from "@/server/catalog";
 import { isUnlocked, lockedResponse, UNLOCK_PATH, unlockResponse } from "@/server/serving/gate";
-import { bundleNotFoundFile, resolveBundleRequest } from "@/server/serving/resolve";
-import { bundleRedirect, fileResponse, hostiNotFound } from "@/server/serving/respond";
+import { hostiNotFound } from "@/server/serving/respond";
+import { serveFromRevision } from "@/server/serving/serve-revision";
 import { currentRevisionRoot } from "@/server/storage/paths";
 
 const PREFIX = "/v/";
@@ -51,17 +51,10 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
   const root = await currentRevisionRoot(link.bundleSlug);
   if (!root) return hostiNotFound();
 
-  const search = new URL(request.url).search;
-  const resolution = await resolveBundleRequest(root, parsed.sharePrefix, parsed.requestPath);
-
-  if (resolution.kind === "redirect") {
-    return bundleRedirect(resolution.to + search);
-  }
-  if (resolution.kind === "file") {
-    const response = await fileResponse(request, root, resolution.absolutePath);
-    if (response) return response;
-  }
-  return missing(request, root);
+  return serveFromRevision(request, root, {
+    prefix: parsed.sharePrefix,
+    requestPath: parsed.requestPath,
+  });
 }
 
 /**
@@ -77,13 +70,4 @@ export async function unlockBundleRequest(request: Request): Promise<Response> {
   if (!link) return hostiNotFound();
 
   return unlockResponse(request, parsed, link.pinHash);
-}
-
-async function missing(request: Request, root: string): Promise<Response> {
-  const own = await bundleNotFoundFile(root);
-  if (own) {
-    const response = await fileResponse(request, root, own, 404);
-    if (response) return response;
-  }
-  return hostiNotFound();
 }

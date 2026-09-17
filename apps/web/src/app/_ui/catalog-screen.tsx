@@ -1,7 +1,7 @@
 import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
-import { formatDate, plural } from "@/app/_ui/format";
-import { type ChipCount, Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
+import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
+import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
 
 /** The catalog grid, shared by `/` and `/c/<collection>`. */
 export function CatalogScreen(props: {
@@ -42,7 +42,13 @@ function Card({ bundle }: { bundle: Bundle }) {
   const href = `/b/${bundle.slug}`;
   return (
     <article className="card">
-      <Thumb seed={bundle.slug} size="card" href={href} />
+      <Thumb
+        seed={bundle.slug}
+        size="card"
+        href={href}
+        live={bundle.currentRevision ? bundle.slug : undefined}
+        label={`Preview of ${bundle.title}`}
+      />
       <div className="card-body">
         <h2>
           <Link href={href}>{bundle.title}</Link>

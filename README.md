@@ -33,10 +33,11 @@ in `allowScripts`.
 ## The catalog
 
 ```
-/login        the owner password, one field
-/             every bundle, newest push first
-/c/reports    one collection; /c/- is the bundles no push put in one
-/b/garmin-q3  one bundle: revisions, share links and their PINs, delete
+/login                   the owner password, one field
+/                        every bundle, newest push first
+/c/reports               one collection; /c/- is the bundles no push put in one
+/b/garmin-q3             one bundle: revisions, share links, collection, delete
+/b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
 ```
 
 The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
@@ -45,9 +46,39 @@ The login form takes five wrong passwords per caller per fifteen minutes and
 then locks that caller out for ten. The count lives in memory, so a restart
 clears it.
 
-Every change the catalog makes, creating a share link, revoking one, deleting a
-bundle, logging out, is a POST carrying a token derived from the session. No
-GET ever changes anything.
+Every change the catalog makes, creating a share link, revoking one, setting a
+collection, deleting a bundle, logging out, is a POST carrying a token derived
+from the session. No GET ever changes anything.
+
+### Live previews
+
+Each card on the catalog runs the bundle itself, scaled down. There is no
+screenshot, no stored image and no headless browser: it is the bundle's current
+revision in an `<iframe>`, served from `/b/<slug>/preview/`. That route needs
+the admin session, so a preview works on a private bundle with no share link,
+which is most of them.
+
+The frame carries `sandbox="allow-scripts"` and deliberately **not**
+`allow-same-origin`, so the bundle runs in an opaque origin and cannot read the
+owner's cookie or call the catalog's endpoints with credentials. That costs
+something: a sandboxed document has no site-for-cookies, so the browser
+withholds the `SameSite=Lax` admin cookie from the requests it makes for its own
+`styles.css`. Measured in Chrome, the frame loads and every asset under it 404s.
+
+So the preview URL carries a short-lived signed grant in its path,
+`/b/<slug>/preview/~<grant>/`, which a relative asset URL inherits. A grant is
+minted per page render, lasts 30 minutes, is bound to one bundle slug and is
+signed with `HOSTI_SECRET`. It gives whoever holds that URL read access to that
+one bundle's current revision until it runs out, which is the same power as an
+unlisted share link with a short expiry. It cannot be tied to the session nonce,
+because the nonce lives in the cookie the sandbox strips, so logging out does
+not kill an outstanding grant. Rotating `HOSTI_SECRET` does.
+
+Preview responses answer `frame-ancestors 'self'` so the catalog may frame them.
+The guest route at `/v/` is unchanged and still answers `frame-ancestors 'none'`.
+Frames mount as cards come near the viewport, so a catalog of fifty bundles does
+not start fifty page loads at once, and a card shows its drawn placeholder until
+its frame loads.
 
 ### The origin risk
 
@@ -59,6 +90,10 @@ into the page, never stored in a readable cookie, and the push API stays on
 bearer tokens that no browser holds. The real fix is serving `/v/` from a second
 hostname, and that is the first thing to revisit before Hosti hosts anything
 someone else generated.
+
+The preview frame is the one place a bundle already runs boxed off from this
+origin, because its sandbox denies `allow-same-origin`. A bundle opened through
+`/v/` in its own tab still runs on the catalog's origin and still gets that read.
 
 ## The CLI
 
@@ -130,6 +165,39 @@ Pushing an unknown slug creates the bundle. Pushing it again creates the next
 revision and moves `current` onto it. **A push never creates a share link**, so
 `shareUrls` is empty until someone asks for one, and the bundle answers 404 at
 `/v/<slug>/` until then.
+
+## Keeping the last few revisions
+
+Old pushes are the one thing here that grows without bound, so a push keeps the
+newest few revisions of its bundle and deletes the rest, files and rows both.
+`HOSTI_KEEP_REVISIONS` sets the count and defaults to 5. A value below 1 is read
+as 1, and anything that is not a number falls back to 5. **The current revision
+is never deleted**, whatever the count says.
+
+A push prunes on its own. The endpoint is for a bundle nobody is pushing any
+more, usually after the keep count was tightened:
+
+```bash
+curl -X POST localhost:3000/api/v1/bundles/squad-2026/prune \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
+# 200 {"bundle":"squad-2026","keep":5,"kept":[9,8,7,6,5],"removed":[4,3,2,1]}
+```
+
+The bundle page shows how many revisions are kept.
+
+## Collections
+
+A collection is a flat label on a bundle, never a directory, and a bundle sits
+in zero or one. A push sets one with `--collection`, and the bundle page is
+where the owner changes it or takes it away:
+
+```
+/b/squad-2026   type a name that exists, type a new one, or clear it
+```
+
+Clearing moves the bundle to the `no collection` chip at `/c/-`, which is why
+`-` cannot name a collection. Nor can a name with a slash in it, or one over 64
+characters; the page says so and changes nothing.
 
 ## Share links
 

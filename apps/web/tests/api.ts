@@ -1,4 +1,5 @@
 /** Calling the route handlers the way a client does, without a live server. */
+import { POST as PRUNE } from "@/app/api/v1/bundles/[slug]/prune/route";
 import { DELETE as DELETE_BUNDLE } from "@/app/api/v1/bundles/[slug]/route";
 import { POST as PUSH } from "@/app/api/v1/bundles/[slug]/revisions/route";
 import {
@@ -64,6 +65,17 @@ export function revokeShare(token: string, shareSlug: string): Promise<Response>
     headers: auth(token),
   });
   return REVOKE_SHARE(request, { params: Promise.resolve({ shareSlug }) });
+}
+
+/** `POST /api/v1/bundles/<slug>/prune`, with no bearer when the token is empty. */
+export function prune(token: string, slug: string): Promise<Response> {
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/prune`, {
+    method: "POST",
+    headers,
+  });
+  return PRUNE(request, { params: Promise.resolve({ slug }) });
 }
 
 export function removeBundle(token: string, slug: string): Promise<Response> {

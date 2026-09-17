@@ -1,5 +1,38 @@
 /* The catalog's preview grid: one card per bundle. */
 
+/* a live preview slot ----------------------------------------------- */
+/* The bundle itself renders in the frame; the drawn shape underneath is what
+   shows until it loads, and what stays when it never does. */
+.shot {
+  position: relative;
+}
+.shot-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.shot-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  transform-origin: top left;
+  background: #fff;
+  /* Inert on purpose: the card's own link takes the click. */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease-in;
+}
+.shot[data-live] .shot-frame {
+  opacity: 1;
+}
+.shot-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
 /* the preview grid -------------------------------------------------- */
 .grid {
   display: grid;
@@ -18,11 +51,11 @@
   aspect-ratio: 16 / 10;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  padding: 16px 16px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
   overflow: hidden;
+}
+.thumb .shot-art {
+  padding: 16px 16px 0;
+  gap: 7px;
 }
 .thumb i {
   display: block;

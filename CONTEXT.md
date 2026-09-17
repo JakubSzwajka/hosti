@@ -19,7 +19,8 @@ _Avoid_: site, artifact, report, project.
 
 **Revision**:
 One push of a bundle. Pushing the same slug again creates a new revision and
-moves the `current` pointer. Old revisions stay on disk until they are pruned.
+moves the `current` pointer. A push then prunes: the newest few revisions stay
+and the rest are deleted, files and rows both.
 _Avoid_: version, build, deploy.
 
 **Catalog**:
@@ -28,7 +29,8 @@ _Avoid_: dashboard, library, gallery.
 
 **Collection**:
 A named group of bundles, such as `reports` or `garmin`. Flat, not a tree. A
-bundle belongs to zero or one collection.
+bundle belongs to zero or one collection, set by a push header or by the owner
+on the bundle page, and cleared only by the owner.
 _Avoid_: folder, directory, tag, category.
 
 **Share link**:
@@ -76,6 +78,15 @@ One path under `/v/` is Hosti's own rather than the bundle's:
 POST   /v/<share-slug>/unlock                the pin gate's form, no token
 ```
 
+And one path outside `/v/` serves bundle bytes to the owner alone, so the
+catalog can show a bundle nobody has shared:
+
+```
+GET    /b/<slug>/preview/                    admin session
+GET    /b/<slug>/preview/~<grant>/<path>     a signed grant, for the frame
+POST   /api/v1/bundles/<slug>/prune          push token, prune on demand
+```
+
 ## Rules the code must keep
 
 1. [x] A half-finished push never becomes the current revision. Unpack, verify
@@ -101,3 +112,12 @@ POST   /v/<share-slug>/unlock                the pin gate's form, no token
     the bundle nor whether the slug is real.
 11. [x] Hosti keeps no record of who opened a link: no counters, no hit table,
     no last-opened stamp, no addresses.
+12. [x] Retention never deletes the current revision, whatever the keep count
+    says, and it removes only `r<n>` directories directly inside the bundle's
+    own directory. It never follows `current`, which is a symlink.
+13. [x] The catalog's preview frame denies `allow-same-origin`, so a bundle
+    cannot read the owner's cookie out of it. That is also why the preview URL
+    carries its grant in the path: a sandboxed document is refused the admin
+    cookie on its own asset requests, so nothing else would reach it.
+14. [x] Only a preview response may be framed, and only by this origin. Every
+    `/v/` response stays `frame-ancestors 'none'`.

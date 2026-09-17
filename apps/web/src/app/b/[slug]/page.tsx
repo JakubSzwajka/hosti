@@ -1,3 +1,4 @@
+import { COLLECTION_RULE } from "@hosti/shared";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,8 +7,8 @@ import { CopyButton } from "@/app/_ui/copy-button";
 import { formatBytes, formatDate, plural } from "@/app/_ui/format";
 import { ShareFlag, Thumb } from "@/app/_ui/pieces";
 import { requireAdmin } from "@/server/auth/admin";
-import { findBundle, listRevisions } from "@/server/catalog";
-import { baseUrlFromHeaders } from "@/server/config";
+import { findBundle, listCollections, listRevisions } from "@/server/catalog";
+import { baseUrlFromHeaders, keepRevisions } from "@/server/config";
 import { listShareLinks } from "@/server/share-links";
 
 export const runtime = "nodejs";
@@ -18,7 +19,7 @@ export default async function BundleDetail({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ delete?: string; share?: string }>;
+  searchParams: Promise<{ delete?: string; share?: string; collection?: string }>;
 }) {
   const admin = await requireAdmin();
   const { slug } = await params;
@@ -29,6 +30,7 @@ export default async function BundleDetail({
   const revisions = listRevisions(bundle.id);
   const links = listShareLinks(bundle.id, baseUrl);
   const query = await searchParams;
+  const keep = keepRevisions();
   const confirming = query.delete === "1";
   const current = revisions.find((revision) => revision.current);
   const token = admin.mutationToken;
@@ -50,10 +52,15 @@ export default async function BundleDetail({
           <ShareFlag count={links.length} />
         </p>
 
-        <Thumb seed={bundle.slug} size="detail" />
+        <Thumb
+          seed={bundle.slug}
+          size="detail"
+          live={current ? bundle.slug : undefined}
+          label={`Preview of ${bundle.title}`}
+        />
         <p className="preview-cap">
           {current
-            ? `Preview of revision r${current.seq}. Real thumbnails come later, this shape is a placeholder.`
+            ? `Revision r${current.seq}, running live in a sandboxed frame. Only you can open it.`
             : "No revision has landed yet, so there is nothing to preview."}
         </p>
 
@@ -73,12 +80,20 @@ export default async function BundleDetail({
               ))}
             </ul>
             <p className="note" style={{ marginTop: "12px" }}>
-              Old revisions stay on disk until they are pruned. The current pointer moves on every
-              push.
+              Every push keeps the newest {plural(keep, "revision")} of this bundle and deletes the
+              rest. The current one never goes, whatever the count says. Change it with{" "}
+              <span className="mono">HOSTI_KEEP_REVISIONS</span>.
             </p>
           </section>
 
           <div>
+            <CollectionSection
+              slug={bundle.slug}
+              collection={bundle.collection}
+              known={listCollections()}
+              token={token}
+              refused={query.collection}
+            />
             <ShareLinks slug={bundle.slug} links={links} token={token} refused={query.share} />
             <DeleteSection slug={bundle.slug} token={token} confirming={confirming} />
           </div>
@@ -86,6 +101,69 @@ export default async function BundleDetail({
       </div>
       <Footer />
     </>
+  );
+}
+
+/**
+ * Set, change or clear the bundle's collection. A collection is a flat label,
+ * so this is one text field: type a name that exists, type a new one, or drop
+ * the bundle out of every collection.
+ */
+function CollectionSection({
+  slug,
+  collection,
+  known,
+  token,
+  refused,
+}: {
+  slug: string;
+  collection: string | null;
+  known: string[];
+  token: string;
+  refused?: string;
+}) {
+  const others = known.filter((name) => name !== collection);
+  return (
+    <section className="sect">
+      <h3>Collection</h3>
+      {refused === "bad_collection" ? <p className="error">{COLLECTION_RULE}.</p> : null}
+      <form className="set-collection" method="post" action={`/b/${slug}/collection`}>
+        <input type="hidden" name="token" value={token} />
+        <label>
+          in
+          <input
+            name="collection"
+            defaultValue={collection ?? ""}
+            list={`collections-${slug}`}
+            maxLength={64}
+            autoComplete="off"
+            placeholder="no collection"
+            aria-label={`collection for ${slug}`}
+          />
+        </label>
+        <datalist id={`collections-${slug}`}>
+          {others.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        <button className="btn" type="submit">
+          save
+        </button>
+      </form>
+      {collection ? (
+        <form method="post" action={`/b/${slug}/collection`}>
+          <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="clear" value="1" />
+          <button className="btn" type="submit" data-tone="danger">
+            clear it
+          </button>
+        </form>
+      ) : null}
+      <p className="note" style={{ marginTop: "12px" }}>
+        A collection is a flat label, never a directory, and a bundle sits in zero or one. Clearing
+        it moves this bundle to <span className="mono">no collection</span>.
+      </p>
+    </section>
   );
 }
 
