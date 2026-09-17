@@ -36,7 +36,7 @@ in `allowScripts`.
 /login                   the owner password, one field
 /                        every bundle, newest push first
 /c/reports               one collection; /c/- is the bundles no push put in one
-/b/garmin-q3             one bundle: revisions, share links, collection, delete
+/b/garmin-q3             one bundle: preview, revisions, share links, collection, delete
 /b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
 /upload                  drop an archive here; the drop zone posts to it
 ```
@@ -113,6 +113,13 @@ Frames mount as cards come near the viewport, so a catalog of fifty bundles does
 not start fifty page loads at once, and a card shows its drawn placeholder until
 its frame loads.
 
+A preview renders at a fixed viewport width and is then scaled to fit its slot:
+760px for a card, 1100px for the bundle page. Rendering everything at 1280 and
+scaling a card to a quarter made the text vanish; at 760 a bundle's own
+responsive rules fire and the type survives the scale as legible shape. Both
+slots crop to the first screen and fade out at the base, so a cut reads as a
+crop rather than as a broken page.
+
 ### The origin risk
 
 A bundle runs its own JavaScript on the same origin as the catalog, so a script
@@ -150,9 +157,9 @@ hosti prune squad-2026
 ```
 
 `open` prints where a bundle can be read: its share link, or its owner-only
-page when nobody has opened a door yet. The URL is always the last line and
-nothing else is on it, so `hosti open x | tail -1` is a URL. `--open` hands it
-to the platform's browser as well. An unknown slug exits 1.
+page when no link exists yet. The URL is always the last line and nothing else
+is on it, so `hosti open x | tail -1` is a URL. `--open` hands it to the
+platform's browser as well. An unknown slug exits 1.
 
 `prune` trims a bundle to the newest few revisions and says which it kept and
 which it took away. The count is the server's, from `HOSTI_KEEP_REVISIONS`;
@@ -272,18 +279,18 @@ that names none leaves the label the owner chose where it is.
 
 ## Share links
 
-A share link is the only public door to a bundle. One bundle may hold several,
+A share link is the only public path to a bundle. One bundle may hold several,
 and revoking one leaves the bundle and its other links alone. Every call needs a
 push token.
 
 ```bash
-# open it; the link takes the bundle slug
+# create it; the link takes the bundle slug
 curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
   -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
 # 201 {"bundle":"squad-2026","link":{"slug":"squad-2026",
 #      "url":"http://localhost:3000/v/squad-2026/","createdAt":"..."}}
 
-# open it behind an unguessable slug: eight characters, no vowels
+# create it behind an unguessable slug: eight characters, no vowels
 curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
   -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
   -H "Content-Type: application/json" -d '{"unlisted":true}'
@@ -308,10 +315,10 @@ exists and carries no behaviour.
 
 ## PINs on a share link
 
-A PIN turns one link into a door that asks for four to eight digits. **You type
-the digits; Hosti never invents them.** It hashes what you send with `scrypt`
-and a fresh salt, so no endpoint and no page ever shows a PIN again. To change
-one, set a new one. To get rid of the gate, remove it.
+A PIN makes one link ask for four to eight digits first. **You type the digits;
+Hosti never invents them.** It hashes what you send with `scrypt` and a fresh
+salt, so no endpoint and no page ever shows a PIN again. To change one, set a
+new one. To get rid of the gate, remove it.
 
 ```bash
 # born protected
@@ -413,6 +420,25 @@ docker compose down
 One service, one named volume at `/data`. Put Caddy in front for TLS. The
 compose file does not pass `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` through yet,
 so add them to the service's `environment:` before the catalog will open.
+
+## The mark
+
+Two pages linked, one bundle pointing at another. It is drawn by hand as SVG,
+not generated and not traced from a bitmap, so every edge is a whole pixel at
+16px and at 32px.
+
+```
+apps/web/src/app/icon.svg        the favicon; Next links it for you
+apps/web/src/app/apple-icon.png  180px, the same drawing on the same paper white
+apps/web/src/app/_ui/mark.tsx    <Mark size={24} />, inline, ink from currentColor
+```
+
+The icon carries its own near-white plate, which is what lets one drawing sit on
+a light tab strip and a dark one. `<Mark>` drops the plate and borrows the
+surrounding text colour instead. Both share one set of numbers on a 32 grid; the
+comment in `mark.tsx` says why they are those numbers. `apple-icon.png` is a
+180px browser render of `icon.svg` over `#f8fdff`, so the plate's rounded corners
+disappear into a full square and iOS applies its own mask.
 
 ## Layout
 

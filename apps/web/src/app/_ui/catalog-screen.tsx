@@ -50,6 +50,7 @@ export function CatalogScreen(props: {
 
 function Card({ bundle }: { bundle: Bundle }) {
   const href = `/b/${bundle.slug}`;
+  const open = bundle.currentRevision ? `/b/${bundle.slug}/preview/` : null;
   return (
     <article className="card">
       <Thumb
@@ -71,11 +72,19 @@ function Card({ bundle }: { bundle: Bundle }) {
           &middot; {formatDate(bundle.updatedAt)}
         </p>
       </div>
+      {/* Open, not delete. The card's loudest control should be the one used
+          every day, and deleting still lives on the bundle's own page. */}
       <div className="card-foot">
         <ShareFlag count={bundle.shareSlugs.length} />
-        <Link className="del" href={`${href}?delete=1#delete`}>
-          delete
-        </Link>
+        {open ? (
+          <a className="card-open" href={open} target="_blank" rel="noreferrer">
+            open <span aria-hidden="true">&#8599;</span>
+          </a>
+        ) : (
+          <span className="card-open" aria-disabled="true">
+            no revision
+          </span>
+        )}
       </div>
     </article>
   );
@@ -84,32 +93,52 @@ function Card({ bundle }: { bundle: Bundle }) {
 export function Footer() {
   return (
     <footer className="foot">
-      Push with <span className="mono">hosti push ./out --slug garmin-q3</span>. The catalog needs
-      the owner password. A share link never does.
+      <span>
+        Push with <span className="mono">hosti push ./out --slug my-report</span>.
+      </span>
+      <span>The catalog needs the owner password. A share link never does.</span>
     </footer>
   );
 }
 
-/** What a new install sees first: how to get a bundle in. */
+/**
+ * What a new install sees first. It is the only screen where the catalog has
+ * to teach rather than list, so it is the whole first move in order: mint a
+ * token, push a folder, then decide who may see it.
+ */
 export function EmptyCatalog() {
   return (
     <div className="empty">
       <h2>Nothing pushed yet</h2>
-      <p>
-        An agent puts a bundle here with one command. Mint a push token, then point the CLI at this
-        server:
+      <p className="empty-lead">
+        A bundle is a folder of static files with an <span className="mono">index.html</span> at its
+        root. Hosti gives it a URL. Two commands and this page fills up.
       </p>
-      <pre>
-        <span className="c"># mint a token, from the repository root</span>
-        {"\n"}npm run token:new -- --name laptop{"\n\n"}
-        <span className="c"># then, wherever the bundle is</span>
-        {"\n"}export HOSTI_URL=http://127.0.0.1:3000{"\n"}export HOSTI_TOKEN=hosti_...{"\n"}hosti
-        push ./out --slug my-report --title "My report"
-      </pre>
-      <p>
-        The bundle arrives private. Open its page and create a share link when someone should see
-        it.
-      </p>
+      <ol className="steps">
+        <li>
+          <h3>Mint a push token</h3>
+          <p>From the repository root. It is the only secret an agent ever holds.</p>
+          <pre>npm run token:new -- --name laptop</pre>
+        </li>
+        <li>
+          <h3>Push a folder</h3>
+          <p>
+            From wherever the bundle is. Or drag a <span className="mono">.zip</span> onto this
+            page.
+          </p>
+          <pre>
+            export HOSTI_URL=http://127.0.0.1:3000{"\n"}export HOSTI_TOKEN=hosti_&hellip;{"\n"}hosti
+            push ./out --slug my-report
+          </pre>
+        </li>
+        <li>
+          <h3>Decide who may open it</h3>
+          <p>
+            It arrives private, and it stays private. Nothing is public until you create a share
+            link from the bundle&apos;s own page.
+          </p>
+        </li>
+      </ol>
     </div>
   );
 }
@@ -119,9 +148,9 @@ export function EmptyCollection({ name }: { name: string }) {
   return (
     <div className="empty">
       <h2>Nothing in {name}</h2>
-      <p>
-        No bundle carries this collection right now. A push sets it with the{" "}
-        <span className="mono">--collection</span> flag.
+      <p className="empty-lead">
+        No bundle carries this collection right now. A push sets one with{" "}
+        <span className="mono">--collection</span>, and the bundle page sets one by hand.
       </p>
       <p>
         <Link className="btn" href="/">

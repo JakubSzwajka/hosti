@@ -72,11 +72,11 @@ A push stops at the left column. Nothing on the right answers until a share
 link exists, and share links are their own endpoints, all on the push token:
 
 ```
-POST   /api/v1/bundles/<slug>/share-links    open a door, unlisted on request
-GET    /api/v1/bundles/<slug>/share-links    the doors this bundle has
-PUT    /api/v1/share-links/<share-slug>/pin  set or replace the pin on a door
+POST   /api/v1/bundles/<slug>/share-links    create a link, unlisted on request
+GET    /api/v1/bundles/<slug>/share-links    the links this bundle has
+PUT    /api/v1/share-links/<share-slug>/pin  set or replace the pin on a link
 DELETE /api/v1/share-links/<share-slug>/pin  take the pin off
-DELETE /api/v1/share-links/<share-slug>      shut one door
+DELETE /api/v1/share-links/<share-slug>      revoke one link
 DELETE /api/v1/bundles/<slug>                forget the bundle, files and all
 ```
 

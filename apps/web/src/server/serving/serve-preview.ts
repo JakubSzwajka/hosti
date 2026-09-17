@@ -9,7 +9,7 @@ import { serveFromRevision } from "@/server/serving/serve-revision";
 import { currentRevisionRoot } from "@/server/storage/paths";
 
 /**
- * The owner's own door onto a bundle: `/b/<slug>/preview/`, serving the same
+ * The owner's own path onto a bundle: `/b/<slug>/preview/`, serving the same
  * bytes `/v/` would serve.
  *
  * It exists because most bundles have no share link at all, so the catalog

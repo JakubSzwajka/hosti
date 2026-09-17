@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { plural } from "@/app/_ui/format";
+import { Mark } from "@/app/_ui/mark";
 import { Shot } from "@/app/_ui/shot";
 import { previewGrant } from "@/server/serving/preview-token";
 
@@ -8,11 +9,14 @@ import { previewGrant } from "@/server/serving/preview-token";
  * chips, the share-state block and the placeholder preview.
  */
 
-export function Masthead({ meta, token }: { meta: string; token: string }) {
+export function Masthead({ meta, token }: { meta: React.ReactNode; token: string }) {
   return (
     <header className="mast">
       <h1>
-        <Link href="/">hosti</Link>
+        <Link className="wordmark" href="/">
+          <Mark size={19} />
+          hosti
+        </Link>
       </h1>
       <div className="meta">
         <span>{meta}</span>
@@ -54,7 +58,7 @@ export function Chips({
 
 /**
  * Share state as words on a block, not a coloured dot. A private bundle reads
- * `private`, an open one reads `shared` with how many doors it has.
+ * `private`, a shared one reads `shared` with how many links it has.
  */
 export function ShareFlag({ count }: { count: number }) {
   if (count === 0) {
@@ -98,6 +102,7 @@ export function Thumb({
   size,
   href,
   live,
+  openHref,
   label,
 }: {
   seed: string;
@@ -105,6 +110,8 @@ export function Thumb({
   href?: string;
   /** The bundle slug, when it has a current revision worth framing. */
   live?: string;
+  /** Where clicking the picture opens the bundle itself, in a new tab. */
+  openHref?: string;
   label?: string;
 }) {
   const card = size === "card";
@@ -132,9 +139,11 @@ export function Thumb({
   return (
     <Shot
       className={card ? "thumb" : "preview"}
+      width={card ? "card" : "detail"}
       src={grant?.src}
       expiresAt={grant?.expiresAt}
       href={href}
+      openHref={openHref}
       label={label ?? `Preview of ${seed}`}
     >
       {inside}

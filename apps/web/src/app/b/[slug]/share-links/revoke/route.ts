@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Shut one door. The share slug must belong to this bundle, so a stale form
- * cannot revoke a link on some other bundle.
+ * Revoke one share link. The share slug must belong to this bundle, so a
+ * stale form cannot revoke a link on some other bundle.
  */
 export async function POST(
   request: Request,

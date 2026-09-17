@@ -22,8 +22,16 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
  * frame mounts, and what is left showing when one never loads.
  */
 
-/** The viewport width every preview renders at, before it is scaled down. */
-const PREVIEW_WIDTH = 1280;
+/**
+ * The viewport width a preview renders at before it is scaled down.
+ *
+ * A card is about 320px wide, so rendering a bundle at a 1280px viewport and
+ * scaling it to fit puts the text at a quarter size, which is no text at all.
+ * Rendering narrower means a bundle's own responsive rules fire and the type
+ * lands around 7px on the card: not readable, but legible as shape, which is
+ * what recognising a bundle at a glance actually needs.
+ */
+const PREVIEW_WIDTH = { card: 760, detail: 1100 } as const;
 
 /** Start loading this many pixels before the card scrolls into view. */
 const LOOKAHEAD_PX = 300;
@@ -32,13 +40,17 @@ type Box = { scale: number; height: number };
 
 export function Shot({
   className,
+  width,
   src,
   expiresAt,
   href,
+  openHref,
   label,
   children,
 }: {
   className: string;
+  /** Which render width this slot wants. */
+  width: keyof typeof PREVIEW_WIDTH;
   /** The owner-only preview URL, or undefined when there is nothing to show. */
   src?: string;
   /**
@@ -49,6 +61,12 @@ export function Shot({
   expiresAt?: number | null;
   /** Where a click on the shot goes, when it should go anywhere. */
   href?: string;
+  /**
+   * Where a click opens the bundle itself, in a new tab. Clicking the picture
+   * of a thing to see the thing is the first move anyone makes, so the shot
+   * takes it rather than sitting inert beside a button.
+   */
+  openHref?: string;
   label: string;
   children: ReactNode;
 }) {
@@ -67,7 +85,7 @@ export function Shot({
     const measure = () => {
       const rect = node.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
-      const scale = rect.width / PREVIEW_WIDTH;
+      const scale = rect.width / PREVIEW_WIDTH[width];
       setBox({ scale, height: Math.round(rect.height / scale) });
     };
     measure();
@@ -116,7 +134,7 @@ export function Shot({
       watcher.disconnect();
       window.removeEventListener("scroll", onScroll);
     };
-  }, [src, expiresAt]);
+  }, [src, expiresAt, width]);
 
   return (
     <div className={`${className} shot`} ref={holder} {...(loaded ? { "data-live": "" } : {})}>
@@ -136,13 +154,18 @@ export function Shot({
           aria-hidden="true"
           onLoad={() => setLoaded(true)}
           style={{
-            width: `${PREVIEW_WIDTH}px`,
+            width: `${PREVIEW_WIDTH[width]}px`,
             height: `${box.height}px`,
             transform: `scale(${box.scale})`,
           }}
         />
       ) : null}
       {href ? <Link className="shot-hit" href={href} aria-hidden="true" tabIndex={-1} /> : null}
+      {openHref ? (
+        <a className="shot-open" href={openHref} target="_blank" rel="noreferrer">
+          <span>open bundle &#8599;</span>
+        </a>
+      ) : null}
     </div>
   );
 }

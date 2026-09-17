@@ -1,0 +1,161 @@
+/* The two panels that change who can open a bundle: its share links and the
+   collection it sits in. */
+
+/* one share link ------------------------------------------------------ */
+.link-card {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 13px 15px;
+  margin-bottom: 12px;
+}
+.link-card .path {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pop);
+  /* A share slug has no spaces, so it needs permission to break, but not the
+     mid-word chopping `break-all` does to the readable part of the path. */
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.link-card .props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin: 8px 0 11px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.link-card .props span[data-pin] {
+  color: var(--pop);
+  font-weight: 500;
+}
+
+/* set, replace or remove one link's pin. The digits are never shown back. */
+.pin-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+.pin-row form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pin-field {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  width: 17ch;
+}
+.pin-field:focus {
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+  border-color: var(--pop);
+}
+
+/* A private bundle has one obvious next move, so the panel that makes it is
+   the one tinted block on the page. It also fills the column that would
+   otherwise trail off, since a bundle with no links has little to list. */
+.sect[data-private] {
+  background: var(--pop-wash);
+  border-color: #b6d2d5;
+}
+.sect[data-private] > h3 {
+  color: #3d6468;
+  border-bottom-color: #c6dcde;
+}
+.sect[data-private] .note {
+  color: #3d6468;
+}
+.sect[data-private] .pin-field,
+.sect[data-private] .btn {
+  background: var(--card);
+  border-color: #b6d2d5;
+}
+.sect[data-private] .btn[type="submit"] {
+  border-color: var(--pop);
+  color: var(--pop);
+}
+.sect[data-private] .btn[type="submit"]:hover {
+  background: var(--pop);
+  color: var(--card);
+}
+
+/* making a new share link --------------------------------------------- */
+/* Two rows on purpose: the button, then the two things that change what it
+   makes. In one wrapping row the options drifted onto three lines and read as
+   three unrelated controls. */
+.make-link {
+  display: flex;
+  gap: 9px 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line-soft);
+}
+.make-link button {
+  flex: none;
+}
+/* Shrinks and wraps in a narrow column, but never stretches to push the pin
+   field to the far edge of a full-width row. */
+.make-link label:first-of-type {
+  flex: 0 1 34ch;
+}
+/* No links yet: there is nothing above to divide this from. */
+.sect[data-private] .make-link {
+  border-top: 0;
+  padding-top: 0;
+}
+.make-link label {
+  font-size: 12.5px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.make-link input[type="checkbox"] {
+  accent-color: var(--pop);
+  margin: 0;
+}
+
+/* collection, set or cleared from the bundle page ---------------------- */
+.set-collection {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.set-collection label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.set-collection input {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  width: 20ch;
+}
+.set-collection input:focus {
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+  border-color: var(--pop);
+}

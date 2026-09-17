@@ -43,11 +43,14 @@ export type MutationRefusal = { ok: false; response: Response };
 export type MutationAllowed = { ok: true; session: AdminSession };
 
 /**
- * The gate every POST from the catalog passes. It wants a live session cookie
- * and the matching mutation token in the form body, because a script inside a
- * bundle shares this origin and the cookie rides along on its own.
+ * The half of the gate that reads only headers.
+ *
+ * A route whose body is expensive to parse calls this first, so an anonymous
+ * caller is turned away before the server buffers anything they sent. The
+ * mutation token still has to be checked afterwards, because this alone does
+ * not prove the request came from a page Hosti rendered.
  */
-export function guardMutation(request: Request, form: FormData): MutationRefusal | MutationAllowed {
+export function guardSession(request: Request): MutationRefusal | MutationAllowed {
   const secrets = adminSecrets();
   if (!secrets) {
     return { ok: false, response: new Response("Hosti is not configured", { status: 503 }) };
@@ -56,6 +59,22 @@ export function guardMutation(request: Request, form: FormData): MutationRefusal
   if (!session) {
     return { ok: false, response: new Response("Sign in first", { status: 401 }) };
   }
+  return { ok: true, session };
+}
+
+/**
+ * The gate every POST from the catalog passes. It wants a live session cookie
+ * and the matching mutation token in the form body, because a script inside a
+ * bundle shares this origin and the cookie rides along on its own.
+ */
+export function guardMutation(request: Request, form: FormData): MutationRefusal | MutationAllowed {
+  const gate = guardSession(request);
+  if (!gate.ok) return gate;
+  const secrets = adminSecrets();
+  if (!secrets) {
+    return { ok: false, response: new Response("Hosti is not configured", { status: 503 }) };
+  }
+  const session = gate.session;
   const supplied = form.get("token");
   if (typeof supplied !== "string" || !checkMutationToken(secrets.secret, session, supplied)) {
     return { ok: false, response: new Response("Stale form, reload the page", { status: 403 }) };

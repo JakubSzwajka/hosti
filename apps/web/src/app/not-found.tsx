@@ -1,17 +1,25 @@
 import Link from "next/link";
+import { Mark } from "@/app/_ui/mark";
 
 export const metadata = { title: "Hosti" };
 
-/** Nothing at that path. The wording says nothing about what does exist. */
+/**
+ * Nothing at that path. The wording says nothing about what does exist: a
+ * private bundle, a revoked link and a slug nobody ever pushed all land here
+ * and all read the same.
+ */
 export default function NotFound() {
   return (
     <main className="gate">
-      <h1>hosti</h1>
-      <p className="setup">Nothing here.</p>
-      <p>
-        <Link className="btn" href="/">
-          back to the catalog
-        </Link>
+      <div className="card">
+        <h1>
+          <Mark size={21} />
+          hosti
+        </h1>
+        <p className="setup">Nothing here.</p>
+      </div>
+      <p className="after">
+        <Link href="/">back to the catalog</Link>
       </p>
     </main>
   );

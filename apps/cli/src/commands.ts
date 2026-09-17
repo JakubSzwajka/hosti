@@ -160,8 +160,8 @@ export async function revoke(context: Context): Promise<void> {
 
 /**
  * Where a bundle can be read: its share link, or the owner-only page when
- * nobody has opened a door yet. The URL is the last line on purpose, bare, so
- * `hosti open x | tail -1` is a URL and nothing else.
+ * nobody has created a share link yet. The URL is the last line on purpose,
+ * bare, so `hosti open x | tail -1` is a URL and nothing else.
  */
 export async function open(context: Context): Promise<void> {
   const { client, target, out, base } = context;

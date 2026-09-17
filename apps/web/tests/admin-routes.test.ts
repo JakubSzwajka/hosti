@@ -138,7 +138,7 @@ describe("creating a share link from the catalog", () => {
     expect(slugs[1]).toMatch(/^from-ui-[bcdfghjkmnpqrstvwxz2-9]{8}$/);
   });
 
-  it("says so when the bundle slug is already a door", async () => {
+  it("says so when the bundle slug is already a share link", async () => {
     const response = await CREATE_LINK(
       post("/b/from-ui/share-links", form({ token })),
       params("from-ui"),

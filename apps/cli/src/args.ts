@@ -161,8 +161,8 @@ export const HELP = `hosti - push static bundles to a Hosti server
 A pin is four to eight digits and you type it. Hosti hashes it, so links
 prints "pin set" and never the digits.
 
-open prints the bundle's share link, or its owner-only page when nobody has
-opened a door yet, and always on the last line. --open hands it to a browser.
+open prints the bundle's share link, or its owner-only page when no link
+exists yet, and always on the last line. --open hands it to a browser.
 prune trims a bundle to the newest few revisions the server keeps.
 
 Config, in order: --url and --token, then HOSTI_URL and HOSTI_TOKEN,

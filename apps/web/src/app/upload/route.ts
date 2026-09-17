@@ -7,7 +7,7 @@ import {
 } from "@hosti/shared";
 import { Readable } from "node:stream";
 import { errorResponse, failureResponse, jsonResponse } from "@/server/api-responses";
-import { guardMutation } from "@/server/auth/admin";
+import { guardMutation, guardSession } from "@/server/auth/admin";
 import { baseUrlFromHeaders } from "@/server/config";
 import { storeRevision } from "@/server/push";
 import { archiveFormat } from "@/server/storage/revisions";
@@ -25,8 +25,15 @@ export const dynamic = "force-dynamic";
  *
  * It answers JSON rather than a redirect, because the browser posts it with
  * XHR to draw a progress bar and to print the server's own refusal.
+ *
+ * The session is checked on the headers alone, before the body is touched.
+ * Reading the form first would have this route buffer 50 MB from a stranger
+ * and only then refuse them.
  */
 export async function POST(request: Request): Promise<Response> {
+  const signedIn = guardSession(request);
+  if (!signedIn.ok) return asJson(signedIn.response);
+
   let form: FormData;
   try {
     form = await request.formData();

@@ -1,0 +1,81 @@
+/* Every breakpoint in one place, so a change to one screen's narrow shape is
+   made where the others can be seen. */
+
+@media (max-width: 900px) {
+  .wrap {
+    padding: 26px 20px 0;
+  }
+  .foot {
+    padding: 18px 20px 0;
+  }
+  .mast {
+    align-items: flex-start;
+    gap: 10px;
+    flex-direction: column;
+  }
+  .detail-head h2 {
+    font-size: 30px;
+    max-width: none;
+  }
+  /* One stack. Order matters more than balance now: the picture, the links,
+     then the record and the label. */
+  .detail-cols {
+    grid-template-columns: 1fr;
+    gap: var(--gap);
+    margin-top: var(--gap);
+  }
+  .empty {
+    padding: 22px 22px 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .detail-head h2 {
+    font-size: 25px;
+  }
+  .detail-head {
+    gap: 14px;
+  }
+  .head-acts {
+    width: 100%;
+  }
+  .head-acts .btn {
+    flex: 1;
+    text-align: center;
+  }
+  .revs li {
+    grid-template-columns: 30px 1fr auto;
+    gap: 9px;
+  }
+  .revs .tag {
+    display: none;
+  }
+  .revs li[data-current] span:first-child::after {
+    content: " ·";
+    color: var(--pop);
+  }
+  .set-collection input {
+    width: 100%;
+  }
+  .drop-form label {
+    flex-basis: 100%;
+  }
+  .drop-form label input {
+    width: 100%;
+  }
+  .pin-row form {
+    flex-wrap: wrap;
+  }
+  .gate {
+    margin-top: 7vh;
+  }
+}
+
+/* Every transition on the catalog is timed from one variable, so asking the
+   system to stop moving things is one line rather than an `!important` sheet
+   fighting the rest of the CSS. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t: 0ms;
+  }
+}

@@ -78,6 +78,37 @@ describe("who may upload", () => {
     expect(findBundle("no-session")).toBeNull();
   });
 
+  it("refuses an anonymous caller before it reads the body", async () => {
+    // The refusal has to come off the headers alone. Parsing the form first
+    // would let a stranger make the server buffer up to the 50 MB limit and
+    // only then be told no, so the test watches every way in to the body and
+    // asserts the route took none of them.
+    const body = new FormData();
+    body.set("token", token);
+    body.set("slug", "never-read");
+    body.set("file", new File([new Uint8Array(await zipFixture("multi-page"))], "x.zip"));
+    const request = new Request(`${ORIGIN}/upload`, { method: "POST", body });
+
+    const reads: string[] = [];
+    for (const name of ["formData", "arrayBuffer", "text", "blob", "bytes", "json"] as const) {
+      const original = request[name].bind(request);
+      Object.defineProperty(request, name, {
+        configurable: true,
+        value: () => {
+          reads.push(name);
+          return original();
+        },
+      });
+    }
+
+    const response = await UPLOAD(request);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ error: "not_signed_in" });
+    expect(reads).toEqual([]);
+    expect(request.bodyUsed).toBe(false);
+    expect(findBundle("never-read")).toBeNull();
+  });
+
   it("refuses a session with a missing or wrong mutation token", async () => {
     const bytes = await zipFixture("multi-page");
     const missing = await upload({ slug: "no-token", file: { name: "x.zip", bytes } });

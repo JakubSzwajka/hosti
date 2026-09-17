@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Mark } from "@/app/_ui/mark";
 import { currentAdmin } from "@/server/auth/admin";
 import { missingAdminVars } from "@/server/auth/config";
 
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Hosti" };
 
 /**
- * The only door into the catalog. It shows one field, one button and one error
+ * The page that guards the catalog. It shows one field, one button and one error
  * line, and it says nothing about what is stored here, because a stranger who
  * lands on it should learn nothing at all.
  */
@@ -23,8 +24,14 @@ export default async function Login({
 
   return (
     <main className="gate">
-      <h1>hosti</h1>
-      {missing.length > 0 ? <Setup missing={missing} /> : <Form error={error} />}
+      <div className="card">
+        <h1>
+          <Mark size={21} />
+          hosti
+        </h1>
+        {missing.length > 0 ? <Setup missing={missing} /> : <Form error={error} />}
+      </div>
+      {missing.length === 0 ? <p className="after">A share link never asks for this.</p> : null}
     </main>
   );
 }
@@ -52,8 +59,8 @@ function Form({ error }: { error?: string }) {
 /** An install with no secrets set refuses rather than letting anyone in. */
 function Setup({ missing }: { missing: string[] }) {
   return (
-    <div className="setup">
-      <p>
+    <>
+      <p className="setup">
         Hosti is not configured, so it will not serve the catalog. Set{" "}
         {missing.map((name, index) => (
           <span key={name}>
@@ -63,10 +70,10 @@ function Setup({ missing }: { missing: string[] }) {
         ))}{" "}
         in the environment, then restart.
       </p>
-      <p>
+      <p className="setup">
         <code>HOSTI_OWNER_PASSWORD</code> is the password this form takes. <code>HOSTI_SECRET</code>{" "}
         signs the session cookie; any long random string will do.
       </p>
-    </div>
+    </>
   );
 }

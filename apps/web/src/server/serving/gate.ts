@@ -5,7 +5,7 @@
  *
  * 1. The gate is served at the URL the guest was sent. No redirect, because the
  *    link in the address bar is the link somebody forwarded, and a guest who
- *    reloads must land back on the same door.
+ *    reloads must land back on the same link.
  * 2. Only a page request gets a gate. An asset gets the same 404 as any other
  *    miss, so a script or a stylesheet under a locked link tells a prober
  *    nothing and no half-rendered bundle appears.
@@ -50,7 +50,7 @@ function landingPath(parsed: ShareRequest): string {
 
 /**
  * The host as the guest typed it, echoed on the gate so they can see they are
- * at the right door. Falls back to the prefix alone when there is no Host
+ * at the right link. Falls back to the prefix alone when there is no Host
  * header, which is only ever a test calling the handler directly.
  */
 function displayPath(request: Request, parsed: ShareRequest): string {

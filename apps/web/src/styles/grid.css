@@ -22,7 +22,7 @@
   /* Inert on purpose: the card's own link takes the click. */
   pointer-events: none;
   opacity: 0;
-  transition: opacity 160ms ease-in;
+  transition: opacity var(--t) ease-in;
 }
 .shot[data-live] .shot-frame {
   opacity: 1;
@@ -34,24 +34,40 @@
 }
 
 /* the preview grid -------------------------------------------------- */
+/* Tracks are asked for by width, not by count, so the grid never leaves a
+   column half the page wide between two fixed breakpoints. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(266px, 1fr));
+  gap: var(--gap);
 }
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: border-color var(--t) ease;
+}
+.card:hover {
+  border-color: #aeb6b8;
 }
 .thumb {
   aspect-ratio: 16 / 10;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   overflow: hidden;
+}
+/* The same deliberate crop the bundle page uses, so a card reads as the top of
+   a page rather than a page with its bottom torn off. */
+.thumb.shot[data-live]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 44px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, #fff 88%);
 }
 .thumb .shot-art {
   padding: 16px 16px 0;
@@ -126,6 +142,18 @@
   padding: 9px 16px;
   border-top: 1px solid var(--line-soft);
   background: var(--paper);
+}
+.card-open {
+  font-size: 12.5px;
+  color: var(--pop);
+  white-space: nowrap;
+}
+.card-open:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.card-open[aria-disabled="true"] {
+  color: var(--muted);
 }
 
 /* the drop zone ----------------------------------------------------- */
@@ -252,13 +280,4 @@
 }
 .drop .error {
   margin: 12px 0 0;
-}
-
-@media (max-width: 560px) {
-  .drop-form label input {
-    width: 100%;
-  }
-  .drop-form label {
-    flex-basis: 100%;
-  }
 }

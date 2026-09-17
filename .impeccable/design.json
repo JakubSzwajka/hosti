@@ -1,0 +1,374 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-17T00:00:00.000Z",
+  "title": "Design System: Hosti",
+  "extensions": {
+    "colorMeta": {
+      "pop": {
+        "role": "primary",
+        "displayName": "Deep Teal",
+        "canonical": "#06707e",
+        "tonalRamp": [
+          "#021c1f",
+          "#03383f",
+          "#05545e",
+          "#06707e",
+          "#0a95a6",
+          "#3fb6c4",
+          "#8fd6de",
+          "#e4f0f1"
+        ]
+      },
+      "pop-wash": {
+        "role": "primary",
+        "displayName": "Teal Wash",
+        "canonical": "#e4f0f1",
+        "tonalRamp": [
+          "#1d3336",
+          "#2f545a",
+          "#48757c",
+          "#6b979e",
+          "#96bcc1",
+          "#bcd7da",
+          "#e4f0f1",
+          "#f4fafa"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Burnt Red",
+        "canonical": "#8a2b14",
+        "tonalRamp": [
+          "#2c0d06",
+          "#45150a",
+          "#5e1d0e",
+          "#8a2b14",
+          "#b4441f",
+          "#cf6e4c",
+          "#e79f84",
+          "#f6ddd4"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ecf2f3",
+        "tonalRamp": [
+          "#20282a",
+          "#374143",
+          "#51595b",
+          "#6f7779",
+          "#9aa2a4",
+          "#c3cbcc",
+          "#ecf2f3",
+          "#f8fdff"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "#f8fdff",
+        "tonalRamp": [
+          "#222829",
+          "#3a4143",
+          "#545c5e",
+          "#737b7d",
+          "#9ea6a8",
+          "#c8d0d2",
+          "#eef4f6",
+          "#f8fdff"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Empty Slot",
+        "canonical": "#dee4e5",
+        "tonalRamp": [
+          "#1e2324",
+          "#343a3b",
+          "#4d5455",
+          "#6b7274",
+          "#959c9d",
+          "#bcc3c4",
+          "#dee4e5",
+          "#f0f4f5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#2b3133",
+        "tonalRamp": [
+          "#0d1011",
+          "#1b2022",
+          "#2b3133",
+          "#454c4e",
+          "#666e70",
+          "#939b9d",
+          "#c4cccd",
+          "#eaf0f1"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#61686a",
+        "tonalRamp": [
+          "#161a1b",
+          "#262c2d",
+          "#3b4243",
+          "#61686a",
+          "#8a9193",
+          "#b1b8ba",
+          "#d6dcdd",
+          "#f0f4f5"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#c9cfd0",
+        "tonalRamp": [
+          "#1c2021",
+          "#313738",
+          "#4a5152",
+          "#6c7374",
+          "#98a0a1",
+          "#c9cfd0",
+          "#e1e6e7",
+          "#f3f7f8"
+        ]
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Soft Divider",
+        "canonical": "#dde3e4",
+        "tonalRamp": [
+          "#1e2223",
+          "#33393a",
+          "#4c5354",
+          "#6e7576",
+          "#9aa1a2",
+          "#c2c9ca",
+          "#dde3e4",
+          "#f1f5f6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "A bundle's own title. One per page, balanced, capped at 22ch."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The hosti wordmark, empty-state headings, and the PIN gate."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A card's bundle title. Regular weight, because a grid holds ten of them."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose, capped at 48-56ch inside a panel."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Panel headings and field labels. The only uppercase in the system."
+      },
+      "mono": {
+        "displayName": "Machine Voice",
+        "purpose": "Paths, slugs, URLs, sizes, commands and env vars. Ligatures off so a slug reads character by character."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "t",
+        "value": "140ms",
+        "purpose": "The only duration in the system. Every transition reads it, so prefers-reduced-motion is a single override that sets it to 0ms."
+      },
+      {
+        "name": "ease-state",
+        "value": "ease",
+        "purpose": "Border and colour changes on hover."
+      },
+      {
+        "name": "ease-reveal",
+        "value": "ease-out",
+        "purpose": "The preview window's open overlay: opacity plus a 5px rise on the pill."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "900px"
+      },
+      {
+        "name": "phone",
+        "value": "560px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Open Button",
+      "kind": "button",
+      "refersTo": "button-go",
+      "description": "The one filled control on a screen. It opens the bundle in a new tab.",
+      "html": "<a class=\"ds-btn-go\" href=\"#\">open bundle<span class=\"ds-arw\">↗</span></a>",
+      "css": ".ds-btn-go { display: inline-block; border: 1px solid #2b3133; background: #2b3133; color: #ecf2f3; border-radius: 6px; padding: 6px 15px; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background 140ms ease; } .ds-btn-go:hover { background: #1b2123; } .ds-btn-go:focus-visible { outline: 2px solid #06707e; outline-offset: 2px; } .ds-arw { opacity: 0.66; margin-left: 6px; font-size: 11px; }"
+    },
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Every other control. Paper fill, hairline border, lowercase.",
+      "html": "<button class=\"ds-btn\">copy link</button>",
+      "css": ".ds-btn { border: 1px solid #c9cfd0; background: #ecf2f3; color: #2b3133; border-radius: 6px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; transition: border-color 140ms ease, color 140ms ease; } .ds-btn:hover { border-color: #2b3133; } .ds-btn:focus-visible { outline: 2px solid #06707e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Inert Button",
+      "kind": "button",
+      "refersTo": "button-inert",
+      "description": "A control whose action is unavailable. It keeps its place and its label, and says why beside it.",
+      "html": "<span class=\"ds-btn-inert\" aria-disabled=\"true\">copy share link</span>",
+      "css": ".ds-btn-inert { display: inline-block; border: 1px dashed #c9cfd0; background: none; color: #61686a; border-radius: 6px; padding: 4px 11px; font-size: 12.5px; cursor: default; }"
+    },
+    {
+      "name": "Quiet Danger",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "A destructive action. Quietest thing on the page, last, under a rule.",
+      "html": "<button class=\"ds-quiet-danger\">delete this bundle</button>",
+      "css": ".ds-quiet-danger { background: none; border: 0; padding: 0; font: inherit; font-size: 13px; color: #61686a; cursor: pointer; text-decoration: underline; text-decoration-color: #c9cfd0; text-underline-offset: 3px; } .ds-quiet-danger:hover { color: #8a2b14; text-decoration-color: #8a2b14; } .ds-quiet-danger:focus-visible { outline: 2px solid #06707e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Share Flag",
+      "kind": "chip",
+      "refersTo": "flag-shared",
+      "description": "Who can open this bundle without the owner password. Words on a block, never a coloured dot.",
+      "html": "<span class=\"ds-flag\"><b>shared</b><small>2 links</small></span> <span class=\"ds-flag ds-flag-private\"><b>private</b><small>no link</small></span>",
+      "css": ".ds-flag { display: inline-flex; align-items: baseline; gap: 7px; border: 1px solid #06707e; background: #06707e; border-radius: 5px; padding: 3px 9px; font-size: 12px; line-height: 1.3; white-space: nowrap; } .ds-flag b { font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: #fff; } .ds-flag small { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; color: rgba(255,255,255,0.85); } .ds-flag-private { background: none; border-style: dashed; border-color: #c9cfd0; } .ds-flag-private b { color: #61686a; } .ds-flag-private small { color: #61686a; opacity: 0.85; }"
+    },
+    {
+      "name": "Collection Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A flat collection filter above the catalog grid, with a tabular count.",
+      "html": "<a class=\"ds-chip\" href=\"#\">reports<span class=\"ds-n\">4</span></a> <a class=\"ds-chip ds-chip-on\" href=\"#\">all bundles<span class=\"ds-n\">10</span></a>",
+      "css": ".ds-chip { display: inline-block; font-size: 13px; padding: 3px 11px; border: 1px solid #c9cfd0; border-radius: 999px; color: #61686a; text-decoration: none; } .ds-chip:hover { border-color: #2b3133; color: #2b3133; } .ds-chip-on { border-color: #2b3133; color: #2b3133; background: #f8fdff; } .ds-n { font-variant-numeric: tabular-nums; opacity: 0.6; margin-left: 5px; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "The standard container: an uppercase label over a soft divider, then content.",
+      "html": "<section class=\"ds-panel\"><h3>Revisions</h3><p class=\"ds-note\">Every push keeps the newest 5 revisions and deletes the rest.</p></section>",
+      "css": ".ds-panel { background: #f8fdff; border: 1px solid #c9cfd0; border-radius: 10px; padding: 15px 19px 17px; } .ds-panel h3 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #61686a; font-weight: 500; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid #dde3e4; } .ds-note { font-size: 13px; color: #61686a; margin: 0; max-width: 48ch; }"
+    },
+    {
+      "name": "Urgent Panel",
+      "kind": "card",
+      "refersTo": "panel-urgent",
+      "description": "The one tinted block on a screen. Exactly one state earns it: a bundle nobody can open yet.",
+      "html": "<section class=\"ds-panel-urgent\"><h3>Share links</h3><p class=\"ds-note-urgent\">This bundle is private. Nothing answers until you open a door.</p><button class=\"ds-btn-urgent\">create share link</button></section>",
+      "css": ".ds-panel-urgent { background: #e4f0f1; border: 1px solid #b6d2d5; border-radius: 10px; padding: 15px 19px 17px; } .ds-panel-urgent h3 { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #3d6468; font-weight: 500; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid #c6dcde; } .ds-note-urgent { font-size: 13px; color: #3d6468; margin: 0 0 12px; max-width: 48ch; } .ds-btn-urgent { background: #f8fdff; border: 1px solid #06707e; color: #06707e; border-radius: 6px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; transition: background 140ms ease, color 140ms ease; } .ds-btn-urgent:hover { background: #06707e; color: #f8fdff; }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Every text field. The PIN variant is mono because it holds digits a person is copying.",
+      "html": "<input class=\"ds-input\" placeholder=\"no collection\" /> <input class=\"ds-input ds-pin\" placeholder=\"4 to 8 digits\" />",
+      "css": ".ds-input { font: inherit; font-size: 13px; color: #2b3133; background: #f8fdff; border: 1px solid #c9cfd0; border-radius: 6px; padding: 4px 9px; width: 20ch; caret-color: #06707e; } .ds-input:focus { outline: 2px solid #06707e; outline-offset: 1px; border-color: #06707e; } .ds-pin { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; width: 17ch; }"
+    },
+    {
+      "name": "Preview Window",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "The signature component. A bar naming the path and revision, the bundle running live, a deliberate fade at the base, and a caption.",
+      "html": "<section class=\"ds-window\"><p class=\"ds-window-bar\"><span class=\"ds-where\">/b/training-load/</span><span class=\"ds-rev\">r7</span></p><div class=\"ds-window-slot\"><div class=\"ds-window-body\"><strong>Weekly training load</strong><span></span><span></span></div></div><p class=\"ds-window-cap\">Running live in a sandboxed frame, cropped to the first screen. Only you can open it.</p></section>",
+      "css": ".ds-window { background: #f8fdff; border: 1px solid #c9cfd0; border-radius: 10px; overflow: hidden; } .ds-window-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 8px 13px; border-bottom: 1px solid #c9cfd0; background: #ecf2f3; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11.5px; color: #61686a; } .ds-where { color: #06707e; } .ds-window-slot { position: relative; aspect-ratio: 16 / 10; background: #fff; overflow: hidden; } .ds-window-slot::after { content: ''; position: absolute; inset: auto 0 0 0; height: 76px; background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, #fff 82%); } .ds-window-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 9px; font-size: 15px; } .ds-window-body span { display: block; height: 6px; border-radius: 2px; background: #dde3e4; width: 78%; } .ds-window-cap { font-size: 12.5px; color: #61686a; margin: 0; padding: 9px 13px 10px; border-top: 1px solid #dde3e4; background: #f8fdff; }"
+    },
+    {
+      "name": "Masthead",
+      "kind": "nav",
+      "refersTo": "panel",
+      "description": "The whole of the navigation: mark plus wordmark home, meta and log out right, a printer's rule beneath.",
+      "html": "<header class=\"ds-mast\"><h1><a class=\"ds-wordmark\" href=\"#\"><svg viewBox=\"0 0 32 32\" width=\"19\" height=\"19\" fill=\"none\" aria-hidden=\"true\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"3\" stroke=\"currentColor\" stroke-width=\"4\"/><rect x=\"12\" y=\"12\" width=\"16\" height=\"16\" rx=\"3\" stroke=\"#06707e\" stroke-width=\"4\"/><rect x=\"18\" y=\"10\" width=\"4\" height=\"4\" fill=\"currentColor\"/></svg>hosti</a></h1><div class=\"ds-mast-meta\"><span>10 bundles · 2 collections · newest first</span><button class=\"ds-signout\">log out</button></div></header>",
+      "css": ".ds-mast { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 13px; border-bottom: 2px solid #2b3133; } .ds-mast h1 { font-family: Fraunces, Superclarendon, Georgia, serif; font-weight: 900; font-size: 22px; letter-spacing: -0.02em; margin: 0; } .ds-wordmark { display: inline-flex; align-items: center; gap: 9px; color: #2b3133; text-decoration: none; } .ds-wordmark svg { display: block; flex: none; margin-top: -3px; } .ds-mast-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #61686a; font-variant-numeric: tabular-nums; } .ds-signout { background: none; border: 0; padding: 0; color: #61686a; cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; } .ds-signout:hover { color: #2b3133; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Contact Sheet",
+    "overview": "A photographer's contact sheet is a working object, not a presentation. Every frame from the roll is printed at thumbnail size on one piece of paper, so the eye can run down the sheet and find the one worth enlarging. The paper is plain, the grease pencil is one colour, and nothing on the sheet competes with the frames.\n\nHosti is that sheet for the bundles an agent leaves behind. The bundle itself is the only image on the screen, running live in a box. Everything around it is paper, a hairline, and small type that stays out of the way. The screen has one accent, a deep teal, and it is spent on the two things that carry risk: who can open this, and where the link points.\n\nThe paper is real. --paper carries a 22px dot grid at 8% ink, which is the only texture in the system and the reason a bundle's own white reads as a page laid on a desk rather than a panel floating in a void. Depth comes from that contrast and from one hairline, never from a shadow.",
+    "keyCharacteristics": [
+      "Cool near-white paper with a fine dot grid; bundle previews are the only saturated things on screen.",
+      "One display serif with real weight, against a plain grotesque, against a monospace reserved for paths and machine values.",
+      "Flat. One 1px hairline is the entire depth system.",
+      "Type is small and dense; the page is generous.",
+      "Destructive controls are the quietest thing on the screen."
+    ],
+    "rules": [
+      {
+        "name": "The Two Jobs Rule",
+        "body": "Teal has exactly two jobs: it names a machine value, and it marks the one next action. Red has exactly one: this refuses, or this destroys. A colour with a third job is a bug.",
+        "section": "colors"
+      },
+      {
+        "name": "The Words Rule",
+        "body": "Share state is never a coloured dot. `private` and `shared` are printed words on a block, and the block's colour only repeats what the words already said.",
+        "section": "colors"
+      },
+      {
+        "name": "The Machine Voice Rule",
+        "body": "Monospace means a value a machine produced or consumes: a path, a slug, a URL, a size, a command, an env var. It is not a texture. A word a person wrote is never mono.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Serif Rule",
+        "body": "The serif names things. Titles, the wordmark, empty-state headings. It never carries a sentence.",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared Baseline Rule",
+        "body": "Two columns of panels always start level, and each column always holds more than one panel. A single short card beside a tall stack is the failure this layout exists to prevent.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ask By Width Rule",
+        "body": "Grid tracks are declared with `minmax`, never with a fixed column count plus breakpoints. A count fixes the wrong thing.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Edge Rule",
+        "body": "A surface declares itself once. A 1px border, or a tone step, never a border under a shadow. Nothing in Hosti has both a border and a shadow, because nothing in Hosti has a shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Deliberate Crop Rule",
+        "body": "A preview never simply stops. It is bounded above by a bar that names what it is showing, and it fades out at the base. A frame cut through a sentence with a hard edge reads as broken software.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep a control in place when its action is unavailable. Render it inert with a reason beside it. A control that disappears sends the owner hunting for something they already learned the position of.",
+      "Do put `open` in the loudest slot on any screen that shows a bundle. It is the first thing anyone reaches for.",
+      "Do spend teal on machine values and on the one next action, and nowhere else.",
+      "Do give every column of panels a partner panel, and start both columns on one baseline.",
+      "Do set every path, slug, URL, size and command in mono with ligatures off.",
+      "Do time every transition from --t so prefers-reduced-motion is one override.",
+      "Do theme the surfaces the browser would otherwise own: selection, caret, scrollbar, focus ring, underline offset, and tabular numerals."
+    ],
+    "donts": [
+      "Don't add a shadow. The system is flat, and a border under a shadow is the ghost card this world exists without.",
+      "Don't give a destructive control more weight than a daily one. Delete is a quiet underlined link on a full-width strip, last on the page, under a rule. It is never a panel of its own, and it is never on a catalog card.",
+      "Don't use a coloured dot, a badge or an icon for share state. Words on a block.",
+      "Don't use monospace as a costume for \"technical\". It marks machine values only.",
+      "Don't declare grid tracks by count plus a breakpoint. Use `minmax`.",
+      "Don't introduce a second accent, a gradient on text, glass, a dark mode toggle, an icon font, or a second display face.",
+      "Don't claim behaviour the server does not have. Share links do not expire, nothing counts views, and no screen can ever show a PIN back."
+    ]
+  }
+}
