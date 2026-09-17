@@ -118,6 +118,20 @@ export function recordRevision(input: {
   return toRevision(db().prepare("SELECT * FROM revisions WHERE id = ?").get(id) as RevisionRow);
 }
 
+/** Every push of one bundle, newest first, with the current one marked. */
+export function listRevisions(bundleId: number): (Revision & { current: boolean })[] {
+  const bundle = db()
+    .prepare("SELECT current_revision_id FROM bundles WHERE id = ?")
+    .get(bundleId) as { current_revision_id: number | null } | undefined;
+  const rows = db()
+    .prepare("SELECT * FROM revisions WHERE bundle_id = ? ORDER BY seq DESC")
+    .all(bundleId) as RevisionRow[];
+  return rows.map((row) => ({
+    ...toRevision(row),
+    current: row.id === bundle?.current_revision_id,
+  }));
+}
+
 export type ResolvedShareLink = {
   shareSlug: string;
   bundleSlug: string;

@@ -25,3 +25,16 @@ export function publicBaseUrl(request: Request): string {
   if (configured) return configured.replace(/\/+$/, "");
   return new URL(request.url).origin;
 }
+
+/**
+ * The same origin for a server component, which has headers but no Request.
+ * Falls back to the dev address when a proxy strips the host header.
+ */
+export function baseUrlFromHeaders(headers: Headers): string {
+  const configured = process.env.HOSTI_PUBLIC_URL;
+  if (configured) return configured.replace(/\/+$/, "");
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  if (!host) return `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
+  const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "http";
+  return `${proto}://${host}`;
+}

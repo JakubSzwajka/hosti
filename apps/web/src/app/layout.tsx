@@ -1,25 +1,27 @@
 import type { ReactNode } from "react";
+import "../styles/hosti.css";
+import "../styles/grid.css";
+import "../styles/detail.css";
+import "../styles/forms.css";
 
 export const metadata = {
   title: "Hosti",
   description: "Catalog and host for static bundles",
 };
 
+const FONTS =
+  "https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          font: "16px/1.6 ui-sans-serif, system-ui, sans-serif",
-          margin: "12vh auto",
-          maxWidth: "36rem",
-          padding: "0 1.5rem",
-          color: "#1c1917",
-          background: "#fafaf9",
-        }}
-      >
-        {children}
-      </body>
+      <head>
+        <link rel="preconnect" href="https://fonts.bunny.net" />
+        {/* Display type and body type. The stack falls back to system faces, so
+            a box with no outbound network still renders the right shapes. */}
+        <link rel="stylesheet" href={FONTS} />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

@@ -1,18 +1,37 @@
+import { CatalogScreen, EmptyCatalog } from "@/app/_ui/catalog-screen";
+import { plural } from "@/app/_ui/format";
+import { collectionChips } from "@/app/_ui/pieces";
+import { requireAdmin } from "@/server/auth/admin";
+import { listCatalog } from "@/server/catalog";
+
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Placeholder for the catalog. The catalog UI, the login screen and the bundle
- * detail page belong to a later slice; this page only proves the app boots.
- */
-export default function CatalogPlaceholder() {
+export default async function Catalog() {
+  const admin = await requireAdmin();
+  const bundles = listCatalog();
+  const chips = collectionChips(bundles);
+  const collections = chips.length - 2;
+
   return (
-    <main>
-      <h1>Hosti</h1>
-      <p>The engine is up. The catalog UI is not built yet.</p>
-      <p>
-        Push a bundle with <code>POST /api/v1/bundles/&lt;slug&gt;/revisions</code> and open it at{" "}
-        <code>/v/&lt;share-slug&gt;/</code>.
-      </p>
-    </main>
+    <CatalogScreen
+      bundles={bundles}
+      chips={chips}
+      active="/"
+      token={admin.mutationToken}
+      heading={
+        bundles.length === 0
+          ? "no bundles yet"
+          : `${plural(bundles.length, "bundle")} \u00b7 ${plural(collections, "collection")} \u00b7 newest first`
+      }
+      lead={
+        <>
+          Everything an agent has pushed to this box. The preview is a placeholder until something
+          screenshots the bundle itself. The block on each card says{" "}
+          <strong>who can open it without the owner password</strong>.
+        </>
+      }
+      emptyNote={<EmptyCatalog />}
+    />
   );
 }

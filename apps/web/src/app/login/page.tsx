@@ -1,0 +1,72 @@
+import { redirect } from "next/navigation";
+import { currentAdmin } from "@/server/auth/admin";
+import { missingAdminVars } from "@/server/auth/config";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export const metadata = { title: "Hosti" };
+
+/**
+ * The only door into the catalog. It shows one field, one button and one error
+ * line, and it says nothing about what is stored here, because a stranger who
+ * lands on it should learn nothing at all.
+ */
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const missing = missingAdminVars();
+  if (missing.length === 0 && (await currentAdmin())) redirect("/");
+  const { error } = await searchParams;
+
+  return (
+    <main className="gate">
+      <h1>hosti</h1>
+      {missing.length > 0 ? <Setup missing={missing} /> : <Form error={error} />}
+    </main>
+  );
+}
+
+function Form({ error }: { error?: string }) {
+  return (
+    <form method="post" action="/login/submit">
+      <label htmlFor="password">Owner password</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        autoComplete="current-password"
+        required
+      />
+      <button type="submit">Sign in</button>
+      {error === "locked" ? (
+        <p className="error">Too many attempts. Wait a few minutes and try again.</p>
+      ) : null}
+      {error === "bad" ? <p className="error">That password does not open this catalog.</p> : null}
+    </form>
+  );
+}
+
+/** An install with no secrets set refuses rather than letting anyone in. */
+function Setup({ missing }: { missing: string[] }) {
+  return (
+    <div className="setup">
+      <p>
+        Hosti is not configured, so it will not serve the catalog. Set{" "}
+        {missing.map((name, index) => (
+          <span key={name}>
+            {index > 0 ? " and " : ""}
+            <code>{name}</code>
+          </span>
+        ))}{" "}
+        in the environment, then restart.
+      </p>
+      <p>
+        <code>HOSTI_OWNER_PASSWORD</code> is the password this form takes. <code>HOSTI_SECRET</code>{" "}
+        signs the session cookie; any long random string will do.
+      </p>
+    </div>
+  );
+}

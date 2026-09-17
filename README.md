@@ -9,8 +9,13 @@ The words Hosti uses are defined in [CONTEXT.md](./CONTEXT.md).
 
 ```bash
 npm install
-npm run dev            # http://localhost:3000
+export HOSTI_OWNER_PASSWORD=whatever-you-will-remember
+export HOSTI_SECRET=$(openssl rand -hex 32)
+npm run dev            # http://127.0.0.1:3000
 ```
+
+Without those two variables the catalog will not serve a single admin page. It
+says which one is missing on `/login` instead of letting anyone in.
 
 Other commands, all from the repository root:
 
@@ -24,6 +29,36 @@ npm run token:new -- --name laptop
 `npm install` on npm 11 asks before running a dependency's install script.
 `better-sqlite3` needs its one, and `package.json` already records the approval
 in `allowScripts`.
+
+## The catalog
+
+```
+/login        the owner password, one field
+/             every bundle, newest push first
+/c/reports    one collection; /c/- is the bundles no push put in one
+/b/garmin-q3  one bundle: revisions, share links, delete
+```
+
+The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
+when the request arrived over TLS, good for 30 days, signed with `HOSTI_SECRET`.
+The login form takes five wrong passwords per caller per fifteen minutes and
+then locks that caller out for ten. The count lives in memory, so a restart
+clears it.
+
+Every change the catalog makes, creating a share link, revoking one, deleting a
+bundle, logging out, is a POST carrying a token derived from the session. No
+GET ever changes anything.
+
+### The origin risk
+
+A bundle runs its own JavaScript on the same origin as the catalog, so a script
+inside a bundle you forgot about can `fetch('/')` with the owner cookie attached
+and read the catalog back. Slice 1 accepts that read. What it does not accept is
+that same script writing: mutations need a per-session token that is rendered
+into the page, never stored in a readable cookie, and the push API stays on
+bearer tokens that no browser holds. The real fix is serving `/v/` from a second
+hostname, and that is the first thing to revisit before Hosti hosts anything
+someone else generated.
 
 ## The CLI
 
@@ -174,12 +209,14 @@ docker compose exec web node scripts/new-token.mjs --name vps
 docker compose down
 ```
 
-One service, one named volume at `/data`. Put Caddy in front for TLS.
+One service, one named volume at `/data`. Put Caddy in front for TLS. The
+compose file does not pass `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` through yet,
+so add them to the service's `environment:` before the catalog will open.
 
 ## Layout
 
 ```
-apps/web         Next.js: push API, share-link API, bundle serving
+apps/web         Next.js: the catalog UI, push API, share-link API, serving
 apps/cli         hosti: push, ls, share, links, rm, revoke
 packages/shared  types both sides need
 fixtures/        the three bundle shapes plus one that links from the root
