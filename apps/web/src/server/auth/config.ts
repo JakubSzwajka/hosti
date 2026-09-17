@@ -22,6 +22,15 @@ export function missingAdminVars(): string[] {
   return missing;
 }
 
+/**
+ * The signing key on its own. The PIN gate needs it to sign unlock cookies and
+ * does not care about the owner password, because no owner is involved: the
+ * guest at the gate has a link and four digits, nothing else.
+ */
+export function signingSecret(): string | null {
+  return process.env[SECRET_VAR]?.trim() || null;
+}
+
 /** The secrets, or null when either one is missing. */
 export function adminSecrets(): AdminSecrets | null {
   const password = process.env[OWNER_PASSWORD_VAR];

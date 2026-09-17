@@ -92,6 +92,8 @@ export default async function BundleDetail({
 const SHARE_REFUSALS: Record<string, string> = {
   share_link_exists: "That door is already open. Revoke it, or ask for an unlisted link.",
   slug_too_long: "An unlisted link would push the slug past 64 characters.",
+  bad_pin: "A pin is four to eight digits and nothing else.",
+  not_configured: "Set HOSTI_SECRET in the environment before a link can carry a pin.",
 };
 
 function ShareLinks({
@@ -101,7 +103,7 @@ function ShareLinks({
   refused,
 }: {
   slug: string;
-  links: { slug: string; url: string; createdAt: string }[];
+  links: { slug: string; url: string; createdAt: string; hasPin: boolean }[];
   token: string;
   refused?: string;
 }) {
@@ -122,6 +124,9 @@ function ShareLinks({
           <p className="props">
             <span>{link.slug === slug ? "bundle slug" : "unlisted"}</span>
             <span>created {formatDate(link.createdAt)}</span>
+            <span data-pin={link.hasPin ? "" : undefined}>
+              {link.hasPin ? "pin set" : "no pin"}
+            </span>
           </p>
           <span className="acts">
             <CopyButton value={link.url} />
@@ -136,6 +141,7 @@ function ShareLinks({
               </button>
             </form>
           </span>
+          <PinControls slug={slug} link={link} token={token} />
         </div>
       ))}
       <form className="make-link" method="post" action={`/b/${slug}/share-links`}>
@@ -147,8 +153,67 @@ function ShareLinks({
           <input type="checkbox" name="unlisted" value="1" />
           unlisted, eight random characters on the end
         </label>
+        <label>
+          pin
+          <input
+            className="pin-field"
+            type="text"
+            name="pin"
+            inputMode="numeric"
+            maxLength={8}
+            autoComplete="off"
+            placeholder="optional"
+          />
+        </label>
       </form>
+      <p className="note" style={{ marginTop: "12px" }}>
+        A pin is four to eight digits and it is yours to choose. Hosti hashes it, so nobody can read
+        it back here; to change one, type a new one.
+      </p>
     </section>
+  );
+}
+
+/** Set, replace or remove one link's PIN. The digits are never shown back. */
+function PinControls({
+  slug,
+  link,
+  token,
+}: {
+  slug: string;
+  link: { slug: string; hasPin: boolean };
+  token: string;
+}) {
+  return (
+    <span className="pin-row">
+      <form method="post" action={`/b/${slug}/share-links/pin`}>
+        <input type="hidden" name="token" value={token} />
+        <input type="hidden" name="shareSlug" value={link.slug} />
+        <input
+          className="pin-field"
+          type="text"
+          name="pin"
+          inputMode="numeric"
+          maxLength={8}
+          autoComplete="off"
+          aria-label={link.hasPin ? `replace the pin on ${link.slug}` : `set a pin on ${link.slug}`}
+          placeholder="4 to 8 digits"
+        />
+        <button className="btn" type="submit">
+          {link.hasPin ? "replace pin" : "set pin"}
+        </button>
+      </form>
+      {link.hasPin ? (
+        <form method="post" action={`/b/${slug}/share-links/pin`}>
+          <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="shareSlug" value={link.slug} />
+          <input type="hidden" name="remove" value="1" />
+          <button className="btn" type="submit" data-tone="danger">
+            remove pin
+          </button>
+        </form>
+      ) : null}
+    </span>
   );
 }
 

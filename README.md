@@ -36,7 +36,7 @@ in `allowScripts`.
 /login        the owner password, one field
 /             every bundle, newest push first
 /c/reports    one collection; /c/- is the bundles no push put in one
-/b/garmin-q3  one bundle: revisions, share links, delete
+/b/garmin-q3  one bundle: revisions, share links and their PINs, delete
 ```
 
 The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
@@ -68,12 +68,20 @@ export HOSTI_TOKEN=$(npm run --silent token:new -- --name laptop | sed -n 2p)
 
 hosti push ./fixtures/multi-page --slug squad-2026 --title "Squad 2026"
 hosti share squad-2026
+hosti share squad-2026 --unlisted --pin 4821
 hosti push ./out --slug atlas --share --unlisted
 hosti ls
 hosti links squad-2026
+hosti pin squad-2026-k7f3n9qp --set 1234
+hosti pin squad-2026-k7f3n9qp --remove
 hosti revoke atlas-k7f3n9qp
 hosti rm atlas
 ```
+
+`links` prints `pin set` beside a protected link and never the digits, because
+Hosti holds a hash and cannot read the PIN back. `--pin` needs a link to sit on,
+so on `push` it only makes sense with `--share` or `--unlisted`. Digits the
+server refuses come back as its own message on the last line, exit code 1.
 
 The binary is `apps/cli`, linked into `node_modules/.bin/hosti` by `npm
 install`. It runs its TypeScript straight on Node 22.18 or newer, so there is
@@ -156,8 +164,61 @@ curl -X DELETE localhost:3000/api/v1/bundles/squad-2026 \
 ```
 
 A second link on the bundle slug answers 409. Revoking drops the row, so the
-slug can be handed out again. PINs and expiry are slice 2; their columns exist
-and carry no behaviour.
+slug can be handed out again. Expiry is not implemented: the `expires_at` column
+exists and carries no behaviour.
+
+## PINs on a share link
+
+A PIN turns one link into a door that asks for four to eight digits. **You type
+the digits; Hosti never invents them.** It hashes what you send with `scrypt`
+and a fresh salt, so no endpoint and no page ever shows a PIN again. To change
+one, set a new one. To get rid of the gate, remove it.
+
+```bash
+# born protected
+curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
+  -H "Content-Type: application/json" -d '{"unlisted":true,"pin":"4821"}'
+# 201 ... "link":{"slug":"squad-2026-k7f3n9qp",...,"hasPin":true}
+
+# put one on later, or replace the one there
+curl -X PUT localhost:3000/api/v1/share-links/squad-2026-k7f3n9qp/pin \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
+  -H "Content-Type: application/json" -d '{"pin":"1234"}'
+# 200 {"shareSlug":"squad-2026-k7f3n9qp","hasPin":true}
+
+# take the gate away
+curl -X DELETE localhost:3000/api/v1/share-links/squad-2026-k7f3n9qp/pin \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
+# 200 {"shareSlug":"squad-2026-k7f3n9qp","hasPin":false}
+```
+
+Anything that is not four to eight digits comes back 400 `bad_pin`, and the
+message never quotes what you sent. Setting a PIN needs `HOSTI_SECRET`, because
+that key signs the cookie a guest gets for typing it right; without the key the
+call is refused 503 rather than leaving a link nobody could open.
+
+What a guest sees at `/v/<share-slug>/`:
+
+```
+browser asks for a page   200, the gate, at the same URL, no redirect
+anything else asks        404, the same 404 as any other miss
+POST .../unlock, right    303 onward, cookie set
+POST .../unlock, wrong    303 back to the gate, one error line
+```
+
+The cookie is `hosti_pin_<share-slug>`: HttpOnly, SameSite=Lax, Secure over TLS,
+`Path=/v/<share-slug>`, good for 12 hours. It opens that one link. A second
+protected link on the same bundle asks again, because the PIN sits on the link
+and not on the bundle.
+
+The gate takes ten wrong PINs per caller per fifteen minutes and then shuts that
+link to that caller for an hour, and while it is shut the right PIN is refused
+too. The count lives in memory, so a restart clears it. The gate itself names
+nothing: not the bundle title, not the collection, not whether the slug is real.
+
+Hosti keeps no record of who opened a link. No counters, no hit table, no last
+opened stamp, no addresses.
 
 Hosti stores what it unpacks and nothing else. The entry file is `index.html` at
 the root of the pushed tree; a tree with exactly one root `.html` file and no
@@ -174,7 +235,7 @@ so a single-file push from a mac shell still has exactly one root HTML file.
 ## Read a bundle
 
 ```
-/v/x                  308 to /v/x/
+/v/x                  308 to /v/x/, unless a PIN gates it
 /v/x/                 index.html
 /v/x/athletes/        athletes/index.html
 /v/x/athletes         308 to /v/x/athletes/
@@ -217,7 +278,7 @@ so add them to the service's `environment:` before the catalog will open.
 
 ```
 apps/web         Next.js: the catalog UI, push API, share-link API, serving
-apps/cli         hosti: push, ls, share, links, rm, revoke
+apps/cli         hosti: push, ls, share, links, pin, rm, revoke
 packages/shared  types both sides need
 fixtures/        the three bundle shapes plus one that links from the root
 ```

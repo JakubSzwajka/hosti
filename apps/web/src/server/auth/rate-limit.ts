@@ -1,8 +1,8 @@
 /**
- * Guard on the login form. There is one password and one owner, so the only
- * attack worth stopping is someone guessing it in a loop. Counting in memory
- * is enough for slice 1: one process, one box, and a restart that forgets
- * everything costs an attacker more than it costs the owner.
+ * Guard on the login form and on the PIN gate. There is one password and one
+ * owner, so the only attack worth stopping is someone guessing in a loop.
+ * Counting in memory is enough: one process, one box, and a restart that
+ * forgets everything costs an attacker more than it costs the owner.
  */
 
 export type LimiterOptions = {
@@ -70,7 +70,19 @@ export function createLoginLimiter(options: Partial<LimiterOptions> = {}): Login
   };
 }
 
-type LimiterHolder = { __hostiLoginLimiter?: LoginLimiter };
+/**
+ * The PIN gate is looser than the login form, because a guest who mistypes a
+ * four digit PIN twice has done nothing wrong, and then far harsher, because a
+ * PIN is only four to eight digits and an hour of silence is what makes that
+ * space expensive to walk.
+ */
+export const PIN_LIMITS: LimiterOptions = {
+  maxAttempts: 10,
+  windowMs: 15 * 60 * 1000,
+  lockMs: 60 * 60 * 1000,
+};
+
+type LimiterHolder = { __hostiLoginLimiter?: LoginLimiter; __hostiPinLimiter?: LoginLimiter };
 
 /**
  * One limiter for the process, parked on `globalThis` so a dev-server reload
@@ -80,6 +92,22 @@ export function loginLimiter(): LoginLimiter {
   const holder = globalThis as LimiterHolder;
   holder.__hostiLoginLimiter ??= createLoginLimiter();
   return holder.__hostiLoginLimiter;
+}
+
+/** The same counting, on its own budget, for the PIN gate. */
+export function pinLimiter(): LoginLimiter {
+  const holder = globalThis as LimiterHolder;
+  holder.__hostiPinLimiter ??= createLoginLimiter(PIN_LIMITS);
+  return holder.__hostiPinLimiter;
+}
+
+/**
+ * One budget per caller per share link. Counting per caller is what stops a
+ * brute force; scoping the lock to the link is what stops one attacker from
+ * shutting a link for everyone else holding it.
+ */
+export function pinKey(headers: Headers, shareSlug: string): string {
+  return `${callerKey(headers)}|${shareSlug}`;
 }
 
 /**

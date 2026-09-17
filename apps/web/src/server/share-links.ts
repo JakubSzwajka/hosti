@@ -8,6 +8,7 @@ type ShareLinkRow = {
   id: number;
   slug: string;
   bundle_id: number;
+  pin_hash: string | null;
   created_at: string;
 };
 
@@ -31,14 +32,21 @@ export function unlistedSuffix(): string {
 }
 
 function toShareLink(row: ShareLinkRow, baseUrl: string): ShareLink {
-  return { slug: row.slug, url: `${baseUrl}/v/${row.slug}/`, createdAt: row.created_at };
+  return {
+    slug: row.slug,
+    url: `${baseUrl}/v/${row.slug}/`,
+    createdAt: row.created_at,
+    hasPin: row.pin_hash !== null,
+  };
 }
 
-function insert(slug: string, bundleId: number): ShareLinkRow | null {
+function insert(slug: string, bundleId: number, pinHash: string | null): ShareLinkRow | null {
   try {
     const result = db()
-      .prepare("INSERT INTO share_links (slug, bundle_id, created_at) VALUES (?, ?, ?)")
-      .run(slug, bundleId, nowIso());
+      .prepare(
+        "INSERT INTO share_links (slug, bundle_id, pin_hash, created_at) VALUES (?, ?, ?, ?)",
+      )
+      .run(slug, bundleId, pinHash, nowIso());
     return db()
       .prepare("SELECT * FROM share_links WHERE id = ?")
       .get(result.lastInsertRowid as number) as ShareLinkRow;
@@ -56,10 +64,11 @@ function insert(slug: string, bundleId: number): ShareLinkRow | null {
  */
 export function createShareLink(
   bundle: { id: number; slug: string },
-  options: { unlisted?: boolean } = {},
+  options: { unlisted?: boolean; pinHash?: string | null } = {},
 ): ShareLinkRow {
+  const pinHash = options.pinHash ?? null;
   if (!options.unlisted) {
-    const row = insert(bundle.slug, bundle.id);
+    const row = insert(bundle.slug, bundle.id, pinHash);
     if (row) return row;
     throw new PushError(
       "share_link_exists",
@@ -76,10 +85,29 @@ export function createShareLink(
         `An unlisted link adds ${UNLISTED_LENGTH + 1} characters, which puts "${slug}" over ${MAX_SLUG_LENGTH}`,
       );
     }
-    const row = insert(slug, bundle.id);
+    const row = insert(slug, bundle.id, pinHash);
     if (row) return row;
   }
   throw new PushError("share_link_exists", "Could not find a free unlisted slug", 409);
+}
+
+/**
+ * Set, replace or clear the PIN on one link. Passing null takes the gate away,
+ * which is the only way back once a PIN is on: the hash cannot be read back.
+ */
+export function setSharePin(shareSlug: string, pinHash: string | null): boolean {
+  const result = db()
+    .prepare("UPDATE share_links SET pin_hash = ? WHERE slug = ?")
+    .run(pinHash, shareSlug);
+  return result.changes > 0;
+}
+
+/** One link by its own slug, whatever bundle it points at. */
+export function findShareLink(shareSlug: string): ShareLinkRow | null {
+  return (
+    (db().prepare("SELECT * FROM share_links WHERE slug = ?").get(shareSlug) as ShareLinkRow) ??
+    null
+  );
 }
 
 export function listShareLinks(bundleId: number, baseUrl: string): ShareLink[] {

@@ -2,6 +2,7 @@ import { backTo, guardMutation } from "@/server/auth/admin";
 import { findBundle } from "@/server/catalog";
 import { PushError } from "@/server/errors";
 import { createShareLink } from "@/server/share-links";
+import { hashPin, readPin, requireSigningSecret } from "@/server/share-pin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,12 @@ export async function POST(
   if (!bundle) return new Response("No such bundle", { status: 404 });
 
   try {
-    createShareLink(bundle, { unlisted: form.get("unlisted") === "1" });
+    const pin = readPin(form.get("pin"));
+    if (pin) requireSigningSecret();
+    createShareLink(bundle, {
+      unlisted: form.get("unlisted") === "1",
+      pinHash: pin ? await hashPin(pin) : null,
+    });
   } catch (error) {
     if (error instanceof PushError) {
       return backTo(`/b/${slug}?share=${error.code}`);

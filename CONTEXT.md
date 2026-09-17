@@ -64,8 +64,16 @@ link exists, and share links are their own endpoints, all on the push token:
 ```
 POST   /api/v1/bundles/<slug>/share-links    open a door, unlisted on request
 GET    /api/v1/bundles/<slug>/share-links    the doors this bundle has
+PUT    /api/v1/share-links/<share-slug>/pin  set or replace the pin on a door
+DELETE /api/v1/share-links/<share-slug>/pin  take the pin off
 DELETE /api/v1/share-links/<share-slug>      shut one door
 DELETE /api/v1/bundles/<slug>                forget the bundle, files and all
+```
+
+One path under `/v/` is Hosti's own rather than the bundle's:
+
+```
+POST   /v/<share-slug>/unlock                the pin gate's form, no token
 ```
 
 ## Rules the code must keep
@@ -83,3 +91,13 @@ DELETE /api/v1/bundles/<slug>                forget the bundle, files and all
    shared all answer the same 404. A push mints no share link, so a bundle is
    private until someone asks for one.
 7. [x] Revoking a share link touches neither the bundle nor its other links.
+8. [x] A PIN guards one share link, never the bundle. Its unlock cookie is
+   scoped to that link's path, so a second link on the same bundle asks again
+   and no unlock cookie ever opens the catalog.
+9. [x] A PIN is typed by the owner, four to eight digits, hashed with `scrypt`.
+   Hosti never generates one and never reads one back.
+10. [x] A locked link answers a page request with the gate at the same URL, and
+    everything else with the same 404 as any other miss. The gate names neither
+    the bundle nor whether the slug is real.
+11. [x] Hosti keeps no record of who opened a link: no counters, no hit table,
+    no last-opened stamp, no addresses.

@@ -6,6 +6,7 @@ import type {
   RevokedShareLinkResponse,
   ShareLinkResponse,
   ShareLinksResponse,
+  SharePinResponse,
 } from "@hosti/shared";
 import type { Config } from "./config.ts";
 
@@ -70,12 +71,22 @@ export function createClient(config: Config) {
       return call<CatalogResponse>("/api/v1/bundles");
     },
 
-    share(slug: string, unlisted: boolean): Promise<ShareLinkResponse> {
+    share(slug: string, unlisted: boolean, pin?: string): Promise<ShareLinkResponse> {
       return call<ShareLinkResponse>(`/api/v1/bundles/${slug}/share-links`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unlisted }),
+        body: JSON.stringify(pin ? { unlisted, pin } : { unlisted }),
       });
+    },
+    setPin(shareSlug: string, pin: string): Promise<SharePinResponse> {
+      return call<SharePinResponse>(`/api/v1/share-links/${shareSlug}/pin`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+    },
+    removePin(shareSlug: string): Promise<SharePinResponse> {
+      return call<SharePinResponse>(`/api/v1/share-links/${shareSlug}/pin`, { method: "DELETE" });
     },
 
     links(slug: string): Promise<ShareLinksResponse> {

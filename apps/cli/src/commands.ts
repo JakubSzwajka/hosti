@@ -64,8 +64,9 @@ export async function push(context: Context): Promise<void> {
   say(out, "pushed", `revision ${pushed.revision}`);
 
   if (flags.share || flags.unlisted) {
-    const created = await client.share(slug, flags.unlisted === true);
+    const created = await client.share(slug, flags.unlisted === true, flags.pin);
     say(out, "shared", against(context.base, created.link.url));
+    if (created.link.hasPin) say(out, "pin", "set");
     return;
   }
   reportLinks(out, context.base, pushed.shareUrls, pushed.adminUrl);
@@ -98,8 +99,10 @@ export async function ls(context: Context): Promise<void> {
 }
 
 export async function share(context: Context): Promise<void> {
-  const created = await context.client.share(context.target, context.flags.unlisted === true);
+  const { flags } = context;
+  const created = await context.client.share(context.target, flags.unlisted === true, flags.pin);
   say(context.out, "shared", against(context.base, created.link.url));
+  if (created.link.hasPin) say(context.out, "pin", "set");
 }
 
 export async function links(context: Context): Promise<void> {
@@ -110,8 +113,29 @@ export async function links(context: Context): Promise<void> {
   }
   table(
     context.out,
-    found.map((link) => [link.slug, when(link.createdAt), against(context.base, link.url)]),
+    found.map((link) => [
+      link.slug,
+      when(link.createdAt),
+      link.hasPin ? "pin set" : "",
+      against(context.base, link.url),
+    ]),
   );
+}
+
+/**
+ * Put a PIN on a link that already exists, or take one off. There is no read:
+ * the PIN is hashed the moment it arrives, so the only way to change one is to
+ * type a new one.
+ */
+export async function pin(context: Context): Promise<void> {
+  const { client, flags, target, out } = context;
+  if (flags.remove) {
+    await client.removePin(target);
+    say(out, "pin", `removed from ${target}`);
+    return;
+  }
+  await client.setPin(target, flags.set as string);
+  say(out, "pin", `set on ${target}`);
 }
 
 export async function rm(context: Context): Promise<void> {
@@ -132,4 +156,4 @@ export async function revoke(context: Context): Promise<void> {
   say(context.out, "revoked", context.target);
 }
 
-export const COMMAND_TABLE = { push, ls, share, links, rm, revoke } as const;
+export const COMMAND_TABLE = { push, ls, share, links, pin, rm, revoke } as const;

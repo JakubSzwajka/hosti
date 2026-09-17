@@ -26,6 +26,29 @@ export const BUNDLE_CSP = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+/**
+ * Hosti's own pages under `/v/` are not bundles, so they do not get the bundle
+ * policy. The gate has no scripts and one inline stylesheet, and the only place
+ * its form may post is back to this origin.
+ */
+export const HOSTI_PAGE_CSP = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src 'self' data:",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+export function hostiPageHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  headers.set("Content-Security-Policy", HOSTI_PAGE_CSP);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "no-referrer");
+  headers.set("Cache-Control", "no-store");
+  return headers;
+}
+
 export function bundleHeaders(extra?: HeadersInit): Headers {
   const headers = new Headers(extra);
   headers.set("Content-Security-Policy", BUNDLE_CSP);
@@ -114,6 +137,14 @@ export function hostiNotFound(): Response {
   return new Response(NOT_FOUND_HTML, {
     status: 404,
     headers: bundleHeaders({ "Content-Type": "text/html; charset=utf-8" }),
+  });
+}
+
+/** A Hosti page served in the bundle's place: the PIN gate, at the guest's URL. */
+export function hostiPage(html: string): Response {
+  return new Response(html, {
+    status: 200,
+    headers: hostiPageHeaders({ "Content-Type": "text/html; charset=utf-8" }),
   });
 }
 

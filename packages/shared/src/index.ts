@@ -50,6 +50,11 @@ export type ShareLink = {
   /** The absolute URL a guest opens, trailing slash included. */
   url: string;
   createdAt: string;
+  /**
+   * Whether a guest must type a PIN first. The PIN itself is hashed, so it is
+   * never readable and never travels back out of Hosti.
+   */
+  hasPin: boolean;
 };
 
 /** Body of `GET /api/v1/bundles`: the catalog as JSON. */
@@ -88,6 +93,12 @@ export type RevokedShareLinkResponse = {
   revoked: true;
 };
 
+/** Body of `PUT` and `DELETE` on `/api/v1/share-links/:shareSlug/pin`. */
+export type SharePinResponse = {
+  shareSlug: string;
+  hasPin: boolean;
+};
+
 /** Body of `DELETE /api/v1/bundles/:slug`. */
 export type DeletedBundleResponse = {
   bundle: string;
@@ -104,4 +115,17 @@ export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/;
 
 export function isValidSlug(value: string): boolean {
   return SLUG_PATTERN.test(value);
+}
+
+/**
+ * A PIN is four to eight digits, always typed by the owner. Hosti never makes
+ * one up: a PIN the owner did not choose is a PIN the owner cannot pass on.
+ */
+export const PIN_PATTERN = /^[0-9]{4,8}$/;
+
+/** What the owner is told when the digits are wrong. Never quotes the PIN. */
+export const PIN_RULE = "A pin is four to eight digits and nothing else";
+
+export function isValidPin(value: string): boolean {
+  return PIN_PATTERN.test(value);
 }

@@ -2,17 +2,30 @@
 
 export class UsageError extends Error {}
 
-export const COMMANDS = ["push", "ls", "share", "links", "rm", "revoke"] as const;
+export const COMMANDS = ["push", "ls", "share", "links", "pin", "rm", "revoke"] as const;
 export type Command = (typeof COMMANDS)[number];
 
 /** Flags that stand alone. Everything else swallows the next word. */
-const SWITCHES = new Set(["share", "unlisted", "allow-absolute", "yes", "help", "version"]);
-const VALUE_FLAGS = new Set(["slug", "title", "collection", "url", "token"]);
+const SWITCHES = new Set([
+  "share",
+  "unlisted",
+  "allow-absolute",
+  "remove",
+  "yes",
+  "help",
+  "version",
+]);
+const VALUE_FLAGS = new Set(["slug", "title", "collection", "pin", "set", "url", "token"]);
 
 export type Flags = {
   slug?: string;
   title?: string;
   collection?: string;
+  /** The PIN to put on a link as it is created. Four to eight digits, owner's choice. */
+  pin?: string;
+  /** The PIN `hosti pin` writes onto a link that already exists. */
+  set?: string;
+  remove?: boolean;
   url?: string;
   token?: string;
   share?: boolean;
@@ -91,12 +104,26 @@ export function parseInvocation(argv: string[]): Invocation {
   if (command === "push") {
     if (!target) throw new UsageError("push needs a path: hosti push ./dist --slug my-bundle");
     if (!flags.slug) throw new UsageError("push needs --slug");
+    if (flags.pin && !flags.share && !flags.unlisted) {
+      throw new UsageError("--pin needs a link to sit on: add --share or --unlisted");
+    }
   }
   if (command !== "push" && command !== "ls" && !target) {
     throw new UsageError(`${command} needs a slug: hosti ${command} my-bundle`);
   }
   if ((command === "ls" || command === "links" || command === "revoke") && flags.unlisted) {
     throw new UsageError(`--unlisted means nothing to ${command}`);
+  }
+  if (command === "pin") {
+    if (flags.set && flags.remove) {
+      throw new UsageError("--set and --remove ask for opposite things");
+    }
+    if (!flags.set && !flags.remove) throw new UsageError("pin needs --set <digits> or --remove");
+  } else if (flags.remove) {
+    throw new UsageError(`--remove means nothing to ${command}`);
+  }
+  if (command !== "push" && command !== "share" && flags.pin) {
+    throw new UsageError(`--pin means nothing to ${command}; use hosti pin <share-slug> --set`);
   }
 
   return { kind: "run", command, target, flags };
@@ -105,12 +132,16 @@ export function parseInvocation(argv: string[]): Invocation {
 export const HELP = `hosti - push static bundles to a Hosti server
 
   hosti push <path> --slug <slug> [--title T] [--collection C]
-                    [--share] [--unlisted] [--allow-absolute]
+                    [--share] [--unlisted] [--pin 4821] [--allow-absolute]
   hosti ls [--collection C]
-  hosti share <slug> [--unlisted]
+  hosti share <slug> [--unlisted] [--pin 4821]
   hosti links <slug>
+  hosti pin <share-slug> --set 1234 | --remove
   hosti rm <slug> [--yes]
   hosti revoke <share-slug>
+
+A pin is four to eight digits and you type it. Hosti hashes it, so links
+prints "pin set" and never the digits.
 
 Config, in order: --url and --token, then HOSTI_URL and HOSTI_TOKEN,
 then ~/.config/hosti.json.`;

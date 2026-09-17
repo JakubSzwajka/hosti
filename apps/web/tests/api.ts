@@ -5,8 +5,12 @@ import {
   GET as LIST_SHARES,
   POST as CREATE_SHARE,
 } from "@/app/api/v1/bundles/[slug]/share-links/route";
+import {
+  DELETE as REMOVE_PIN,
+  PUT as SET_PIN,
+} from "@/app/api/v1/share-links/[shareSlug]/pin/route";
 import { DELETE as REVOKE_SHARE } from "@/app/api/v1/share-links/[shareSlug]/route";
-import { GET as SERVE } from "@/app/v/[slug]/[[...path]]/route";
+import { GET as SERVE, POST as UNLOCK } from "@/app/v/[slug]/[[...path]]/route";
 
 export const ORIGIN = "http://localhost:3000";
 
@@ -35,7 +39,7 @@ export function push(
 export function createShare(
   token: string,
   slug: string,
-  options: { unlisted?: boolean } = {},
+  options: { unlisted?: boolean; pin?: string } = {},
 ): Promise<Response> {
   const headers = auth(token);
   headers.set("Content-Type", "application/json");
@@ -70,8 +74,52 @@ export function removeBundle(token: string, slug: string): Promise<Response> {
   return DELETE_BUNDLE(request, { params: Promise.resolve({ slug }) });
 }
 
+export function setPin(token: string, shareSlug: string, pin: unknown): Promise<Response> {
+  const headers = auth(token);
+  headers.set("Content-Type", "application/json");
+  const request = new Request(`${ORIGIN}/api/v1/share-links/${shareSlug}/pin`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ pin }),
+  });
+  return SET_PIN(request, { params: Promise.resolve({ shareSlug }) });
+}
+
+export function removePin(token: string, shareSlug: string): Promise<Response> {
+  const request = new Request(`${ORIGIN}/api/v1/share-links/${shareSlug}/pin`, {
+    method: "DELETE",
+    headers: auth(token),
+  });
+  return REMOVE_PIN(request, { params: Promise.resolve({ shareSlug }) });
+}
+
 export function serve(urlPath: string, headers?: HeadersInit): Promise<Response> {
   return SERVE(new Request(`${ORIGIN}${urlPath}`, { headers }));
+}
+
+/** A browser navigating, which is the only caller that may see the gate. */
+export function navigate(urlPath: string, headers: HeadersInit = {}): Promise<Response> {
+  const merged = new Headers(headers);
+  merged.set("accept", "text/html,application/xhtml+xml");
+  merged.set("sec-fetch-mode", "navigate");
+  return SERVE(new Request(`${ORIGIN}${urlPath}`, { headers: merged }));
+}
+
+/** `POST /v/<share-slug>/unlock`, the form on the gate. */
+export function unlock(
+  shareSlug: string,
+  fields: Record<string, string>,
+  headers: HeadersInit = {},
+): Promise<Response> {
+  const merged = new Headers(headers);
+  merged.set("content-type", "application/x-www-form-urlencoded");
+  return UNLOCK(
+    new Request(`${ORIGIN}/v/${shareSlug}/unlock`, {
+      method: "POST",
+      headers: merged,
+      body: new URLSearchParams(fields),
+    }),
+  );
 }
 
 /** Push a fixture and open it, the two-step walk most tests need. */

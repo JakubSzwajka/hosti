@@ -25,7 +25,7 @@ describe("reading the words", () => {
   });
 
   it("refuses a flag it does not know", () => {
-    expect(() => parseFlags(["--pin", "4821"])).toThrow(/Unknown flag --pin/);
+    expect(() => parseFlags(["--expires", "7d"])).toThrow(/Unknown flag --expires/);
   });
 });
 
@@ -70,5 +70,52 @@ describe("what the command means", () => {
 
   it("refuses --unlisted where it means nothing", () => {
     expect(() => parseInvocation(["revoke", "atlas-k7", "--unlisted"])).toThrow(/means nothing/);
+  });
+});
+
+describe("the pin flags", () => {
+  it("reads a pin onto a new link", () => {
+    expect(parseInvocation(["share", "atlas", "--pin", "4821"])).toMatchObject({
+      command: "share",
+      target: "atlas",
+      flags: { pin: "4821" },
+    });
+  });
+
+  it("reads set and remove on an existing link", () => {
+    expect(parseInvocation(["pin", "atlas-k7", "--set", "1234"])).toMatchObject({
+      command: "pin",
+      target: "atlas-k7",
+      flags: { set: "1234" },
+    });
+    expect(parseInvocation(["pin", "atlas-k7", "--remove"])).toMatchObject({
+      command: "pin",
+      flags: { remove: true },
+    });
+  });
+
+  it("needs one of set or remove, never both and never neither", () => {
+    expect(() => parseInvocation(["pin", "atlas-k7"])).toThrow(/--set <digits> or --remove/);
+    expect(() => parseInvocation(["pin", "atlas-k7", "--set", "1234", "--remove"])).toThrow(
+      /opposite things/,
+    );
+  });
+
+  it("needs a share slug to move a pin", () => {
+    expect(() => parseInvocation(["pin", "--remove"])).toThrow(/needs a slug/);
+  });
+
+  it("refuses --pin where it means nothing", () => {
+    expect(() => parseInvocation(["links", "atlas", "--pin", "4821"])).toThrow(/means nothing/);
+    expect(() => parseInvocation(["revoke", "atlas-k7", "--remove"])).toThrow(/means nothing/);
+  });
+
+  it("refuses a pin on a push that opens no link", () => {
+    expect(() => parseInvocation(["push", "./dist", "--slug", "atlas", "--pin", "4821"])).toThrow(
+      /needs a link to sit on/,
+    );
+    expect(
+      parseInvocation(["push", "./dist", "--slug", "atlas", "--share", "--pin", "4821"]).kind,
+    ).toBe("run");
   });
 });

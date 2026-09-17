@@ -136,6 +136,8 @@ export type ResolvedShareLink = {
   shareSlug: string;
   bundleSlug: string;
   currentSeq: number;
+  /** The scrypt hash guarding this link, or null when anyone holding it may look. */
+  pinHash: string | null;
 };
 
 /**
@@ -146,15 +148,22 @@ export type ResolvedShareLink = {
 export function resolveShareLink(shareSlug: string): ResolvedShareLink | null {
   const row = db()
     .prepare(
-      `SELECT s.slug AS share_slug, b.slug AS bundle_slug, r.seq AS seq
+      `SELECT s.slug AS share_slug, s.pin_hash AS pin_hash, b.slug AS bundle_slug, r.seq AS seq
          FROM share_links s
          JOIN bundles b ON b.id = s.bundle_id
          JOIN revisions r ON r.id = b.current_revision_id
         WHERE s.slug = ?`,
     )
-    .get(shareSlug) as { share_slug: string; bundle_slug: string; seq: number } | undefined;
+    .get(shareSlug) as
+    | { share_slug: string; pin_hash: string | null; bundle_slug: string; seq: number }
+    | undefined;
   if (!row) return null;
-  return { shareSlug: row.share_slug, bundleSlug: row.bundle_slug, currentSeq: row.seq };
+  return {
+    shareSlug: row.share_slug,
+    bundleSlug: row.bundle_slug,
+    currentSeq: row.seq,
+    pinHash: row.pin_hash,
+  };
 }
 
 /** The catalog: every bundle, newest push first. */
