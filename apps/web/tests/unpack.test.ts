@@ -4,7 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { afterAll, describe, expect, it } from "vitest";
 import { PushError } from "@/server/errors";
-import { safeEntryPath } from "@/server/storage/unpack";
+import { safeEntryPath } from "@/server/storage/revision-sink";
 import { unpackTarball } from "@/server/storage/unpack";
 import { makeTar } from "./helpers";
 

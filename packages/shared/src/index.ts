@@ -131,6 +131,39 @@ export function isValidSlug(value: string): boolean {
   return SLUG_PATTERN.test(value);
 }
 
+/** How long a slug may be, which is also where a suggested one is cut. */
+export const SLUG_MAX_LENGTH = 64;
+
+/** What the owner is told when a typed slug will not do. */
+export const SLUG_RULE = `A bundle slug is lowercase letters, digits and dashes, 1 to ${SLUG_MAX_LENGTH} characters`;
+
+/** The file name endings the catalog's drop zone takes. Longest first. */
+export const ARCHIVE_EXTENSIONS = [".tar.gz", ".tgz", ".zip"] as const;
+
+export function isArchiveName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ARCHIVE_EXTENSIONS.some((extension) => lower.endsWith(extension));
+}
+
+/**
+ * The slug a dropped archive suggests: its file name, without the archive
+ * extension, cleaned down to what a URL path segment takes. It is only a
+ * suggestion, and the owner corrects it before the upload goes anywhere.
+ * An empty answer means the file name held nothing usable.
+ */
+export function slugFromFileName(name: string): string {
+  const base = name.split(/[\\/]/).pop() ?? "";
+  const lower = base.toLowerCase();
+  const stem = ARCHIVE_EXTENSIONS.reduce(
+    (text, extension) => (text.endsWith(extension) ? text.slice(0, -extension.length) : text),
+    lower,
+  );
+  return stem
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, SLUG_MAX_LENGTH)
+    .replace(/^-+|-+$/g, "");
+}
+
 /**
  * A collection is a flat label on a bundle, never a directory, so the only
  * shapes it cannot take are the ones a URL path segment cannot carry.

@@ -2,6 +2,7 @@ import type {
   CatalogResponse,
   DeletedBundleResponse,
   ErrorResponse,
+  PrunedRevisionsResponse,
   PushResponse,
   RevokedShareLinkResponse,
   ShareLinkResponse,
@@ -69,6 +70,10 @@ export function createClient(config: Config) {
 
     catalog(): Promise<CatalogResponse> {
       return call<CatalogResponse>("/api/v1/bundles");
+    },
+
+    prune(slug: string): Promise<PrunedRevisionsResponse> {
+      return call<PrunedRevisionsResponse>(`/api/v1/bundles/${slug}/prune`, { method: "POST" });
     },
 
     share(slug: string, unlisted: boolean, pin?: string): Promise<ShareLinkResponse> {

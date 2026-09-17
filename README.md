@@ -38,6 +38,7 @@ in `allowScripts`.
 /c/reports               one collection; /c/- is the bundles no push put in one
 /b/garmin-q3             one bundle: revisions, share links, collection, delete
 /b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
+/upload                  drop an archive here; the drop zone posts to it
 ```
 
 The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
@@ -49,6 +50,38 @@ clears it.
 Every change the catalog makes, creating a share link, revoking one, setting a
 collection, deleting a bundle, logging out, is a POST carrying a token derived
 from the session. No GET ever changes anything.
+
+### Putting a bundle in from the browser
+
+Drag a `.zip` or a `.tar.gz` anywhere onto the catalog, or press the file
+button in the bar above the grid. The slug is filled in from the file name,
+lowercased and cut down to letters, digits and dashes, and you correct it
+before anything is sent. `Garmin Q3.zip` suggests `garmin-q3`.
+
+A slug already in the catalog says so, in so many words, before the upload
+starts: it lands as that bundle's next revision and becomes the one people
+see, exactly as `hosti push` would. Retention prunes afterwards the same way.
+
+The upload is a POST to `/upload` carrying the admin session and the same
+mutation token every other change the catalog makes carries. No push token is
+involved and nothing new is open to the public. It is posted with XHR rather
+than submitted, so the bar can show how far the bytes have got and print the
+server's own refusal when it refuses:
+
+```
+No index.html at the root of the pushed tree. Found: docs/, notes.txt
+```
+
+A zip goes through the same limits, the same path rules and the same
+entry-file rule as a pushed tarball, because both readers hand every entry to
+one sink. Zip needs no dependency: `zlib.inflateRaw` is the whole of deflate,
+and the central directory is fixed-offset reads. Stored and deflated entries
+are read; anything else, an encrypted entry, or a unix symlink is refused. The
+Finder's `__MACOSX` tree is dropped, like the `._` sidecars `tar` makes.
+
+Which container an upload is comes from its first bytes, not its name, so a
+tarball someone renamed `.zip` still unpacks and a renamed anything-else is
+refused before a directory is made.
 
 ### Live previews
 
@@ -111,16 +144,43 @@ hosti pin squad-2026-k7f3n9qp --set 1234
 hosti pin squad-2026-k7f3n9qp --remove
 hosti revoke atlas-k7f3n9qp
 hosti rm atlas
+hosti open squad-2026
+hosti open squad-2026 --open
+hosti prune squad-2026
 ```
+
+`open` prints where a bundle can be read: its share link, or its owner-only
+page when nobody has opened a door yet. The URL is always the last line and
+nothing else is on it, so `hosti open x | tail -1` is a URL. `--open` hands it
+to the platform's browser as well. An unknown slug exits 1.
+
+`prune` trims a bundle to the newest few revisions and says which it kept and
+which it took away. The count is the server's, from `HOSTI_KEEP_REVISIONS`;
+the CLI has no flag for it, because the endpoint takes none.
 
 `links` prints `pin set` beside a protected link and never the digits, because
 Hosti holds a hash and cannot read the PIN back. `--pin` needs a link to sit on,
 so on `push` it only makes sense with `--share` or `--unlisted`. Digits the
 server refuses come back as its own message on the last line, exit code 1.
 
-The binary is `apps/cli`, linked into `node_modules/.bin/hosti` by `npm
-install`. It runs its TypeScript straight on Node 22.18 or newer, so there is
-no build step. It talks HTTP only: it never opens the SQLite file.
+The binary is `apps/cli`. It runs its TypeScript straight on Node, which strips
+the types itself from **22.18 onwards**, so there is no build step and nothing
+to compile. It talks HTTP only: it never opens the SQLite file.
+
+To get `hosti` on the PATH, from the repository root:
+
+```bash
+npm install                    # once, so tar is there for the CLI to find
+npm link -w @hosti/cli         # or: npm i -g ./apps/cli
+hosti ls                       # from anywhere now
+```
+
+Both routes symlink the global `hosti` at this checkout rather than copying it,
+so the repository has to stay where it is and an edit to `apps/cli/src` is live
+at once. There is no third route: `@hosti/cli` is a workspace package and is
+not published, so `npm i -g @hosti/cli` has nothing to fetch.
+
+`npm unlink -g @hosti/cli` takes it off again.
 
 Settings resolve in this order, per setting: `--url` and `--token`, then
 `HOSTI_URL` and `HOSTI_TOKEN`, then `~/.config/hosti.json` (or
@@ -188,8 +248,8 @@ The bundle page shows how many revisions are kept.
 ## Collections
 
 A collection is a flat label on a bundle, never a directory, and a bundle sits
-in zero or one. A push sets one with `--collection`, and the bundle page is
-where the owner changes it or takes it away:
+in zero or one. A push sets one with `--collection`, an upload sets one in the
+drop zone, and the bundle page is where the owner changes it or takes it away:
 
 ```
 /b/squad-2026   type a name that exists, type a new one, or clear it
@@ -198,6 +258,17 @@ where the owner changes it or takes it away:
 Clearing moves the bundle to the `no collection` chip at `/c/-`, which is why
 `-` cannot name a collection. Nor can a name with a slash in it, or one over 64
 characters; the page says so and changes nothing.
+
+Every way in is held to that rule, `X-Hosti-Collection` included. A push naming
+`-` is refused 400 `bad_collection` before a byte reaches the disk, so it leaves
+no revision behind. It used to go through, and such a bundle answered to no
+chip at all: not to `/c/-`, which lists bundles with no collection, and not to a
+chip of its own, because none is drawn for a name the catalog reads as "none".
+Any bundle left sitting in `-` is moved to no collection when the database is
+opened, which is where its own chip link already pointed.
+
+Clearing a collection is still the catalog's job alone. A push or an upload
+that names none leaves the label the owner chose where it is.
 
 ## Share links
 
@@ -295,7 +366,8 @@ bundle arrives.
 
 Limits, checked while unpacking: 50 MB compressed body, 2000 files, 20 MB per
 file. Absolute paths, paths that climb out, symlinks and device nodes are
-refused.
+refused. One sink enforces all of it, so a zip dropped on the catalog and a
+tarball pushed by the CLI are held to the same rules by the same code.
 
 macOS `tar` packs extended attributes as `._name` sidecars. Hosti drops them,
 so a single-file push from a mac shell still has exactly one root HTML file.
@@ -346,7 +418,7 @@ so add them to the service's `environment:` before the catalog will open.
 
 ```
 apps/web         Next.js: the catalog UI, push API, share-link API, serving
-apps/cli         hosti: push, ls, share, links, pin, rm, revoke
+apps/cli         hosti: push, ls, share, links, pin, rm, revoke, open, prune
 packages/shared  types both sides need
 fixtures/        the three bundle shapes plus one that links from the root
 ```

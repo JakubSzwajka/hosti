@@ -117,6 +117,41 @@ describe("revisions", () => {
   });
 });
 
+describe("the collection a push asks for", () => {
+  it("refuses the path the no-collection chip already uses", async () => {
+    const response = await push("dash-filed", await tarFixture("single-file"), {
+      collection: "-",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "bad_collection" });
+    expect(await exists(path.join(dataDir, "bundles/dash-filed/r1"))).toBe(false);
+  });
+
+  it("refuses a slash and an over-long name, leaving no revision behind", async () => {
+    for (const collection of ["reports/2026", "r".repeat(65)]) {
+      const response = await push("dash-filed", await tarFixture("single-file"), { collection });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: "bad_collection" });
+    }
+    expect(await exists(path.join(dataDir, "bundles/dash-filed"))).toBe(false);
+  });
+
+  it("leaves a later push's collection alone when the header is absent", async () => {
+    await push("kept-collection", await tarFixture("single-file"), { collection: "reports" });
+    await push("kept-collection", await tarFixture("single-file"));
+    const listed = await GET(
+      new Request("http://localhost:3000/api/v1/bundles", {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+    const body = (await listed.json()) as {
+      bundles: { slug: string; collection: string | null }[];
+    };
+    const bundle = body.bundles.find((entry) => entry.slug === "kept-collection");
+    expect(bundle?.collection).toBe("reports");
+  });
+});
+
 describe("refused pushes", () => {
   it("names what it found when there is no entry file", async () => {
     const response = await push("docs-only", await tarFixture("no-entry-file"));

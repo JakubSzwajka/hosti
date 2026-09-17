@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { HELP, parseInvocation, UsageError } from "./args.ts";
+import { openInBrowser } from "./browser.ts";
 import { ApiError, createClient } from "./client.ts";
 import { ConfigError, resolveConfig } from "./config.ts";
 import { COMMAND_TABLE, CommandError } from "./commands.ts";
@@ -50,6 +51,7 @@ export async function run(argv: string[]): Promise<number> {
       out: stdout,
       err: stderr,
       confirm,
+      openUrl: (url) => openInBrowser(url, stderr),
     });
     return 0;
   } catch (error) {

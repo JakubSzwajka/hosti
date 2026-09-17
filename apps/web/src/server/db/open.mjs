@@ -33,5 +33,18 @@ export function openDatabase(databaseFile) {
   if (!hasMeta) {
     db.exec(readSchemaSql());
   }
+  repairReservedCollection(db);
   return db;
+}
+
+/**
+ * `-` is the catalog's path for bundles in no collection, so it can never name
+ * one. A push used to be able to set it through X-Hosti-Collection, and such a
+ * bundle answered to no chip: not to `-`, which lists bundles with a NULL
+ * collection, and not to a chip of its own, because none is drawn for a name
+ * the UI reads as "none". Moving it to no collection puts it exactly where its
+ * own chip link already pointed. Idempotent, so it may run on every open.
+ */
+function repairReservedCollection(db) {
+  db.prepare("UPDATE bundles SET collection = NULL WHERE collection = '-'").run();
 }

@@ -5,7 +5,27 @@ import path from "node:path";
 import type { Readable } from "node:stream";
 import { PushError } from "@/server/errors";
 import { bundleDir, currentLink, revisionDir } from "@/server/storage/paths";
-import { type UnpackStats, unpackTarball } from "@/server/storage/unpack";
+import type { UnpackStats } from "@/server/storage/revision-sink";
+import { unpackTarball } from "@/server/storage/unpack";
+import { unpackZip } from "@/server/storage/unzip";
+
+/** The two containers a bundle arrives in. Both end up in the same sink. */
+export type ArchiveFormat = "tar.gz" | "zip";
+
+/**
+ * Which container these bytes are, read from the bytes rather than the name.
+ * A file called `.zip` that is really a tarball still unpacks, and a renamed
+ * anything-else is refused before a directory is made.
+ */
+export function archiveFormat(head: Buffer): ArchiveFormat | null {
+  if (head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b) return "tar.gz";
+  if (head.length >= 4 && head[0] === 0x50 && head[1] === 0x4b) {
+    // Local file header, empty archive, or the spanning marker.
+    const mark = (head[2] as number) * 256 + (head[3] as number);
+    if (mark === 0x0304 || mark === 0x0506 || mark === 0x0708) return "zip";
+  }
+  return null;
+}
 
 /**
  * Unpack one push into a fresh `r<seq>` directory, prove it has an entry file,
@@ -16,11 +36,14 @@ export async function writeRevision(input: {
   bundleSlug: string;
   seq: number;
   body: Readable;
+  /** How the bytes are wrapped. The push API speaks gzipped tar only. */
+  format?: ArchiveFormat;
 }): Promise<UnpackStats> {
   const dir = revisionDir(input.bundleSlug, input.seq);
+  const unpack = input.format === "zip" ? unpackZip : unpackTarball;
   await fs.rm(dir, { recursive: true, force: true });
   try {
-    const stats = await unpackTarball(input.body, dir);
+    const stats = await unpack(input.body, dir);
     await ensureEntryFile(dir);
     await flipCurrent(input.bundleSlug, input.seq);
     return stats;

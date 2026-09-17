@@ -2,7 +2,17 @@
 
 export class UsageError extends Error {}
 
-export const COMMANDS = ["push", "ls", "share", "links", "pin", "rm", "revoke"] as const;
+export const COMMANDS = [
+  "push",
+  "ls",
+  "share",
+  "links",
+  "pin",
+  "rm",
+  "revoke",
+  "open",
+  "prune",
+] as const;
 export type Command = (typeof COMMANDS)[number];
 
 /** Flags that stand alone. Everything else swallows the next word. */
@@ -12,6 +22,7 @@ const SWITCHES = new Set([
   "allow-absolute",
   "remove",
   "yes",
+  "open",
   "help",
   "version",
 ]);
@@ -32,6 +43,8 @@ export type Flags = {
   unlisted?: boolean;
   allowAbsolute?: boolean;
   yes?: boolean;
+  /** Hand the URL `open` prints to the platform's browser as well as printing it. */
+  open?: boolean;
   help?: boolean;
   version?: boolean;
 };
@@ -125,6 +138,9 @@ export function parseInvocation(argv: string[]): Invocation {
   if (command !== "push" && command !== "share" && flags.pin) {
     throw new UsageError(`--pin means nothing to ${command}; use hosti pin <share-slug> --set`);
   }
+  if (command !== "open" && flags.open) {
+    throw new UsageError(`--open means nothing to ${command}`);
+  }
 
   return { kind: "run", command, target, flags };
 }
@@ -139,9 +155,15 @@ export const HELP = `hosti - push static bundles to a Hosti server
   hosti pin <share-slug> --set 1234 | --remove
   hosti rm <slug> [--yes]
   hosti revoke <share-slug>
+  hosti open <slug> [--open]
+  hosti prune <slug>
 
 A pin is four to eight digits and you type it. Hosti hashes it, so links
 prints "pin set" and never the digits.
+
+open prints the bundle's share link, or its owner-only page when nobody has
+opened a door yet, and always on the last line. --open hands it to a browser.
+prune trims a bundle to the newest few revisions the server keeps.
 
 Config, in order: --url and --token, then HOSTI_URL and HOSTI_TOKEN,
 then ~/.config/hosti.json.`;

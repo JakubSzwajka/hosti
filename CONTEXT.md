@@ -18,19 +18,21 @@ for example `garmin-q3`.
 _Avoid_: site, artifact, report, project.
 
 **Revision**:
-One push of a bundle. Pushing the same slug again creates a new revision and
-moves the `current` pointer. A push then prunes: the newest few revisions stay
-and the rest are deleted, files and rows both.
+One archive landing on a bundle, from `hosti push` or from the owner dropping
+one on the catalog. The same slug again creates a new revision and moves the
+`current` pointer. It then prunes: the newest few revisions stay and the rest
+are deleted, files and rows both.
 _Avoid_: version, build, deploy.
 
 **Catalog**:
-The full set of bundles, and the admin UI that browses it.
+The full set of bundles, and the admin UI that browses it and takes uploads.
 _Avoid_: dashboard, library, gallery.
 
 **Collection**:
 A named group of bundles, such as `reports` or `garmin`. Flat, not a tree. A
-bundle belongs to zero or one collection, set by a push header or by the owner
-on the bundle page, and cleared only by the owner.
+bundle belongs to zero or one collection, set by a push header, by the drop
+zone, or by the owner on the bundle page, and cleared only by the owner. `-` is
+the catalog's path for bundles in no collection, so no way in may set it.
 _Avoid_: folder, directory, tag, category.
 
 **Share link**:
@@ -52,6 +54,8 @@ _Avoid_: login, user account.
 ```
 POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
         | push token                               | share link
+POST /upload                                       |
+        | admin session + mutation token           |
         v                                          v
    unpack to r<n>  ->  entry file check  ->  flip current
         |                                          |
@@ -59,6 +63,10 @@ POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
         |
         +----------- /data/hosti.db (metadata)
 ```
+
+The two ways in differ only in who they let through and what the bytes are
+wrapped in. A tarball is read by one reader and a zip by another, and both hand
+every entry to one sink, so the limits and the path rules cannot drift apart.
 
 A push stops at the left column. Nothing on the right answers until a share
 link exists, and share links are their own endpoints, all on the push token:
@@ -85,6 +93,7 @@ catalog can show a bundle nobody has shared:
 GET    /b/<slug>/preview/                    admin session
 GET    /b/<slug>/preview/~<grant>/<path>     a signed grant, for the frame
 POST   /api/v1/bundles/<slug>/prune          push token, prune on demand
+POST   /upload                               admin session, an archive from the browser
 ```
 
 ## Rules the code must keep
@@ -121,3 +130,6 @@ POST   /api/v1/bundles/<slug>/prune          push token, prune on demand
     cookie on its own asset requests, so nothing else would reach it.
 14. [x] Only a preview response may be framed, and only by this origin. Every
     `/v/` response stays `frame-ancestors 'none'`.
+15. [x] The catalog's upload is a change the catalog makes, so it wants the
+    admin session and the mutation token, never a push token. It mints no
+    share link either: a bundle is private however it arrived.

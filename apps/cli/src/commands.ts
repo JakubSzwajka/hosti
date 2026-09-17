@@ -15,6 +15,8 @@ export type Context = {
   err: Writer;
   /** Asks the person at the terminal; `rm` is the only caller. */
   confirm: (question: string) => Promise<boolean>;
+  /** Hands a URL to the platform's browser; `open --open` is the only caller. */
+  openUrl: (url: string) => void;
 };
 
 export class CommandError extends Error {}
@@ -156,4 +158,38 @@ export async function revoke(context: Context): Promise<void> {
   say(context.out, "revoked", context.target);
 }
 
-export const COMMAND_TABLE = { push, ls, share, links, pin, rm, revoke } as const;
+/**
+ * Where a bundle can be read: its share link, or the owner-only page when
+ * nobody has opened a door yet. The URL is the last line on purpose, bare, so
+ * `hosti open x | tail -1` is a URL and nothing else.
+ */
+export async function open(context: Context): Promise<void> {
+  const { client, target, out, base } = context;
+  const bundle = (await client.catalog()).bundles.find((entry) => entry.slug === target);
+  if (!bundle) throw new CommandError(`No bundle is called "${target}"`);
+
+  const shareSlug = bundle.shareSlugs[0];
+  const url = shareSlug ? `${base}/v/${shareSlug}/` : `${base}/b/${target}`;
+  if (shareSlug) {
+    say(out, "shared", `anyone holding this link can open ${target}`);
+  } else {
+    say(out, "private", `${target} has no share link, so this page wants the owner password`);
+  }
+  if (context.flags.open) context.openUrl(url);
+  out(url);
+}
+
+/**
+ * Prune on demand. A push already prunes, so this is for a bundle nobody has
+ * pushed since the keep count was tightened. The count is the server's, from
+ * HOSTI_KEEP_REVISIONS, and the CLI has no say in it.
+ */
+export async function prune(context: Context): Promise<void> {
+  const pruned = await context.client.prune(context.target);
+  const { out } = context;
+  say(out, "keep", `${pruned.keep} newest`);
+  say(out, "kept", pruned.kept.length ? pruned.kept.join(", ") : "nothing");
+  say(out, "removed", pruned.removed.length ? pruned.removed.join(", ") : "nothing");
+}
+
+export const COMMAND_TABLE = { push, ls, share, links, pin, rm, revoke, open, prune } as const;

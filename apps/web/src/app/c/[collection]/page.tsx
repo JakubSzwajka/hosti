@@ -27,6 +27,8 @@ export default async function CollectionPage({
       chips={collectionChips(all)}
       active={`/c/${encodeURIComponent(collection)}`}
       token={admin.mutationToken}
+      allSlugs={all.map((bundle) => bundle.slug)}
+      {...(loose ? {} : { collection: wanted })}
       heading={`${name} \u00b7 ${plural(bundles.length, "bundle")} \u00b7 newest first`}
       lead={
         loose ? (

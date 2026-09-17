@@ -2,6 +2,7 @@ import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
 import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
 import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
+import { UploadDrop } from "@/app/_ui/upload-drop";
 
 /** The catalog grid, shared by `/` and `/c/<collection>`. */
 export function CatalogScreen(props: {
@@ -12,8 +13,12 @@ export function CatalogScreen(props: {
   heading: string;
   lead: React.ReactNode;
   emptyNote: React.ReactNode;
+  /** Every slug in the catalog, so the drop zone can warn before a revision lands. */
+  allSlugs: string[];
+  /** The collection this page lists, if it lists one. */
+  collection?: string;
 }) {
-  const { bundles, chips, active, token, heading, lead, emptyNote } = props;
+  const { bundles, chips, active, token, heading, lead, emptyNote, allSlugs } = props;
   // An empty catalog drops the lead and the chips: there is nothing to say
   // about cards that are not there, and every count would read zero.
   const anyBundles = chips.some((chip) => chip.count > 0);
@@ -23,6 +28,11 @@ export function CatalogScreen(props: {
         <Masthead meta={heading} token={token} />
         {lead && anyBundles ? <p className="lead">{lead}</p> : <div className="lead-gap" />}
         {anyBundles ? <Chips chips={chips} active={active} /> : null}
+        <UploadDrop
+          token={token}
+          slugs={allSlugs}
+          {...(props.collection ? { defaultCollection: props.collection } : {})}
+        />
         {bundles.length === 0 ? (
           emptyNote
         ) : (

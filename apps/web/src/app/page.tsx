@@ -19,6 +19,7 @@ export default async function Catalog() {
       chips={chips}
       active="/"
       token={admin.mutationToken}
+      allSlugs={bundles.map((bundle) => bundle.slug)}
       heading={
         bundles.length === 0
           ? "no bundles yet"

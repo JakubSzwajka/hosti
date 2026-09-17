@@ -127,3 +127,138 @@
   border-top: 1px solid var(--line-soft);
   background: var(--paper);
 }
+
+/* the drop zone ----------------------------------------------------- */
+/* Where a bundle goes in from the browser. Quiet until a file is dragged
+   over the window, then it is the only thing on the page with a colour. */
+.drop {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 14px 16px;
+  margin: 0 0 24px;
+}
+.drop[data-open],
+.drop[data-over] {
+  border-style: solid;
+}
+.drop[data-over] {
+  border-color: var(--pop);
+  background: #e8f4f5;
+  box-shadow: 0 0 0 3px rgba(6, 112, 126, 0.12);
+}
+.drop-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.drop-say {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.drop[data-over] .drop-say {
+  color: var(--pop);
+  font-weight: 500;
+}
+.drop-head input[type="file"] {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--muted);
+  max-width: 100%;
+}
+.drop-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.drop-file {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+}
+.drop-file span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.drop-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.drop-form input[type="text"],
+.drop-form label input {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  width: 200px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.drop-form label input:focus {
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+}
+.drop-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-bottom: 2px;
+}
+.drop-acts .btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+.drop-verdict {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  max-width: 62ch;
+}
+.drop-verdict[data-existing] {
+  color: var(--pop);
+}
+.drop-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.drop-progress progress {
+  flex: 1;
+  height: 6px;
+}
+.drop-done {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--pop);
+}
+.drop .error {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 560px) {
+  .drop-form label input {
+    width: 100%;
+  }
+  .drop-form label {
+    flex-basis: 100%;
+  }
+}

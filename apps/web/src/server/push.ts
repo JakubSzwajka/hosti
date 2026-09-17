@@ -1,4 +1,4 @@
-import { type PushResponse, isValidSlug } from "@hosti/shared";
+import { COLLECTION_RULE, type PushResponse, isValidSlug, readCollection } from "@hosti/shared";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { publicBaseUrl } from "@/server/config";
@@ -12,7 +12,7 @@ import {
 import { PushError } from "@/server/errors";
 import { pruneRevisions } from "@/server/retention";
 import { shareLinkUrls } from "@/server/share-links";
-import { writeRevision } from "@/server/storage/revisions";
+import { type ArchiveFormat, writeRevision } from "@/server/storage/revisions";
 
 const MAX_HEADER_TEXT = 200;
 
@@ -24,29 +24,59 @@ function headerText(request: Request, name: string): string | null {
 }
 
 /**
- * Take one push: unpack to disk first, then write metadata. A push that fails
- * leaves no bundle row, no revision row and no directory. A push never opens
- * the bundle to the public either: share links are asked for separately.
+ * The collection a push asks for, held to the same rule the catalog's own
+ * field is held to. Without this a push could file a bundle under `-`, which
+ * is the path the catalog reserves for bundles in no collection, and the
+ * bundle would then answer to no chip at all. An absent header means "leave
+ * the collection alone", so only a header that is there is judged.
  */
-export async function acceptPush(request: Request, slug: string): Promise<PushResponse> {
+function collectionHeader(request: Request): string | null {
+  const raw = headerText(request, "x-hosti-collection");
+  if (raw === null) return null;
+  const wanted = readCollection(raw);
+  if (!wanted) throw new PushError("bad_collection", `${COLLECTION_RULE}`);
+  return wanted;
+}
+
+export type RevisionInput = {
+  slug: string;
+  /** The archive's bytes. */
+  body: Readable;
+  /** How they are wrapped. The push API speaks gzipped tar; an upload may be zip. */
+  format?: ArchiveFormat;
+  /** The bundle's title, or null to leave whatever is there. */
+  title: string | null;
+  /** The collection, already held to `readCollection`, or null to leave it. */
+  collection: string | null;
+  /** The origin the returned links hang off. */
+  baseUrl: string;
+};
+
+/**
+ * Take one revision, whether it came from `hosti push` or from the catalog's
+ * drop zone: unpack to disk first, then write metadata. A revision that fails
+ * leaves no bundle row, no revision row and no directory. It never opens the
+ * bundle to the public either: share links are asked for separately.
+ */
+export async function storeRevision(input: RevisionInput): Promise<PushResponse> {
+  const { slug, title, collection } = input;
   if (!isValidSlug(slug)) {
     throw new PushError(
       "bad_slug",
       "A bundle slug is lowercase letters, digits and dashes, 1 to 64 characters",
     );
   }
-  if (!request.body) {
-    throw new PushError("empty_body", "Push a gzipped tarball as the request body");
-  }
 
   const existing = findBundle(slug);
   const seq = existing ? nextRevisionSeq(existing.id) : 1;
-  const body = Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>);
 
-  const stats = await writeRevision({ bundleSlug: slug, seq, body });
+  const stats = await writeRevision({
+    bundleSlug: slug,
+    seq,
+    body: input.body,
+    ...(input.format ? { format: input.format } : {}),
+  });
 
-  const title = headerText(request, "x-hosti-title");
-  const collection = headerText(request, "x-hosti-collection");
   const bundle = existing ?? createBundle({ slug, title, collection });
   if (existing) updateBundleMeta(existing.id, { title, collection });
 
@@ -66,11 +96,31 @@ export async function acceptPush(request: Request, slug: string): Promise<PushRe
     console.error(`hosti: pruning ${slug} failed`, error);
   }
 
-  const baseUrl = publicBaseUrl(request);
+  const { baseUrl } = input;
   return {
     bundle: slug,
     revision: revision.seq,
     adminUrl: `${baseUrl}/b/${slug}`,
     shareUrls: shareLinkUrls(bundle.id, baseUrl),
   };
+}
+
+/**
+ * `POST /api/v1/bundles/<slug>/revisions`: a gzipped tarball on a push token,
+ * with the title and the collection riding on headers. The headers are judged
+ * before a byte hits the disk, so a refused one leaves no revision directory.
+ */
+export async function acceptPush(request: Request, slug: string): Promise<PushResponse> {
+  if (!request.body) {
+    throw new PushError("empty_body", "Push a gzipped tarball as the request body");
+  }
+  const title = headerText(request, "x-hosti-title");
+  const collection = collectionHeader(request);
+  return storeRevision({
+    slug,
+    body: Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>),
+    title,
+    collection,
+    baseUrl: publicBaseUrl(request),
+  });
 }
