@@ -1,0 +1,29 @@
+{
+  "name": "@hosti/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next dev -p ${PORT:-3000}",
+    "build": "next build",
+    "start": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next start -p ${PORT:-3000}",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "token:new": "node scripts/new-token.mjs"
+  },
+  "dependencies": {
+    "@hosti/shared": "*",
+    "better-sqlite3": "^12.2.0",
+    "next": "^15.5.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tar": "^7.5.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
