@@ -10,6 +10,7 @@ import {
   updateBundleMeta,
 } from "@/server/catalog";
 import { PushError } from "@/server/errors";
+import { shareLinkUrls } from "@/server/share-links";
 import { writeRevision } from "@/server/storage/revisions";
 
 const MAX_HEADER_TEXT = 200;
@@ -23,7 +24,8 @@ function headerText(request: Request, name: string): string | null {
 
 /**
  * Take one push: unpack to disk first, then write metadata. A push that fails
- * leaves no bundle row, no revision row and no directory.
+ * leaves no bundle row, no revision row and no directory. A push never opens
+ * the bundle to the public either: share links are asked for separately.
  */
 export async function acceptPush(request: Request, slug: string): Promise<PushResponse> {
   if (!isValidSlug(slug)) {
@@ -54,9 +56,11 @@ export async function acceptPush(request: Request, slug: string): Promise<PushRe
     fileCount: stats.fileCount,
   });
 
+  const baseUrl = publicBaseUrl(request);
   return {
     bundle: slug,
     revision: revision.seq,
-    url: `${publicBaseUrl(request)}/v/${slug}/`,
+    adminUrl: `${baseUrl}/b/${slug}`,
+    shareUrls: shareLinkUrls(bundle.id, baseUrl),
   };
 }

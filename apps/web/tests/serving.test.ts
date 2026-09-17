@@ -2,34 +2,21 @@ import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
-const { GET } = await import("@/app/v/[slug]/[[...path]]/route");
-const { POST } = await import("@/app/api/v1/bundles/[slug]/revisions/route");
+const { push, pushAndShare, serve } = await import("./api");
 const { createPushToken } = await import("@/server/push-tokens");
 
 let dataDir: string;
-
-function serve(url: string, headers?: HeadersInit): Promise<Response> {
-  return GET(new Request(`http://localhost:3000${url}`, { headers }));
-}
+let token: string;
 
 beforeAll(async () => {
   dataDir = await useTempDataDir();
-  const token = createPushToken("test").secret;
+  token = createPushToken("test").secret;
   for (const [slug, fixture] of [
     ["x", "multi-page"],
     ["garmin-q3", "page-with-assets"],
     ["sleep-note", "single-file"],
   ] as const) {
-    const body = await tarFixture(fixture);
-    const response = await POST(
-      new Request(`http://localhost:3000/api/v1/bundles/${slug}/revisions`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: new Uint8Array(body),
-      }),
-      { params: Promise.resolve({ slug }) },
-    );
-    if (response.status !== 201) throw new Error(`fixture push failed: ${await response.text()}`);
+    await pushAndShare(token, slug, await tarFixture(fixture));
   }
 });
 
@@ -114,6 +101,14 @@ describe("what a share link does not leak", () => {
     const response = await serve("/v/never-pushed/");
     expect(response.status).toBe(404);
     expect(await response.text()).toContain("Not found");
+  });
+
+  it("answers that same 404 for a pushed bundle nobody shared", async () => {
+    expect((await push(token, "quiet", await tarFixture("multi-page"))).status).toBe(201);
+    const unshared = await serve("/v/quiet/");
+    const unknown = await serve("/v/never-pushed/");
+    expect(unshared.status).toBe(unknown.status);
+    expect(await unshared.text()).toBe(await unknown.text());
   });
 
   it("refuses an encoded climb out of the revision", async () => {

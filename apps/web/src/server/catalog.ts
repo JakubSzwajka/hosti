@@ -36,8 +36,9 @@ export function findBundle(slug: string): BundleRecord | null {
 }
 
 /**
- * Create the bundle and its default share link, whose slug is the bundle slug.
- * A push to an unknown slug lands here: the spec chose create-on-push.
+ * Create the bundle. A push to an unknown slug lands here: the spec chose
+ * create-on-push. No share link is minted, because a bundle is private until
+ * someone asks for one.
  */
 export function createBundle(input: {
   slug: string;
@@ -45,20 +46,30 @@ export function createBundle(input: {
   collection?: string | null;
 }): BundleRecord {
   const now = nowIso();
-  const create = db().transaction(() => {
-    const result = db()
-      .prepare(
-        `INSERT INTO bundles (slug, title, collection, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .run(input.slug, input.title?.trim() || input.slug, input.collection ?? null, now, now);
-    db()
-      .prepare("INSERT INTO share_links (slug, bundle_id, created_at) VALUES (?, ?, ?)")
-      .run(input.slug, result.lastInsertRowid, now);
-    return result.lastInsertRowid as number;
+  const result = db()
+    .prepare(
+      `INSERT INTO bundles (slug, title, collection, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(input.slug, input.title?.trim() || input.slug, input.collection ?? null, now, now);
+  return db()
+    .prepare("SELECT * FROM bundles WHERE id = ?")
+    .get(result.lastInsertRowid as number) as BundleRow;
+}
+
+/**
+ * Forget a bundle: its revisions and every share link go with it. The caller
+ * removes the files. `current_revision_id` is cleared first, because that
+ * column points back at a row the delete is about to take away.
+ */
+export function deleteBundle(bundleId: number): void {
+  const forget = db().transaction(() => {
+    db().prepare("UPDATE bundles SET current_revision_id = NULL WHERE id = ?").run(bundleId);
+    db().prepare("DELETE FROM share_links WHERE bundle_id = ?").run(bundleId);
+    db().prepare("DELETE FROM revisions WHERE bundle_id = ?").run(bundleId);
+    db().prepare("DELETE FROM bundles WHERE id = ?").run(bundleId);
   });
-  const id = create();
-  return db().prepare("SELECT * FROM bundles WHERE id = ?").get(id) as BundleRow;
+  forget();
 }
 
 /** Push headers may rename a bundle or move it between collections. */

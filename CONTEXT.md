@@ -58,6 +58,16 @@ POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
         +----------- /data/hosti.db (metadata)
 ```
 
+A push stops at the left column. Nothing on the right answers until a share
+link exists, and share links are their own endpoints, all on the push token:
+
+```
+POST   /api/v1/bundles/<slug>/share-links    open a door, unlisted on request
+GET    /api/v1/bundles/<slug>/share-links    the doors this bundle has
+DELETE /api/v1/share-links/<share-slug>      shut one door
+DELETE /api/v1/bundles/<slug>                forget the bundle, files and all
+```
+
 ## Rules the code must keep
 
 1. [x] A half-finished push never becomes the current revision. Unpack, verify
@@ -69,4 +79,7 @@ POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
    relative asset link inside the bundle misses.
 5. [x] Bearer tokens open `/api/v1/`. Cookies never do, because a bundle runs
    its own JavaScript on this origin.
-6. [x] An unknown share link and a bundle with no revision answer the same 404.
+6. [x] An unknown share link, a bundle with no revision and a bundle nobody has
+   shared all answer the same 404. A push mints no share link, so a bundle is
+   private until someone asks for one.
+7. [x] Revoking a share link touches neither the bundle nor its other links.

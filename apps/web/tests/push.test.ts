@@ -68,7 +68,8 @@ describe("the three bundle shapes", () => {
     expect(await response.json()).toEqual({
       bundle: "squad-2026",
       revision: 1,
-      url: "http://localhost:3000/v/squad-2026/",
+      adminUrl: "http://localhost:3000/b/squad-2026",
+      shareUrls: [],
     });
     const root = path.join(dataDir, "bundles/squad-2026/r1");
     expect(await exists(path.join(root, "index.html"))).toBe(true);
@@ -203,7 +204,7 @@ describe("the catalog as JSON", () => {
     expect(squad).toMatchObject({
       title: "Squad 2026",
       collection: "reports",
-      shareSlugs: ["squad-2026"],
+      shareSlugs: [],
     });
   });
 });
