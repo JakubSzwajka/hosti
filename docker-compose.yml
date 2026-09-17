@@ -11,6 +11,10 @@ services:
       # The origin Hosti prints in push responses. Behind Caddy, set the real
       # hostname here.
       HOSTI_PUBLIC_URL: ${HOSTI_PUBLIC_URL:-http://localhost:3000}
+      # Both are required. The catalog refuses to serve admin pages without the
+      # password, and a share link cannot take a PIN without the secret.
+      HOSTI_OWNER_PASSWORD: ${HOSTI_OWNER_PASSWORD:?set HOSTI_OWNER_PASSWORD in .env}
+      HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
       PORT: "3000"
     ports:
       - "${HOSTI_PORT:-3000}:3000"
