@@ -37,6 +37,12 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
+  meta:
+    fontFamily: "'Instrument Sans', ui-sans-serif, system-ui, 'Helvetica Neue', sans-serif"
+    fontSize: "13.5px"
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: "normal"
   label:
     fontFamily: "'Instrument Sans', ui-sans-serif, system-ui, 'Helvetica Neue', sans-serif"
     fontSize: "11px"
@@ -214,6 +220,11 @@ when the reader is checking a URL they are about to hand out.
   grid holds ten of these and 900 would shout ten times.
 - **Body** (400, 16px, 1.5): prose. Measure capped at 48ch to 56ch inside a
   panel, 54ch for a page lead.
+- **Meta** (400, 13.5px, 1.5): the short secondary line that states where
+  something stands. The meta line under a bundle title, the share state, a
+  share link's path, the drop zone's prompt, and the gate's setup note. It sits
+  between body and label because it is read after the thing it describes, never
+  before it.
 - **Label** (500, 11px, 0.12em, uppercase): panel headings and field labels.
   Uppercase is the only case transform in the system.
 - **Mono** (12.5px, 0.015em): paths, slugs, URLs, byte counts, environment

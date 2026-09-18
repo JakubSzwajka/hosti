@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-17T00:00:00.000Z",
+  "generatedAt": "2026-09-18T08:53:05.000Z",
   "title": "Design System: Hosti",
   "extensions": {
     "colorMeta": {
@@ -172,6 +172,10 @@
         "displayName": "Body",
         "purpose": "Prose, capped at 48-56ch inside a panel."
       },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "The short secondary line that states where something stands: the meta line under a bundle title, share state, a share link path, the drop prompt, the gate setup note."
+      },
       "label": {
         "displayName": "Label",
         "purpose": "Panel headings and field labels. The only uppercase in the system."
@@ -332,8 +336,13 @@
         "section": "typography"
       },
       {
-        "name": "The Shared Baseline Rule",
-        "body": "Two columns of panels always start level, and each column always holds more than one panel. A single short card beside a tall stack is the failure this layout exists to prevent.",
+        "name": "The One Column Rule",
+        "body": "The bundle page never splits. A control the owner needs is found by reading down, not by scanning across, and a section that runs short leaves a shorter page rather than a hole beside a taller one.",
+        "section": "layout"
+      },
+      {
+        "name": "The Said Once Rule",
+        "body": "Collection, revision, date and share state are stated in the meta line under the title, and nowhere else on that page. A section may name the thing it edits; it may not restate the state the meta line carries.",
         "section": "layout"
       },
       {
@@ -356,7 +365,7 @@
       "Do keep a control in place when its action is unavailable. Render it inert with a reason beside it. A control that disappears sends the owner hunting for something they already learned the position of.",
       "Do put `open` in the loudest slot on any screen that shows a bundle. It is the first thing anyone reaches for.",
       "Do spend teal on machine values and on the one next action, and nowhere else.",
-      "Do give every column of panels a partner panel, and start both columns on one baseline.",
+      "Do fold a rarely-used control into a `<details>` rather than deleting it. Fewer things on screen, the same things reachable.",
       "Do set every path, slug, URL, size and command in mono with ligatures off.",
       "Do time every transition from --t so prefers-reduced-motion is one override.",
       "Do theme the surfaces the browser would otherwise own: selection, caret, scrollbar, focus ring, underline offset, and tabular numerals."
@@ -366,6 +375,8 @@
       "Don't give a destructive control more weight than a daily one. Delete is a quiet underlined link on a full-width strip, last on the page, under a rule. It is never a panel of its own, and it is never on a catalog card.",
       "Don't use a coloured dot, a badge or an icon for share state. Words on a block.",
       "Don't use monospace as a costume for \"technical\". It marks machine values only.",
+      "Don't explain the product on a screen the owner uses daily. A sentence earns its place only by carrying something nobody could guess: that a PIN is hashed and unreadable, and what a delete takes with it.",
+      "Don't put a section in a box. Boxes are for the catalog card and the preview window.",
       "Don't declare grid tracks by count plus a breakpoint. Use `minmax`.",
       "Don't introduce a second accent, a gradient on text, glass, a dark mode toggle, an icon font, or a second display face.",
       "Don't claim behaviour the server does not have. Share links do not expire, nothing counts views, and no screen can ever show a PIN back."
