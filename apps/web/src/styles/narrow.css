@@ -8,21 +8,9 @@
   .foot {
     padding: 18px 20px 0;
   }
-  .mast {
-    align-items: flex-start;
-    gap: 10px;
-    flex-direction: column;
-  }
   .detail-head h2 {
     font-size: 30px;
     max-width: none;
-  }
-  /* One stack. Order matters more than balance now: the picture, the links,
-     then the record and the label. */
-  .detail-cols {
-    grid-template-columns: 1fr;
-    gap: var(--gap);
-    margin-top: var(--gap);
   }
   .empty {
     padding: 22px 22px 24px;
@@ -55,16 +43,14 @@
     color: var(--pop);
   }
   .set-collection input {
-    width: 100%;
+    flex: 1 1 100%;
+    width: auto;
   }
   .drop-form label {
     flex-basis: 100%;
   }
   .drop-form label input {
     width: 100%;
-  }
-  .pin-row form {
-    flex-wrap: wrap;
   }
   .gate {
     margin-top: 7vh;

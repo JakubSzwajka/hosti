@@ -10,29 +10,30 @@ export function CatalogScreen(props: {
   chips: ChipCount[];
   active: string;
   token: string;
-  heading: string;
-  lead: React.ReactNode;
+  heading?: string;
   emptyNote: React.ReactNode;
   /** Every slug in the catalog, so the drop zone can warn before a revision lands. */
   allSlugs: string[];
   /** The collection this page lists, if it lists one. */
   collection?: string;
 }) {
-  const { bundles, chips, active, token, heading, lead, emptyNote, allSlugs } = props;
-  // An empty catalog drops the lead and the chips: there is nothing to say
-  // about cards that are not there, and every count would read zero.
+  const { bundles, chips, active, token, heading, emptyNote, allSlugs } = props;
+  // An empty catalog drops the chips: every count would read zero.
   const anyBundles = chips.some((chip) => chip.count > 0);
   return (
     <>
       <div className="wrap">
         <Masthead meta={heading} token={token} />
-        {lead && anyBundles ? <p className="lead">{lead}</p> : <div className="lead-gap" />}
-        {anyBundles ? <Chips chips={chips} active={active} /> : null}
-        <UploadDrop
-          token={token}
-          slugs={allSlugs}
-          {...(props.collection ? { defaultCollection: props.collection } : {})}
-        />
+        {/* One row: which collection is showing, and the one way to put a
+            bundle in by hand. The drop zone itself is the whole window. */}
+        <div className="bar">
+          {anyBundles ? <Chips chips={chips} active={active} /> : null}
+          <UploadDrop
+            token={token}
+            slugs={allSlugs}
+            {...(props.collection ? { defaultCollection: props.collection } : {})}
+          />
+        </div>
         {bundles.length === 0 ? (
           emptyNote
         ) : (
@@ -43,7 +44,8 @@ export function CatalogScreen(props: {
           </div>
         )}
       </div>
-      <Footer />
+      {/* The one page where this sentence is the most useful thing on screen. */}
+      {anyBundles ? null : <Footer />}
     </>
   );
 }
@@ -64,16 +66,16 @@ function Card({ bundle }: { bundle: Bundle }) {
         <h2>
           <Link href={href}>{bundle.title}</Link>
         </h2>
-        <Link className="card-slug" href={href}>
-          {bundle.slug}
-        </Link>
+        {/* The slug is a machine value, not a third link to the page the
+            picture and the title already open. */}
+        <p className="card-slug">{bundle.slug}</p>
         <p className="card-meta">
           {bundle.collection ?? "no collection"} &middot; {plural(bundle.revisionCount, "revision")}{" "}
           &middot; {formatDate(bundle.updatedAt)}
         </p>
       </div>
-      {/* Open, not delete. The card's loudest control should be the one used
-          every day, and deleting still lives on the bundle's own page. */}
+      {/* Two things, and each answers a different question: who can open this
+          without the owner password, and how do I open it right now. */}
       <div className="card-foot">
         <ShareFlag count={bundle.shareSlugs.length} />
         {open ? (
@@ -90,12 +92,9 @@ function Card({ bundle }: { bundle: Bundle }) {
   );
 }
 
-export function Footer() {
+function Footer() {
   return (
     <footer className="foot">
-      <span>
-        Push with <span className="mono">hosti push ./out --slug my-report</span>.
-      </span>
       <span>The catalog needs the owner password. A share link never does.</span>
     </footer>
   );
@@ -112,7 +111,7 @@ export function EmptyCatalog() {
       <h2>Nothing pushed yet</h2>
       <p className="empty-lead">
         A bundle is a folder of static files with an <span className="mono">index.html</span> at its
-        root. Hosti gives it a URL. Two commands and this page fills up.
+        root. Hosti gives it a URL.
       </p>
       <ol className="steps">
         <li>
@@ -148,10 +147,6 @@ export function EmptyCollection({ name }: { name: string }) {
   return (
     <div className="empty">
       <h2>Nothing in {name}</h2>
-      <p className="empty-lead">
-        No bundle carries this collection right now. A push sets one with{" "}
-        <span className="mono">--collection</span>, and the bundle page sets one by hand.
-      </p>
       <p>
         <Link className="btn" href="/">
           back to every bundle

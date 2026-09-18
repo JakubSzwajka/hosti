@@ -7,7 +7,7 @@ import { useState } from "react";
  * which localhost counts as; the textarea fallback covers a plain-http box on
  * a LAN, where the owner would otherwise have no copy at all.
  */
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({ value, label = "copy link" }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -30,7 +30,7 @@ export function CopyButton({ value }: { value: string }) {
 
   return (
     <button className="btn" type="button" onClick={copy} {...(copied ? { "data-copied": "" } : {})}>
-      {copied ? "copied" : "copy link"}
+      {copied ? "copied" : label}
     </button>
   );
 }

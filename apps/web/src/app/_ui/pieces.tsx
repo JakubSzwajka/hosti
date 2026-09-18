@@ -9,7 +9,7 @@ import { previewGrant } from "@/server/serving/preview-token";
  * chips, the share-state block and the placeholder preview.
  */
 
-export function Masthead({ meta, token }: { meta: React.ReactNode; token: string }) {
+export function Masthead({ meta, token }: { meta?: React.ReactNode; token: string }) {
   return (
     <header className="mast">
       <h1>
@@ -19,7 +19,7 @@ export function Masthead({ meta, token }: { meta: React.ReactNode; token: string
         </Link>
       </h1>
       <div className="meta">
-        <span>{meta}</span>
+        {meta ? <span>{meta}</span> : null}
         <form method="post" action="/logout">
           <input type="hidden" name="token" value={token} />
           <button className="sign-out" type="submit">

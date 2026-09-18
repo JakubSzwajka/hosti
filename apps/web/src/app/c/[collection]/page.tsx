@@ -1,5 +1,5 @@
 import { CatalogScreen, EmptyCollection } from "@/app/_ui/catalog-screen";
-import { collectionChips, NO_COLLECTION, plural } from "@/app/_ui/format";
+import { collectionChips, NO_COLLECTION } from "@/app/_ui/format";
 import { requireAdmin } from "@/server/auth/admin";
 import { listCatalog } from "@/server/catalog";
 
@@ -29,19 +29,7 @@ export default async function CollectionPage({
       token={admin.mutationToken}
       allSlugs={all.map((bundle) => bundle.slug)}
       {...(loose ? {} : { collection: wanted })}
-      heading={`${name} \u00b7 ${plural(bundles.length, "bundle")} \u00b7 newest first`}
-      lead={
-        loose ? (
-          <>
-            Bundles no push put in a collection. A collection is flat and a bundle sits in{" "}
-            <strong>zero or one</strong> of them.
-          </>
-        ) : (
-          <>
-            Bundles pushed into <strong>{wanted}</strong>. A collection is flat, never a tree.
-          </>
-        )
-      }
+      {...(bundles.length === 0 ? {} : { heading: "newest first" })}
       emptyNote={<EmptyCollection name={name} />}
     />
   );

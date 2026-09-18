@@ -1,5 +1,6 @@
 /* One bundle: what it is, what it looks like, who can open it, and how to
-   shut it. Same tokens as hosti.css. */
+   shut it. One column of flat sections, so nothing on this page is a card
+   except the preview, which is a window onto someone else's page. */
 
 .back {
   display: inline-block;
@@ -41,71 +42,58 @@
   gap: 10px;
   flex: none;
 }
-.head-why {
-  font-size: 12.5px;
-  color: var(--muted);
-  margin: 10px 0 0;
-}
-.head-why a {
-  color: var(--pop);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  margin: 14px 0 0;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--line);
+  gap: 6px 14px;
+  margin: 13px 0 0;
   font-size: 13.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.detail-meta .mono {
-  color: var(--pop);
+/* Share state is the one word in this line the owner came to read. */
+.detail-meta b {
+  color: var(--ink);
+  font-weight: 500;
 }
 .detail-meta .dot {
   color: var(--line);
 }
 
-/* two stacks, both starting on one baseline --------------------------- */
-/* The preview is tall, so it pairs against the share panel, which is the
-   other thing that grows. Revisions and collection sit under them. Neither
-   column is left holding a single short card against three. */
-.detail-cols {
-  display: grid;
-  grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
-  gap: var(--gap-lg);
-  align-items: start;
-  margin-top: var(--gap);
-}
-.detail-col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  min-width: 0;
-}
-
-/* panels --------------------------------------------------------------- */
+/* flat sections ------------------------------------------------------- */
+/* A label, a rule running to the edge, then the rows. No fill, no border,
+   no box: the page is one column and the rules do the dividing. */
 .sect {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 15px 19px 17px;
+  margin-top: var(--gap-lg);
 }
 .sect > h3 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
   font-weight: 500;
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line-soft);
+  margin: 0 0 14px;
 }
+.sect > h3::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+/* What a bundle's share state is, said once, where the next action is. */
+.state {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 13px;
+}
+.state .mono {
+  color: var(--pop);
+}
+
 .revs {
   list-style: none;
   margin: 0;
@@ -114,8 +102,8 @@
 }
 .revs li {
   display: grid;
-  grid-template-columns: 34px 1fr auto 58px;
-  gap: 12px;
+  grid-template-columns: 34px 112px auto 1fr;
+  gap: 18px;
   padding: 6px 2px;
   border-bottom: 1px solid var(--line-soft);
   color: var(--muted);
@@ -129,18 +117,8 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  text-align: right;
 }
 
-.note {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 12px 0 0;
-  max-width: 48ch;
-}
-.note:first-of-type {
-  margin-top: 0;
-}
 .error {
   font-size: 13px;
   color: var(--danger);
@@ -161,7 +139,7 @@
   justify-content: space-between;
   gap: 10px 20px;
   flex-wrap: wrap;
-  margin-top: var(--gap-lg);
+  margin-top: 44px;
   padding-top: 15px;
   border-top: 1px solid var(--line);
 }
@@ -169,8 +147,143 @@
   margin: 0;
   font-size: 13px;
   color: var(--muted);
-  max-width: 62ch;
+  /* One line beside the link when the column allows it, so the strip that
+     closes the page does not sit half empty. */
+  flex: 1 1 auto;
+  max-width: 88ch;
 }
 .danger-strip .acts {
   gap: 10px;
+}
+
+/* the preview window ------------------------------------------------- */
+/* The bundle itself, framed as a window onto a page rather than a panel that
+   happens to stop mid-sentence. It keeps its frame while every section below
+   goes flat, because it is a picture of someone else's page. */
+.preview-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: var(--gap);
+}
+/* A bar carrying the path the bundle answers on and the revision showing.
+   It is what turns a cut-off page into the top of one. */
+.preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.preview-bar .where {
+  color: var(--pop);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview-bar .rev {
+  flex: none;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+/* A letterbox, not a screen. The slot runs the full column now, so 16:10
+   would be 675px of picture before the owner reached a single control. This
+   shows the same top-of-page and keeps the sections in the same eyeful. */
+.preview {
+  aspect-ratio: 21 / 9;
+  background: var(--surface);
+  overflow: hidden;
+}
+/* A narrow column is already short, so it goes back to a screen's shape. */
+@media (max-width: 700px) {
+  .preview {
+    aspect-ratio: 16 / 10;
+  }
+}
+/* The cut at the bottom is deliberate, so it is drawn deliberately: the page
+   fades out into the panel instead of being sliced through a sentence. It
+   only appears once a real frame is up; the placeholder ends on its own. */
+.preview.shot[data-live]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 58px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, #fff 82%);
+}
+.preview .shot-art {
+  padding: 20px 24px 0;
+  gap: 8px;
+}
+.preview i {
+  display: block;
+  height: 6px;
+  border-radius: 2px;
+  background: #bfc7c9;
+}
+.preview i.h {
+  height: 12px;
+  width: 40%;
+  background: #a7b0b2;
+  margin-bottom: 4px;
+}
+.preview i.w1 {
+  width: 82%;
+}
+.preview i.w2 {
+  width: 64%;
+}
+.preview i.w3 {
+  width: 73%;
+}
+.preview .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 11px;
+  height: 84px;
+  margin-top: 10px;
+  padding-right: 20%;
+}
+.preview .bars i {
+  flex: 1;
+  max-width: 38px;
+  border-radius: 2px 2px 0 0;
+  background: #b6c1c3;
+}
+/* Clicking the picture opens the bundle. It is the first thing anyone tries. */
+.shot-open {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 18px;
+  opacity: 0;
+  transition: opacity var(--t) ease-out;
+  background: linear-gradient(to bottom, rgba(43, 49, 51, 0) 55%, rgba(43, 49, 51, 0.24) 100%);
+}
+.shot-open span {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: 5px 15px;
+  font-size: 12.5px;
+  transform: translateY(5px);
+  transition: transform var(--t) ease-out;
+}
+.shot-open:hover,
+.shot-open:focus-visible {
+  opacity: 1;
+}
+.shot-open:hover span,
+.shot-open:focus-visible span {
+  transform: none;
 }

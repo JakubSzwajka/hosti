@@ -127,6 +127,7 @@
 .card-slug {
   font-size: 12px;
   color: var(--pop);
+  margin: 0;
 }
 .card-meta {
   margin: 10px 0 0;
@@ -156,54 +157,33 @@
   color: var(--muted);
 }
 
-/* the drop zone ----------------------------------------------------- */
-/* Where a bundle goes in from the browser. Quiet until a file is dragged
-   over the window, then it is the only thing on the page with a colour. */
+/* the drop panel ---------------------------------------------------- */
+/* Where a bundle goes in from the browser. It is not on the page at all
+   until a file is dragged over the window or picked, and then it spans the
+   row it appeared in. */
 .drop {
-  border: 1px dashed var(--line);
+  flex-basis: 100%;
+  border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
   padding: 14px 16px;
-  margin: 0 0 24px;
-}
-.drop[data-open],
-.drop[data-over] {
-  border-style: solid;
+  margin: 4px 0 0;
 }
 .drop[data-over] {
   border-color: var(--pop);
   background: #e8f4f5;
-  box-shadow: 0 0 0 3px rgba(6, 112, 126, 0.12);
-}
-.drop-head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
 }
 .drop-say {
   margin: 0;
   font-size: 13.5px;
-  color: var(--muted);
-}
-.drop[data-over] .drop-say {
   color: var(--pop);
   font-weight: 500;
-}
-.drop-head input[type="file"] {
-  font: inherit;
-  font-size: 12.5px;
-  color: var(--muted);
-  max-width: 100%;
 }
 .drop-form {
   display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 10px 14px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line-soft);
 }
 .drop-file {
   flex-basis: 100%;

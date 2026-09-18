@@ -6,8 +6,13 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { formatBytes } from "@/app/_ui/format";
 
 /**
- * Putting a bundle in from the browser: drop a `.zip` or a `.tar.gz` on the
- * catalog, or pick one with the file button.
+ * Putting a bundle in from the browser: drop a `.zip` or a `.tar.gz` anywhere
+ * on the catalog, or pick one with `add a bundle`.
+ *
+ * At rest this is one control beside the collection chips. The form only
+ * exists once there is a file to talk about, and the label opens the file
+ * picker with no script, so the way in for someone who does not drag is a
+ * plain `<label for>` rather than a click handler.
  *
  * It posts to `/upload` with XHR rather than submitting the form, for two
  * reasons the owner can see. A big archive takes a while, and XHR is the only
@@ -151,101 +156,98 @@ export function UploadDrop({
 
   const existing = slug !== "" && slugs.includes(slug);
   const sending = stage.name === "sending";
+  const showPanel = Boolean(file) || overWindow || stage.name !== "idle";
 
   return (
-    <section
-      className="drop"
-      data-over={overWindow ? "" : undefined}
-      data-open={file ? "" : undefined}
-      aria-label="Upload a bundle"
-    >
-      <div className="drop-head">
-        <p className="drop-say">
-          {overWindow
-            ? "Let go anywhere on this page"
-            : "Drag a .zip or a .tar.gz here, or pick one:"}
-        </p>
-        <input
-          ref={input}
-          id={fieldId}
-          type="file"
-          accept={ACCEPT}
-          onChange={(event) => {
-            const picked = event.target.files?.[0];
-            if (picked) take(picked);
-          }}
-        />
-      </div>
+    <>
+      <input
+        ref={input}
+        className="file-in"
+        id={fieldId}
+        type="file"
+        accept={ACCEPT}
+        onChange={(event) => {
+          const picked = event.target.files?.[0];
+          if (picked) take(picked);
+        }}
+      />
+      <label className="btn" htmlFor={fieldId}>
+        add a bundle
+      </label>
+      {showPanel ? (
+        <section className="drop" data-over={overWindow ? "" : undefined} aria-label="Add a bundle">
+          {overWindow ? <p className="drop-say">let go anywhere on this page</p> : null}
+          {file ? (
+            <form className="drop-form" onSubmit={send}>
+              <p className="drop-file">
+                <strong>{file.name}</strong> <span>{formatBytes(file.size)}</span>
+              </p>
+              <label>
+                slug
+                <input
+                  name="slug"
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  maxLength={64}
+                  autoComplete="off"
+                  aria-label="bundle slug"
+                  required
+                />
+              </label>
+              <label>
+                title
+                <input
+                  name="title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="optional"
+                  autoComplete="off"
+                  aria-label="bundle title"
+                />
+              </label>
+              <label>
+                collection
+                <input
+                  name="collection"
+                  value={collection}
+                  onChange={(event) => setCollection(event.target.value)}
+                  placeholder="optional"
+                  maxLength={64}
+                  autoComplete="off"
+                  aria-label="bundle collection"
+                />
+              </label>
+              <span className="drop-acts">
+                <button className="btn" type="submit" disabled={sending || slug === ""}>
+                  {sending ? "uploading" : existing ? "add a revision" : "create bundle"}
+                </button>
+                <button className="btn" type="button" onClick={reset} disabled={sending}>
+                  cancel
+                </button>
+              </span>
+              <p className="drop-verdict" data-existing={existing ? "" : undefined}>
+                {existing
+                  ? `${slug} is already here, so this lands as its next revision and becomes the one people see.`
+                  : `Nothing is called ${slug || "…"} yet, so this creates it, private.`}
+              </p>
+            </form>
+          ) : null}
 
-      {file ? (
-        <form className="drop-form" onSubmit={send}>
-          <p className="drop-file">
-            <strong>{file.name}</strong> <span>{formatBytes(file.size)}</span>
-          </p>
-          <label>
-            slug
-            <input
-              name="slug"
-              value={slug}
-              onChange={(event) => setSlug(event.target.value)}
-              maxLength={64}
-              autoComplete="off"
-              aria-label="bundle slug"
-              required
-            />
-          </label>
-          <label>
-            title
-            <input
-              name="title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="optional"
-              autoComplete="off"
-              aria-label="bundle title"
-            />
-          </label>
-          <label>
-            collection
-            <input
-              name="collection"
-              value={collection}
-              onChange={(event) => setCollection(event.target.value)}
-              placeholder="optional"
-              maxLength={64}
-              autoComplete="off"
-              aria-label="bundle collection"
-            />
-          </label>
-          <span className="drop-acts">
-            <button className="btn" type="submit" disabled={sending || slug === ""}>
-              {sending ? "uploading" : existing ? "add a revision" : "create bundle"}
-            </button>
-            <button className="btn" type="button" onClick={reset} disabled={sending}>
-              cancel
-            </button>
-          </span>
-          <p className="drop-verdict" data-existing={existing ? "" : undefined}>
-            {existing
-              ? `${slug} is already in the catalog. This lands as its next revision and becomes the one people see.`
-              : `Nothing is called ${slug || "…"} yet, so this creates the bundle. It arrives private.`}
-          </p>
-        </form>
+          {sending ? (
+            <p className="drop-progress">
+              <progress value={stage.percent} max={100} />
+              <span>{stage.percent}% sent</span>
+            </p>
+          ) : null}
+          {stage.name === "failed" ? <p className="error">{stage.message}</p> : null}
+          {stage.name === "done" ? (
+            <p className="drop-done">
+              {stage.slug} is in, at revision {stage.revision}.
+            </p>
+          ) : null}
+        </section>
       ) : null}
-
-      {sending ? (
-        <p className="drop-progress">
-          <progress value={stage.percent} max={100} />
-          <span>{stage.percent}% sent</span>
-        </p>
-      ) : null}
-      {stage.name === "failed" ? <p className="error">{stage.message}</p> : null}
-      {stage.name === "done" ? (
-        <p className="drop-done">
-          {stage.slug} is in, at revision {stage.revision}.
-        </p>
-      ) : null}
-    </section>
+    </>
   );
 }
 

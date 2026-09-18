@@ -3,9 +3,13 @@ import { CopyButton } from "@/app/_ui/copy-button";
 import { formatDate } from "@/app/_ui/format";
 
 /**
- * The two panels on the bundle page that change who can reach a bundle: the
+ * The two sections on the bundle page that change who can reach a bundle: the
  * share links it has, and the collection it sits in. Split out of `page.tsx`
  * so neither file fights the line cap.
+ *
+ * Both hide their less-used controls behind a `<details>`, which is a browser
+ * affordance rather than a script: these pages post forms and work with no
+ * JavaScript, and the toggle has to do the same.
  */
 
 const SHARE_REFUSALS: Record<string, string> = {
@@ -30,15 +34,13 @@ export function ShareLinks({
   refused?: string;
 }) {
   const refusal = refused ? SHARE_REFUSALS[refused] : undefined;
-  const bare = links.length === 0;
   return (
-    <section className="sect" id="share" {...(bare ? { "data-private": "" } : {})}>
+    <section className="sect">
       <h3>Share links</h3>
       {refusal ? <p className="error">{refusal}</p> : null}
-      {bare ? (
-        <p className="note">
-          This bundle is private. Nothing at <span className="mono">/v/{slug}/</span> answers until
-          you create a share link.
+      {links.length === 0 ? (
+        <p className="state" id="share-state">
+          Private. Nothing at <span className="mono">/v/{slug}/</span> answers.
         </p>
       ) : null}
       {links.map((link) => (
@@ -49,41 +51,43 @@ export function ShareLinks({
         <button className="btn" type="submit">
           create share link
         </button>
-        <label>
-          <input type="checkbox" name="unlisted" value="1" />
-          unlisted, eight random characters on the end
-        </label>
-        <label>
-          pin
-          <input
-            className="pin-field"
-            type="text"
-            name="pin"
-            inputMode="numeric"
-            maxLength={8}
-            autoComplete="off"
-            placeholder="optional"
-          />
-        </label>
+        <details className="disclose">
+          <summary>options</summary>
+          <div className="disclose-body">
+            <label className="opt">
+              <input type="checkbox" name="unlisted" value="1" />
+              unlisted, eight random characters
+            </label>
+            <label className="opt">
+              pin
+              <input
+                className="pin-field"
+                type="text"
+                name="pin"
+                inputMode="numeric"
+                maxLength={8}
+                autoComplete="off"
+                placeholder="4 to 8 digits"
+              />
+              <span className="hint">hashed, never shown again</span>
+            </label>
+          </div>
+        </details>
       </form>
-      <p className="note">
-        A pin is four to eight digits and it is yours to choose. Hosti hashes it, so nobody can read
-        it back here; to change one, type a new one.
-      </p>
     </section>
   );
 }
 
 function ShareLinkRow({ slug, link, token }: { slug: string; link: Link; token: string }) {
   return (
-    <div className="link-card">
+    <div className="link">
       <p className="path">{link.url}</p>
       <p className="props">
         <span>{link.slug === slug ? "bundle slug" : "unlisted"}</span>
-        <span>created {formatDate(link.createdAt)}</span>
-        <span data-pin={link.hasPin ? "" : undefined}>{link.hasPin ? "pin set" : "no pin"}</span>
+        <span className="dot">&middot;</span>
+        <span>{formatDate(link.createdAt)}</span>
       </p>
-      <span className="acts">
+      <div className="acts">
         <CopyButton value={link.url} />
         <a className="btn" href={link.url} target="_blank" rel="noreferrer">
           open as a guest
@@ -95,51 +99,64 @@ function ShareLinkRow({ slug, link, token }: { slug: string; link: Link; token: 
             revoke
           </button>
         </form>
-      </span>
+      </div>
       <PinControls slug={slug} link={link} token={token} />
     </div>
   );
 }
 
-/** Set, replace or remove one link's PIN. The digits are never shown back. */
+/**
+ * Set, replace or remove one link's PIN. The summary states which of the two
+ * this link is in, so the state is on the page without a separate line saying
+ * it. The digits are never shown back, because Hosti holds only a hash.
+ */
 function PinControls({ slug, link, token }: { slug: string; link: Link; token: string }) {
   return (
-    <span className="pin-row">
-      <form method="post" action={`/b/${slug}/share-links/pin`}>
-        <input type="hidden" name="token" value={token} />
-        <input type="hidden" name="shareSlug" value={link.slug} />
-        <input
-          className="pin-field"
-          type="text"
-          name="pin"
-          inputMode="numeric"
-          maxLength={8}
-          autoComplete="off"
-          aria-label={link.hasPin ? `replace the pin on ${link.slug}` : `set a pin on ${link.slug}`}
-          placeholder="4 to 8 digits"
-        />
-        <button className="btn" type="submit">
-          {link.hasPin ? "replace pin" : "set pin"}
-        </button>
-      </form>
-      {link.hasPin ? (
-        <form method="post" action={`/b/${slug}/share-links/pin`}>
+    <details className="disclose">
+      <summary {...(link.hasPin ? { "data-on": "" } : {})}>
+        {link.hasPin ? "pin set" : "no pin"}
+      </summary>
+      <div className="disclose-body">
+        <form className="pin-row" method="post" action={`/b/${slug}/share-links/pin`}>
           <input type="hidden" name="token" value={token} />
           <input type="hidden" name="shareSlug" value={link.slug} />
-          <input type="hidden" name="remove" value="1" />
-          <button className="btn" type="submit" data-tone="danger">
-            remove pin
+          <input
+            className="pin-field"
+            type="text"
+            name="pin"
+            inputMode="numeric"
+            maxLength={8}
+            autoComplete="off"
+            aria-label={
+              link.hasPin ? `replace the pin on ${link.slug}` : `set a pin on ${link.slug}`
+            }
+            placeholder="4 to 8 digits"
+          />
+          <button className="btn" type="submit">
+            {link.hasPin ? "replace pin" : "set pin"}
           </button>
+          <span className="hint">hashed, never shown again</span>
         </form>
-      ) : null}
-    </span>
+        {link.hasPin ? (
+          <form method="post" action={`/b/${slug}/share-links/pin`}>
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="shareSlug" value={link.slug} />
+            <input type="hidden" name="remove" value="1" />
+            <button className="btn" type="submit" data-tone="danger">
+              remove pin
+            </button>
+          </form>
+        ) : null}
+      </div>
+    </details>
   );
 }
 
 /**
  * Set, change or clear the bundle's collection. A collection is a flat label,
- * so this is one text field: type a name that exists, type a new one, or drop
- * the bundle out of every collection.
+ * so this is one text field and one rule: what you type is saved, and an empty
+ * field takes the bundle out of every collection. A form whose only field is
+ * text submits on Enter with no script and no button.
  */
 export function CollectionSection({
   slug,
@@ -155,48 +172,32 @@ export function CollectionSection({
   refused?: string;
 }) {
   const others = known.filter((name) => name !== collection);
+  const hintId = `collection-hint-${slug}`;
   return (
     <section className="sect">
       <h3>Collection</h3>
       {refused === "bad_collection" ? <p className="error">{COLLECTION_RULE}.</p> : null}
-      <div className="set-collection">
-        <form className="set-collection" method="post" action={`/b/${slug}/collection`}>
-          <input type="hidden" name="token" value={token} />
-          <label>
-            in
-            <input
-              name="collection"
-              defaultValue={collection ?? ""}
-              list={`collections-${slug}`}
-              maxLength={64}
-              autoComplete="off"
-              placeholder="no collection"
-              aria-label={`collection for ${slug}`}
-            />
-          </label>
-          <datalist id={`collections-${slug}`}>
-            {others.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-          <button className="btn" type="submit">
-            save
-          </button>
-        </form>
-        {collection ? (
-          <form method="post" action={`/b/${slug}/collection`}>
-            <input type="hidden" name="token" value={token} />
-            <input type="hidden" name="clear" value="1" />
-            <button className="btn" type="submit" data-tone="danger">
-              clear it
-            </button>
-          </form>
-        ) : null}
-      </div>
-      <p className="note">
-        A collection is a flat label, never a directory, and a bundle sits in zero or one. Clearing
-        it moves this bundle to <span className="mono">no collection</span>.
-      </p>
+      <form className="set-collection" method="post" action={`/b/${slug}/collection`}>
+        <input type="hidden" name="token" value={token} />
+        <input
+          name="collection"
+          defaultValue={collection ?? ""}
+          list={`collections-${slug}`}
+          maxLength={64}
+          autoComplete="off"
+          placeholder="no collection"
+          aria-label={`collection for ${slug}`}
+          aria-describedby={hintId}
+        />
+        <datalist id={`collections-${slug}`}>
+          {others.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        <span className="hint" id={hintId}>
+          enter saves, empty clears
+        </span>
+      </form>
     </section>
   );
 }

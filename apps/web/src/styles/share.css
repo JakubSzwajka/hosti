@@ -1,16 +1,66 @@
-/* The two panels that change who can open a bundle: its share links and the
-   collection it sits in. */
+/* The two sections that change who can open a bundle: its share links and the
+   collection it sits in. Flat rows on paper, divided by hairlines. */
+
+/* a control the owner rarely needs, folded away until they do --------- */
+.disclose {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+/* Dotted underline plus a caret, so a folded control reads as a control and
+   not as a stray caption. */
+.disclose > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  list-style: none;
+  cursor: pointer;
+  padding: 3px 2px;
+  color: var(--muted);
+  text-decoration: underline dotted var(--line);
+  text-underline-offset: 4px;
+}
+.disclose > summary::-webkit-details-marker {
+  display: none;
+}
+/* Drawn, not typed: a triangle from borders turns a quarter when it opens. */
+.disclose > summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-left-color: currentColor;
+  transition: transform var(--t) ease;
+}
+.disclose[open] > summary::before {
+  transform: rotate(90deg) translateX(1px);
+}
+.disclose > summary:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+}
+.disclose > summary[data-on] {
+  color: var(--pop);
+}
+.disclose-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px 16px;
+  padding: 10px 0 4px 15px;
+}
+.hint {
+  font-size: 12.5px;
+  color: var(--muted);
+}
 
 /* one share link ------------------------------------------------------ */
-.link-card {
-  border: 1px solid var(--line);
-  background: var(--paper);
-  border-radius: 8px;
-  padding: 13px 15px;
-  margin-bottom: 12px;
+.link {
+  padding: 0 0 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line-soft);
 }
-.link-card .path {
-  font-size: 13px;
+.link .path {
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--pop);
   /* A share slug has no spaces, so it needs permission to break, but not the
@@ -18,34 +68,35 @@
   overflow-wrap: anywhere;
   margin: 0;
 }
-.link-card .props {
+.link .props {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 14px;
-  margin: 8px 0 11px;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 5px 0 10px;
   font-size: 12.5px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.link-card .props span[data-pin] {
-  color: var(--pop);
-  font-weight: 500;
+.link .props .dot {
+  color: var(--line);
+}
+.link .acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.link .disclose {
+  margin-top: 4px;
 }
 
-/* set, replace or remove one link's pin. The digits are never shown back. */
+/* the pin on one link. The digits are never shown back. */
 .pin-row {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
-}
-.pin-row form {
-  display: flex;
-  gap: 6px;
-  align-items: center;
 }
 .pin-field {
   font-family: var(--font-mono);
@@ -64,85 +115,42 @@
   border-color: var(--pop);
 }
 
-/* A private bundle has one obvious next move, so the panel that makes it is
-   the one tinted block on the page. It also fills the column that would
-   otherwise trail off, since a bundle with no links has little to list. */
-.sect[data-private] {
-  background: var(--pop-wash);
-  border-color: #b6d2d5;
-}
-.sect[data-private] > h3 {
-  color: #3d6468;
-  border-bottom-color: #c6dcde;
-}
-.sect[data-private] .note {
-  color: #3d6468;
-}
-.sect[data-private] .pin-field,
-.sect[data-private] .btn {
-  background: var(--card);
-  border-color: #b6d2d5;
-}
-.sect[data-private] .btn[type="submit"] {
-  border-color: var(--pop);
-  color: var(--pop);
-}
-.sect[data-private] .btn[type="submit"]:hover {
-  background: var(--pop);
-  color: var(--card);
-}
-
 /* making a new share link --------------------------------------------- */
-/* Two rows on purpose: the button, then the two things that change what it
-   makes. In one wrapping row the options drifted onto three lines and read as
-   three unrelated controls. */
+/* The button and the toggle sit on one line. What the toggle hides is the
+   two things almost no link needs: an unguessable slug and a pin. */
 .make-link {
   display: flex;
-  gap: 9px 14px;
-  align-items: center;
+  gap: 8px 16px;
+  align-items: baseline;
   flex-wrap: wrap;
-  margin-top: 4px;
-  padding-top: 13px;
-  border-top: 1px solid var(--line-soft);
 }
 .make-link button {
   flex: none;
 }
-/* Shrinks and wraps in a narrow column, but never stretches to push the pin
-   field to the far edge of a full-width row. */
-.make-link label:first-of-type {
-  flex: 0 1 34ch;
+.make-link .disclose {
+  flex: 1 1 22ch;
+  min-width: 0;
 }
-/* No links yet: there is nothing above to divide this from. */
-.sect[data-private] .make-link {
-  border-top: 0;
-  padding-top: 0;
-}
-.make-link label {
-  font-size: 12.5px;
-  color: var(--muted);
+.opt {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
 }
-.make-link input[type="checkbox"] {
+.opt input[type="checkbox"] {
   accent-color: var(--pop);
   margin: 0;
 }
 
-/* collection, set or cleared from the bundle page ---------------------- */
+/* collection, set or cleared from one field --------------------------- */
+/* No save button and no clear button: a form whose only field is text posts
+   on Enter by itself, and an empty field is what takes a bundle out. */
 .set-collection {
   display: flex;
-  gap: 8px;
+  gap: 8px 14px;
   align-items: center;
   flex-wrap: wrap;
-}
-.set-collection label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--muted);
 }
 .set-collection input {
   font: inherit;
@@ -151,8 +159,8 @@
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 4px 9px;
-  width: 20ch;
+  padding: 5px 10px;
+  width: 22ch;
 }
 .set-collection input:focus {
   outline: 2px solid var(--pop);

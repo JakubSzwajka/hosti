@@ -1,14 +1,13 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Footer } from "@/app/_ui/catalog-screen";
 import { CopyButton } from "@/app/_ui/copy-button";
 import { formatBytes, formatDate, plural } from "@/app/_ui/format";
-import { Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
+import { Masthead, Thumb } from "@/app/_ui/pieces";
 import { CollectionSection, ShareLinks } from "@/app/b/[slug]/sections";
 import { requireAdmin } from "@/server/auth/admin";
 import { findBundle, listCollections, listRevisions } from "@/server/catalog";
-import { baseUrlFromHeaders, keepRevisions } from "@/server/config";
+import { baseUrlFromHeaders } from "@/server/config";
 import { listShareLinks } from "@/server/share-links";
 
 export const runtime = "nodejs";
@@ -30,7 +29,6 @@ export default async function BundleDetail({
   const revisions = listRevisions(bundle.id);
   const links = listShareLinks(bundle.id, baseUrl);
   const query = await searchParams;
-  const keep = keepRevisions();
   const current = revisions.find((revision) => revision.current);
   const token = admin.mutationToken;
   // The link to hand out, when there is one: the bundle's own slug first,
@@ -38,74 +36,63 @@ export default async function BundleDetail({
   const handout = links.find((link) => link.slug === bundle.slug) ?? links[0];
 
   return (
-    <>
-      <div className="wrap">
-        <Masthead
-          meta={
-            bundle.collection ? (
-              <Link className="meta-link" href={`/c/${encodeURIComponent(bundle.collection)}`}>
-                in {bundle.collection}
-              </Link>
-            ) : (
-              "no collection"
-            )
-          }
-          token={token}
-        />
-        <Link className="back" href="/">
-          &#8592; back to the catalog
-        </Link>
+    <div className="wrap">
+      {/* The masthead carries no collection here: the meta line below says it
+          once, and saying it twice was what made this page feel busy. */}
+      <Masthead token={token} />
+      <Link className="back" href="/">
+        &#8592; back to the catalog
+      </Link>
 
-        <div className="detail-head">
-          <h2>{bundle.title}</h2>
-          <div className="head-acts">
-            <OpenButton slug={bundle.slug} hasRevision={Boolean(current)} />
-            {handout ? (
-              <CopyButton value={handout.url} />
-            ) : (
-              <span className="btn" aria-disabled="true">
-                copy share link
-              </span>
-            )}
-          </div>
+      <div className="detail-head">
+        <h2>{bundle.title}</h2>
+        <div className="head-acts">
+          <OpenButton slug={bundle.slug} hasRevision={Boolean(current)} />
+          {handout ? (
+            <CopyButton value={handout.url} label="copy share link" />
+          ) : (
+            <span
+              className="btn"
+              aria-disabled="true"
+              aria-describedby="share-state"
+              title="No share link yet, so there is nothing to copy."
+            >
+              copy share link
+            </span>
+          )}
         </div>
-        {handout ? null : (
-          <p className="head-why">
-            Nothing to copy yet: this bundle is private. <a href="#share">Create a share link</a>{" "}
-            and this button hands it out.
-          </p>
-        )}
-
-        <p className="detail-meta">
-          <span className="mono">/b/{bundle.slug}</span>
-          <span className="dot">&middot;</span>
-          <span>{plural(revisions.length, "revision")}</span>
-          <span className="dot">&middot;</span>
-          <span>last push {formatDate(bundle.updated_at)}</span>
-          <ShareFlag count={links.length} />
-        </p>
-
-        <div className="detail-cols">
-          <div className="detail-col">
-            <Preview slug={bundle.slug} title={bundle.title} seq={current?.seq} />
-            <Revisions revisions={revisions} keep={keep} />
-          </div>
-          <div className="detail-col">
-            <ShareLinks slug={bundle.slug} links={links} token={token} refused={query.share} />
-            <CollectionSection
-              slug={bundle.slug}
-              collection={bundle.collection}
-              known={listCollections()}
-              token={token}
-              refused={query.collection}
-            />
-          </div>
-        </div>
-
-        <DeleteStrip slug={bundle.slug} token={token} confirming={query.delete === "1"} />
       </div>
-      <Footer />
-    </>
+
+      {/* Collection, revision, date and share state, each said exactly once on
+          this page. Nothing below repeats a word of it. */}
+      <p className="detail-meta">
+        {bundle.collection ? (
+          <Link className="meta-link" href={`/c/${encodeURIComponent(bundle.collection)}`}>
+            {bundle.collection}
+          </Link>
+        ) : (
+          <span>no collection</span>
+        )}
+        <span className="dot">&middot;</span>
+        <span>{current ? `r${current.seq}` : "no revision"}</span>
+        <span className="dot">&middot;</span>
+        <span>{formatDate(bundle.updated_at)}</span>
+        <span className="dot">&middot;</span>
+        <b>{links.length === 0 ? "private" : `shared, ${plural(links.length, "link")}`}</b>
+      </p>
+
+      <Preview slug={bundle.slug} title={bundle.title} seq={current?.seq} />
+      <ShareLinks slug={bundle.slug} links={links} token={token} refused={query.share} />
+      <Revisions revisions={revisions} />
+      <CollectionSection
+        slug={bundle.slug}
+        collection={bundle.collection}
+        known={listCollections()}
+        token={token}
+        refused={query.collection}
+      />
+      <DeleteStrip slug={bundle.slug} token={token} confirming={query.delete === "1"} />
+    </div>
   );
 }
 
@@ -142,7 +129,8 @@ function OpenButton({ slug, hasRevision }: { slug: string; hasRevision: boolean 
 /**
  * The bundle itself, live, framed as a window onto a page rather than a panel
  * that happens to stop. The bar names what is on screen and the base fades
- * out, so the crop reads as a crop.
+ * out, so the crop reads as a crop. It keeps its frame while the sections
+ * below go flat: it is a window onto someone else's page, not a card.
  */
 function Preview({ slug, title, seq }: { slug: string; title: string; seq?: number }) {
   return (
@@ -158,11 +146,6 @@ function Preview({ slug, title, seq }: { slug: string; title: string; seq?: numb
         openHref={seq ? `/b/${slug}/preview/` : undefined}
         label={`Preview of ${title}`}
       />
-      <p className="preview-cap">
-        {seq
-          ? "Running live in a sandboxed frame, cropped to the first screen. Only you can open it."
-          : "No revision has landed yet, so there is nothing to preview."}
-      </p>
     </section>
   );
 }
@@ -175,7 +158,7 @@ type RevisionRow = {
   current: boolean;
 };
 
-function Revisions({ revisions, keep }: { revisions: RevisionRow[]; keep: number }) {
+function Revisions({ revisions }: { revisions: RevisionRow[] }) {
   return (
     <section className="sect">
       <h3>Revisions</h3>
@@ -191,19 +174,14 @@ function Revisions({ revisions, keep }: { revisions: RevisionRow[]; keep: number
           </li>
         ))}
       </ul>
-      <p className="note">
-        Every push keeps the newest {plural(keep, "revision")} and deletes the rest. The current one
-        never goes, whatever the count says. Change it with{" "}
-        <span className="mono">HOSTI_KEEP_REVISIONS</span>.
-      </p>
     </section>
   );
 }
 
 /**
  * Deleting is real and it is confirmed, but it is not a daily control, so it
- * does not get a panel of its own weight. It sits last, in a line, under a
- * rule.
+ * sits last, in a line, under a rule. The sentence stays because what a
+ * delete takes with it is the one thing nobody can guess from the button.
  */
 function DeleteStrip({
   slug,

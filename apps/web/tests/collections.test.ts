@@ -116,6 +116,25 @@ describe("setting, changing and clearing", () => {
     await post("filed", { token, collection: "   " });
     expect(collectionOf("filed")).toBeNull();
   });
+
+  // The bundle page has one field and no clear button, so an empty field
+  // submitted on its own is now the only way out of a collection. The guard
+  // in front of it is the same one every other change goes through.
+  it("clears from an empty field with no clear flag", async () => {
+    await post("filed", { token, collection: "reports" });
+    const response = await post("filed", { token, collection: "" });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/b/filed");
+    expect(collectionOf("filed")).toBeNull();
+  });
+
+  it("still refuses an empty field with no mutation token", async () => {
+    await post("filed", { token, collection: "reports" });
+    const response = await post("filed", { collection: "" });
+    expect(response.status).toBe(403);
+    expect(collectionOf("filed")).toBe("reports");
+    await post("filed", { token, collection: "" });
+  });
 });
 
 describe("names Hosti will not take", () => {

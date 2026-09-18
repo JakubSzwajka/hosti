@@ -104,11 +104,11 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.panel}"
     padding: "15px 19px 17px"
-  panel-urgent:
-    backgroundColor: "{colors.pop-wash}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.panel}"
-    padding: "15px 19px 17px"
+  section-rule:
+    backgroundColor: "transparent"
+    textColor: "{colors.muted}"
+    typography: "11px"
+    padding: "0"
   input:
     backgroundColor: "{colors.card}"
     textColor: "{colors.ink}"
@@ -159,14 +159,14 @@ almost never appears.
 - **Deep Teal** (`#06707e`): the machine's voice. It marks a path, a share URL,
   a slug, the current revision, and the `shared` flag. It is also the focus
   ring. It never decorates a heading and it never fills a large area, except
-  inside the `shared` flag block and the one washed panel below.
-- **Teal Wash** (`#e4f0f1`): the single tinted panel. It marks the share panel
-  of a bundle nobody can open yet, because that panel holds the next action.
+  inside the `shared` flag block.
+- **Teal Wash** (`#e4f0f1`): one small fill, the step numbers on the empty
+  catalog. It is not a panel tint; the bundle page has no panels to tint.
 
 ### Tertiary
 
 - **Burnt Red** (`#8a2b14`): refusals and destruction only. An error line, a
-  hover on `revoke`, `clear it` or `delete this bundle`. It is never a resting
+  hover on `revoke`, `remove pin` or `delete this bundle`. It is never a resting
   state and never a fill.
 
 ### Neutral
@@ -239,21 +239,27 @@ The catalog is a grid asked for by width, not by count:
 columns at 1080, two around 800, one below 560, and it never leaves a column
 half the page wide between two fixed breakpoints.
 
-The bundle page is two stacks that start on one baseline, 1.22fr against 1fr,
-34px apart. Left: the preview, then revisions. Right: share links, then
-collection. The preview is tall, so it is paired against the panel that also
-grows. Below 900px the two stacks become one, in that order. A full-width strip
-under a hairline closes the page.
+The bundle page is one column, at every width. The preview window, then share
+links, then revisions, then collection, then a full-width strip under a
+hairline that closes the page. Nothing sits beside anything, so nothing can
+trail into dead space.
 
-Spacing runs on two steps, 22px between panels in a stack and 34px between
-columns and major bands. Inside a panel, groups are tight (8px to 12px) and a
-heading always carries more space above it than below.
+A section is a label, a rule running to the right edge, then rows. There is no
+second column to balance and no box to fill, which is why the flat version
+holds at 360px and at 1280px without a breakpoint between them.
+
+Spacing runs on two steps, 22px inside a section and 34px above the next
+section's label. A heading always carries more space above it than below.
 
 ### Named rules
 
-**The Shared Baseline Rule.** Two columns of panels always start level, and each
-column always holds more than one panel. A single short card beside a tall stack
-is the failure this layout exists to prevent.
+**The One Column Rule.** The bundle page never splits. A control the owner
+needs is found by reading down, not by scanning across, and a section that
+runs short leaves a shorter page rather than a hole beside a taller one.
+
+**The Said Once Rule.** Collection, revision, date and share state are stated
+in the meta line under the title, and nowhere else on that page. A section may
+name the thing it edits; it may not restate the state the meta line carries.
 
 **The Ask By Width Rule.** Grid tracks are declared with `minmax`, never with a
 fixed column count plus breakpoints. A count fixes the wrong thing.
@@ -290,10 +296,14 @@ A coloured edge on one side is not part of this language. The one 2px rule in
 the system is the ink line under the masthead, which is a printer's rule, not a
 border.
 
-Two silhouettes recur. The **panel**: a rounded card with an uppercase label at
-the top over a soft divider. The **window**: a rounded card whose first row is a
-mono bar naming a path, then live content, then a caption. Every preview is a
-window.
+Two silhouettes recur. The **card**: a rounded box with a preview at the top, a
+body, and a footer band. It exists in the catalog grid and nowhere else. The
+**window**: a rounded card whose first row is a mono bar naming a path, then
+live content cropped and faded at the base. Every preview is a window.
+
+A **section** is neither. It is a label, a `--line` rule running to the right
+edge, then rows on the paper itself. The bundle page is built from sections, so
+it has no box on it but the window.
 
 ## Components
 
@@ -319,14 +329,26 @@ window.
   opacity.
 - **Selected:** border and text to `--ink`, fill to `--card`.
 
-### Cards and panels
+### Sections and cards
 
-- **Panel:** `--card` fill, 1px `--line`, 10px radius, 15px by 19px padding.
-  Heading is the label style over a `--line-soft` divider.
-- **Panel, urgent:** the same panel filled `--pop-wash` with a `#b6d2d5` edge.
-  Exactly one state earns it: a bundle with no share link.
-- **Card:** the same, with a preview at the top, a body, and a footer band on
-  `--paper` divided by `--line-soft`. Hover moves the border one step darker.
+- **Section:** no fill, no border, no radius. An uppercase label, 14px of gap,
+  then a 1px `--line` rule filling the rest of the row. Rows sit on the paper
+  and are divided by `--line-soft`. This is how the bundle page is built.
+- **Card:** `--card` fill, 1px `--line`, 10px radius, with a preview at the top,
+  a body, and a footer band on `--paper` divided by `--line-soft`. Hover moves
+  the border one step darker. Only the catalog grid has cards.
+
+### Disclosure
+
+A control the owner rarely needs folds into a `<details>`: the summary states
+where the thing stands (`options`, `no pin`, `pin set`) and opening it reveals
+the controls that change it. It is a browser element, never a script, because
+these pages post forms and have to work with JavaScript off.
+
+- **Summary:** 12.5px `--muted`, dotted `--line` underline at 4px offset, and a
+  4px border triangle that turns a quarter when it opens. A summary that names
+  a set state takes `--pop`.
+- **Body:** a wrapping row indented 15px under the summary.
 
 ### Inputs
 
@@ -339,20 +361,25 @@ window.
 ### Navigation
 
 The masthead is the whole of it: mark plus wordmark on the left linking home,
-a meta line and `log out` on the right, a 2px ink rule beneath. Below 900px it
-stacks left-aligned. A bundle page adds a `← back to the catalog` link in muted
-13px under the rule.
+an optional meta line and `log out` on the right, a 2px ink rule beneath. It
+wraps rather than stacking, and it carries nothing the page below it already
+says: a bundle page leaves the meta slot empty. A bundle page adds a `← back to
+the catalog` link in muted 13px under the rule.
 
 ### The preview window (signature)
 
 The component the whole product is built around. A rounded panel whose first row
 is a mono bar carrying the bundle's path on the left and its revision on the
-right; then the bundle itself, live in a sandboxed frame, cropped to 16:10; then
-a caption on a `--line-soft` divider.
+right; then the bundle itself, live in a sandboxed frame, cropped.
+
+A card crops to 16:10. The bundle page's window runs the full column, so it
+crops to 21:9 instead: 16:10 across 1080px is 675px of picture before the owner
+reaches a single control. Below 700px, where the column is already short, it
+goes back to 16:10.
 
 The frame renders at a fixed viewport width and is scaled down to the slot:
 760px for a card, 1100px for the bundle page. A white gradient fades the last
-44px on a card and the last 76px on the bundle page, so the crop reads as a
+44px on a card and the last 58px on the bundle page, so the crop reads as a
 crop. Hovering the bundle page's window raises a dark scrim with a pill reading
 `open bundle ↗`.
 
@@ -360,7 +387,8 @@ crop. Hovering the bundle page's window raises a dark scrim with a pill reading
 
 **The Deliberate Crop Rule.** A preview never simply stops. It is bounded above
 by a bar that names what it is showing, and it fades out at the base. A frame
-cut through a sentence with a hard edge reads as broken software.
+cut through a sentence with a hard edge reads as broken software. The bar and
+the fade carry this on their own, with no caption underneath explaining them.
 
 ## Do's and don'ts
 
@@ -373,8 +401,8 @@ cut through a sentence with a hard edge reads as broken software.
   the first thing anyone reaches for.
 - **Do** spend teal on machine values and on the one next action, and nowhere
   else.
-- **Do** give every column of panels a partner panel, and start both columns on
-  one baseline.
+- **Do** fold a rarely-used control into a `<details>` rather than deleting it.
+  Fewer things on screen, the same things reachable.
 - **Do** set every path, slug, URL, size and command in mono with ligatures off.
 - **Do** time every transition from `--t` so `prefers-reduced-motion` is one
   override.
@@ -392,6 +420,11 @@ cut through a sentence with a hard edge reads as broken software.
   block.
 - **Don't** use monospace as a costume for "technical". It marks machine values
   only.
+- **Don't** explain the product on a screen the owner uses daily. A sentence
+  earns its place only by carrying something nobody could guess: that a PIN is
+  hashed and unreadable, and what a delete takes with it.
+- **Don't** put a section in a box. Boxes are for the catalog card and the
+  preview window.
 - **Don't** declare grid tracks by count plus a breakpoint. Use `minmax`.
 - **Don't** introduce a second accent, a gradient on text, glass, a dark mode
   toggle, an icon font, or a second display face.
