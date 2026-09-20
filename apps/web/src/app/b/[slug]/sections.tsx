@@ -1,125 +1,90 @@
+import type { SharingState } from "@hosti/shared";
 import { COLLECTION_RULE } from "@hosti/shared";
 import { CopyButton } from "@/app/_ui/copy-button";
-import { formatDate } from "@/app/_ui/format";
 
 /**
  * The two sections on the bundle page that change who can reach a bundle: the
- * share links it has, and the collection it sits in. Split out of `page.tsx`
- * so neither file fights the line cap.
+ * one sharing state it is in, and the collection it sits in. Split out of
+ * `page.tsx` so neither file fights the line cap.
  *
- * Both hide their less-used controls behind a `<details>`, which is a browser
- * affordance rather than a script: these pages post forms and work with no
- * JavaScript, and the toggle has to do the same.
+ * The collection section hides nothing. The sharing section is three radios
+ * and two buttons, posted as forms, so both work with no JavaScript.
  */
 
 const SHARE_REFUSALS: Record<string, string> = {
-  share_link_exists:
-    "A link with that slug already exists. Revoke it, or ask for an unlisted link.",
-  slug_too_long: "An unlisted link would push the slug past 64 characters.",
+  bad_mode: "Pick private, link or pin.",
   bad_pin: "A pin is four to eight digits and nothing else.",
-  not_configured: "Set HOSTI_SECRET in the environment before a link can carry a pin.",
+  pin_required: "Type a pin before you put this bundle behind one.",
+  pin_not_wanted: "A pin only belongs on the pin state.",
+  not_configured: "Set HOSTI_SECRET in the environment before a bundle can carry a pin.",
 };
 
-type Link = { slug: string; url: string; createdAt: string; hasPin: boolean };
+const MODE_NOTES: Record<SharingState["mode"], string> = {
+  private: "nothing answers at the share URL",
+  link: "anyone holding the URL opens the bundle",
+  pin: "the URL asks for the pin, then opens the bundle",
+};
 
-export function ShareLinks({
+/**
+ * One bundle, one sharing state, at most one link. Picking a state is one
+ * post; rotating the slug is another. Rotate is the only way to cut off
+ * somebody who already has the address, so it says so rather than sitting
+ * there as a bare verb.
+ */
+export function SharingSection({
   slug,
-  links,
+  sharing,
+  url,
   token,
   refused,
 }: {
   slug: string;
-  links: Link[];
+  sharing: SharingState;
+  /** The absolute share URL, or null while the bundle is private. */
+  url: string | null;
   token: string;
   refused?: string;
 }) {
   const refusal = refused ? SHARE_REFUSALS[refused] : undefined;
   return (
     <section className="sect">
-      <h3>Share links</h3>
+      <h3>Sharing</h3>
       {refusal ? <p className="error">{refusal}</p> : null}
-      {links.length === 0 ? (
-        <p className="state" id="share-state">
-          Private. Nothing at <span className="mono">/v/{slug}/</span> answers.
-        </p>
-      ) : null}
-      {links.map((link) => (
-        <ShareLinkRow key={link.slug} slug={slug} link={link} token={token} />
-      ))}
-      <form className="make-link" method="post" action={`/b/${slug}/share-links`}>
-        <input type="hidden" name="token" value={token} />
-        <button className="btn" type="submit">
-          create share link
-        </button>
-        <details className="disclose">
-          <summary>options</summary>
-          <div className="disclose-body">
-            <label className="opt">
-              <input type="checkbox" name="unlisted" value="1" />
-              unlisted, eight random characters
-            </label>
-            <label className="opt">
-              pin
-              <input
-                className="pin-field"
-                type="text"
-                name="pin"
-                inputMode="numeric"
-                maxLength={8}
-                autoComplete="off"
-                placeholder="4 to 8 digits"
-              />
-              <span className="hint">hashed, never shown again</span>
-            </label>
+      {url ? (
+        <div className="link">
+          <p className="path">{url}</p>
+          <div className="acts">
+            <CopyButton value={url} />
+            <a className="btn" href={url} target="_blank" rel="noreferrer">
+              open as a guest
+            </a>
           </div>
-        </details>
-      </form>
-    </section>
-  );
-}
+        </div>
+      ) : (
+        <p className="state" id="share-state">
+          Private. Nothing at <span className="mono">/v/{sharing.shareSlug}/</span> answers.
+        </p>
+      )}
 
-function ShareLinkRow({ slug, link, token }: { slug: string; link: Link; token: string }) {
-  return (
-    <div className="link">
-      <p className="path">{link.url}</p>
-      <p className="props">
-        <span>{link.slug === slug ? "bundle slug" : "unlisted"}</span>
-        <span className="dot">&middot;</span>
-        <span>{formatDate(link.createdAt)}</span>
-      </p>
-      <div className="acts">
-        <CopyButton value={link.url} />
-        <a className="btn" href={link.url} target="_blank" rel="noreferrer">
-          open as a guest
-        </a>
-        <form method="post" action={`/b/${slug}/share-links/revoke`}>
-          <input type="hidden" name="token" value={token} />
-          <input type="hidden" name="shareSlug" value={link.slug} />
-          <button className="btn" type="submit" data-tone="danger">
-            revoke
-          </button>
-        </form>
-      </div>
-      <PinControls slug={slug} link={link} token={token} />
-    </div>
-  );
-}
-
-/**
- * Set, replace or remove one link's PIN. The summary states which of the two
- * this link is in, so the state is on the page without a separate line saying
- * it. The digits are never shown back, because Hosti holds only a hash.
- */
-function PinControls({ slug, link, token }: { slug: string; link: Link; token: string }) {
-  return (
-    <details className="disclose">
-      <summary {...(link.hasPin ? { "data-on": "" } : {})}>
-        {link.hasPin ? "pin set" : "no pin"}
-      </summary>
-      <div className="disclose-body">
-        <form className="pin-row" method="post" action={`/b/${slug}/share-links/pin`}>
-          <input type="hidden" name="token" value={token} />
-          <input type="hidden" name="shareSlug" value={link.slug} />
+      <form className="set-sharing" method="post" action={`/b/${slug}/sharing`}>
+        <input type="hidden" name="token" value={token} />
+        <ul className="modes">
+          {(Object.keys(MODE_NOTES) as SharingState["mode"][]).map((mode) => (
+            <li key={mode}>
+              <label className="opt">
+                <input
+                  type="radio"
+                  name="mode"
+                  value={mode}
+                  defaultChecked={sharing.mode === mode}
+                />
+                <b>{mode}</b>
+                <span className="hint">{MODE_NOTES[mode]}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <div className="pin-row">
           <input
             className="pin-field"
             type="text"
@@ -127,28 +92,30 @@ function PinControls({ slug, link, token }: { slug: string; link: Link; token: s
             inputMode="numeric"
             maxLength={8}
             autoComplete="off"
-            aria-label={
-              link.hasPin ? `replace the pin on ${link.slug}` : `set a pin on ${link.slug}`
-            }
+            aria-label={sharing.hasPin ? `replace the pin on ${slug}` : `set a pin on ${slug}`}
             placeholder="4 to 8 digits"
           />
-          <button className="btn" type="submit">
-            {link.hasPin ? "replace pin" : "set pin"}
-          </button>
-          <span className="hint">hashed, never shown again</span>
-        </form>
-        {link.hasPin ? (
-          <form method="post" action={`/b/${slug}/share-links/pin`}>
-            <input type="hidden" name="token" value={token} />
-            <input type="hidden" name="shareSlug" value={link.slug} />
-            <input type="hidden" name="remove" value="1" />
-            <button className="btn" type="submit" data-tone="danger">
-              remove pin
-            </button>
-          </form>
-        ) : null}
-      </div>
-    </details>
+          <span className="hint">
+            {sharing.hasPin
+              ? "pin set, hashed. Type new digits to replace it."
+              : "hashed, never shown again"}
+          </span>
+        </div>
+        <button className="btn" type="submit">
+          save sharing
+        </button>
+      </form>
+
+      <form className="rotate" method="post" action={`/b/${slug}/sharing/rotate`}>
+        <input type="hidden" name="token" value={token} />
+        <button className="btn" type="submit" data-tone="danger">
+          rotate link
+        </button>
+        <span className="hint">
+          a fresh address. The old one stops answering for everyone holding it.
+        </span>
+      </form>
+    </section>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Bundle, Revision } from "@hosti/shared";
 import { db, nowIso } from "@/server/db";
+import { describeSharing, initialShareSlug } from "@/server/sharing";
 
 type BundleRow = {
   id: number;
@@ -7,6 +8,9 @@ type BundleRow = {
   title: string;
   collection: string | null;
   current_revision_id: number | null;
+  share_mode: string;
+  share_slug: string;
+  pin_hash: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -37,8 +41,9 @@ export function findBundle(slug: string): BundleRecord | null {
 
 /**
  * Create the bundle. A push to an unknown slug lands here: the spec chose
- * create-on-push. No share link is minted, because a bundle is private until
- * someone asks for one.
+ * create-on-push. It lands private, because a bundle is private until the
+ * owner says otherwise. Its share slug is its own slug, so turning sharing on
+ * puts `sleep-brief` at `/v/sleep-brief/` with nothing else to decide.
  */
 export function createBundle(input: {
   slug: string;
@@ -48,24 +53,31 @@ export function createBundle(input: {
   const now = nowIso();
   const result = db()
     .prepare(
-      `INSERT INTO bundles (slug, title, collection, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO bundles (slug, title, collection, share_mode, share_slug, created_at, updated_at)
+       VALUES (?, ?, ?, 'private', ?, ?, ?)`,
     )
-    .run(input.slug, input.title?.trim() || input.slug, input.collection ?? null, now, now);
+    .run(
+      input.slug,
+      input.title?.trim() || input.slug,
+      input.collection ?? null,
+      initialShareSlug(input.slug),
+      now,
+      now,
+    );
   return db()
     .prepare("SELECT * FROM bundles WHERE id = ?")
     .get(result.lastInsertRowid as number) as BundleRow;
 }
 
 /**
- * Forget a bundle: its revisions and every share link go with it. The caller
- * removes the files. `current_revision_id` is cleared first, because that
- * column points back at a row the delete is about to take away.
+ * Forget a bundle: its revisions and its sharing state go with it, because
+ * both live on rows this takes away. The caller removes the files.
+ * `current_revision_id` is cleared first, because that column points back at a
+ * row the delete is about to take away.
  */
 export function deleteBundle(bundleId: number): void {
   const forget = db().transaction(() => {
     db().prepare("UPDATE bundles SET current_revision_id = NULL WHERE id = ?").run(bundleId);
-    db().prepare("DELETE FROM share_links WHERE bundle_id = ?").run(bundleId);
     db().prepare("DELETE FROM revisions WHERE bundle_id = ?").run(bundleId);
     db().prepare("DELETE FROM bundles WHERE id = ?").run(bundleId);
   });
@@ -191,9 +203,11 @@ export function listRevisions(bundleId: number): (Revision & { current: boolean 
   }));
 }
 
-export type ResolvedShareLink = {
+export type ResolvedShare = {
   shareSlug: string;
   bundleSlug: string;
+  /** The bundle row this slug resolved to. An unlock grant is tied to it. */
+  bundleId: number;
   currentSeq: number;
   /** The scrypt hash guarding this link, or null when anyone holding it may look. */
   pinHash: string | null;
@@ -201,27 +215,57 @@ export type ResolvedShareLink = {
 
 /**
  * Resolve a share slug to the bundle's current revision. Returns null when the
- * share link is unknown or its bundle has never had a successful push, so that
- * a caller cannot tell those two cases apart.
+ * slug is unknown, when the bundle is private, and when the bundle has never
+ * had a successful push, so a caller cannot tell those three cases apart.
+ *
+ * Mode `pin` with no stored hash resolves to nothing rather than to an open
+ * link. The API refuses to write that row, so this only guards a database
+ * somebody edited by hand, and it guards it the safe way round.
  */
-export function resolveShareLink(shareSlug: string): ResolvedShareLink | null {
+export function resolveShare(shareSlug: string): ResolvedShare | null {
   const row = db()
     .prepare(
-      `SELECT s.slug AS share_slug, s.pin_hash AS pin_hash, b.slug AS bundle_slug, r.seq AS seq
-         FROM share_links s
-         JOIN bundles b ON b.id = s.bundle_id
+      `SELECT b.id AS bundle_id, b.share_slug AS share_slug, b.pin_hash AS pin_hash,
+              b.slug AS bundle_slug, r.seq AS seq
+         FROM bundles b
          JOIN revisions r ON r.id = b.current_revision_id
-        WHERE s.slug = ?`,
+        WHERE b.share_slug = ?
+          AND (b.share_mode = 'link' OR (b.share_mode = 'pin' AND b.pin_hash IS NOT NULL))`,
     )
     .get(shareSlug) as
-    | { share_slug: string; pin_hash: string | null; bundle_slug: string; seq: number }
+    | {
+        bundle_id: number;
+        share_slug: string;
+        pin_hash: string | null;
+        bundle_slug: string;
+        seq: number;
+      }
     | undefined;
   if (!row) return null;
   return {
     shareSlug: row.share_slug,
     bundleSlug: row.bundle_slug,
+    bundleId: row.bundle_id,
     currentSeq: row.seq,
     pinHash: row.pin_hash,
+  };
+}
+
+/** One bundle as the API reports it, sharing state included. */
+export function describeBundle(bundle: BundleRecord): Bundle {
+  const rows = db()
+    .prepare("SELECT * FROM revisions WHERE bundle_id = ?")
+    .all(bundle.id) as RevisionRow[];
+  const current = rows.find((revision) => revision.id === bundle.current_revision_id);
+  return {
+    slug: bundle.slug,
+    title: bundle.title,
+    collection: bundle.collection,
+    createdAt: bundle.created_at,
+    updatedAt: bundle.updated_at,
+    currentRevision: current ? toRevision(current) : null,
+    revisionCount: rows.length,
+    sharing: describeSharing(bundle),
   };
 }
 
@@ -231,10 +275,6 @@ export function listCatalog(): Bundle[] {
     .prepare("SELECT * FROM bundles ORDER BY updated_at DESC, id DESC")
     .all() as BundleRow[];
   const revisions = db().prepare("SELECT * FROM revisions").all() as RevisionRow[];
-  const shares = db().prepare("SELECT slug, bundle_id FROM share_links ORDER BY id").all() as {
-    slug: string;
-    bundle_id: number;
-  }[];
 
   return bundles.map((bundle) => {
     const mine = revisions.filter((revision) => revision.bundle_id === bundle.id);
@@ -247,7 +287,7 @@ export function listCatalog(): Bundle[] {
       updatedAt: bundle.updated_at,
       currentRevision: current ? toRevision(current) : null,
       revisionCount: mine.length,
-      shareSlugs: shares.filter((s) => s.bundle_id === bundle.id).map((s) => s.slug),
+      sharing: describeSharing(bundle),
     };
   });
 }

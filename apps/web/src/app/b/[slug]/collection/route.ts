@@ -26,6 +26,8 @@ export async function POST(
   if (!bundle) return new Response("No such bundle", { status: 404 });
 
   const typed = form.get("collection");
+  if (typed === "__new") return backTo(`/b/${slug}?collection=new`);
+
   const clearing = form.get("clear") === "1";
   const wanted = clearing ? null : readCollection(typeof typed === "string" ? typed : "");
   if (wanted === undefined) {

@@ -12,10 +12,12 @@ colors:
   pop: "#06707e"
   pop-wash: "#e4f0f1"
   danger: "#8a2b14"
+  white: "#ffffff"
+  selection: "#bfe0e3"
 typography:
   display:
     fontFamily: "Fraunces, Superclarendon, 'Bookman Old Style', Georgia, serif"
-    fontSize: "34px"
+    fontSize: "clamp(34px, 5.6vw, 54px)"
     fontWeight: 900
     lineHeight: 1.1
     letterSpacing: "-0.025em"
@@ -27,8 +29,8 @@ typography:
     letterSpacing: "-0.02em"
   title:
     fontFamily: "Fraunces, Superclarendon, 'Bookman Old Style', Georgia, serif"
-    fontSize: "18px"
-    fontWeight: 400
+    fontSize: "25px"
+    fontWeight: 900
     lineHeight: 1.25
     letterSpacing: "-0.01em"
   body:
@@ -57,6 +59,10 @@ typography:
     letterSpacing: "0.015em"
     fontFeature: "'liga' 0, 'calt' 0"
 rounded:
+  preview-mark: "2px"
+  focus: "3px"
+  stamp: "4px"
+  flag: "5px"
   control: "6px"
   nested: "8px"
   panel: "10px"
@@ -152,8 +158,8 @@ contrast and from one hairline, never from a shadow.
 - One display serif with real weight, against a plain grotesque, against a
   monospace reserved for paths and machine values.
 - Flat. One 1px hairline is the entire depth system.
-- Type is small and dense; the page is generous.
-- Destructive controls are the quietest thing on the screen.
+- Type is compact around the bundle previews; names carry real display weight.
+- Destructive controls come last and use burnt red only when the owner acts.
 
 ## Colors
 
@@ -162,18 +168,18 @@ almost never appears.
 
 ### Primary
 
-- **Deep Teal** (`#06707e`): the machine's voice. It marks a path, a share URL,
-  a slug, the current revision, and the `shared` flag. It is also the focus
-  ring. It never decorates a heading and it never fills a large area, except
-  inside the `shared` flag block.
+- **Deep Teal** (`#06707e`): the machine's voice. It marks a path, a live share
+  URL, a slug, the current revision, and the `link` or `pin` flag. It is also
+  the focus ring. It never decorates a heading and it never fills a large area,
+  except inside a sharing-state flag.
 - **Teal Wash** (`#e4f0f1`): one small fill, the step numbers on the empty
   catalog. It is not a panel tint; the bundle page has no panels to tint.
 
 ### Tertiary
 
-- **Burnt Red** (`#8a2b14`): refusals and destruction only. An error line, a
-  hover on `revoke`, `remove pin` or `delete this bundle`. It is never a resting
-  state and never a fill.
+- **Burnt Red** (`#8a2b14`): refusals and destruction only. It carries an error
+  line and the filled `delete bundle` control. No other resting control uses
+  it.
 
 ### Neutral
 
@@ -193,9 +199,9 @@ almost never appears.
 it marks the one next action. Red has exactly one: this refuses, or this
 destroys. A colour with a third job is a bug.
 
-**The Words Rule.** Share state is never a coloured dot. `private` and `shared`
-are printed words on a block, and the block's colour only repeats what the words
-already said.
+**The Words Rule.** The sharing state is never a coloured dot. `private`,
+`link` and `pin` are printed words on a block, and the block's colour only
+repeats what the words already said.
 
 ## Typography
 
@@ -211,13 +217,13 @@ when the reader is checking a URL they are about to hand out.
 
 ### Hierarchy
 
-- **Display** (900, 34px, 1.1, -0.025em): a bundle's title. One per page,
-  balanced, capped at 22ch so a long title breaks rather than crowding the
-  controls beside it.
+- **Display** (900, `clamp(34px, 5.6vw, 54px)`, 1.02, -0.035em): a bundle's
+  title. One per page, capped at 18ch so a long title breaks before it crowds
+  the meta line.
 - **Headline** (900, 22px, -0.02em): the `hosti` wordmark, the empty-state
   heading, and the gate.
-- **Title** (400, 18px): a card's bundle title. Regular weight on purpose: the
-  grid holds ten of these and 900 would shout ten times.
+- **Title** (900, 25px; 19px below 560px): a card's bundle title. The slug
+  lives in the window bar, leaving the name as the one heavy thing in the card.
 - **Body** (400, 16px, 1.5): prose. Measure capped at 48ch to 56ch inside a
   panel, 54ch for a page lead.
 - **Meta** (400, 13.5px, 1.5): the short secondary line that states where
@@ -242,25 +248,24 @@ headings. It never carries a sentence.
 ## Layout
 
 One centred column, 1080px at most, with 32px of side padding that drops to
-20px below 900px. Every screen hangs off the same masthead: mark, wordmark, a
-line of meta on the right, and a 2px ink rule under it.
+20px below 900px. The catalog and bundle mastheads end on a 5px printer's rule,
+then a compact register line ends on a hairline. Login, gate and 404 keep their
+own masthead treatment.
 
 The catalog is a grid asked for by width, not by count:
-`repeat(auto-fill, minmax(266px, 1fr))` with a 22px gap. It resolves to three
-columns at 1080, two around 800, one below 560, and it never leaves a column
-half the page wide between two fixed breakpoints.
+`repeat(auto-fill, minmax(298px, 1fr))` with a 22px gap. Below 560px each card
+turns into a compact row with a 108px preview, its name, sharing state and open
+action. The phone catalog stays a contact sheet instead of becoming a tall
+stack of 16:10 previews.
 
-The bundle page is one column, at every width. The preview window, then share
-links, then revisions, then collection, then a full-width strip under a
-hairline that closes the page. Nothing sits beside anything, so nothing can
-trail into dead space.
+The bundle page is one column. Under the title, three blocks remain: the meta
+line with its collection select and open action, the preview window, and one
+sharing island. A delete strip closes the page. Revision history is absent;
+the current revision and date appear once in the meta line. Collection editing
+lives in that line rather than in a section.
 
-A section is a label, a rule running to the right edge, then rows. There is no
-second column to balance and no box to fill, which is why the flat version
-holds at 360px and at 1280px without a breakpoint between them.
-
-Spacing runs on two steps, 22px inside a section and 34px above the next
-section's label. A heading always carries more space above it than below.
+Spacing runs on two steps, 22px between the daily blocks and 34px before the
+delete strip. A heading always carries more space above it than below.
 
 ### Named rules
 
@@ -268,9 +273,9 @@ section's label. A heading always carries more space above it than below.
 needs is found by reading down, not by scanning across, and a section that
 runs short leaves a shorter page rather than a hole beside a taller one.
 
-**The Said Once Rule.** Collection, revision, date and share state are stated
-in the meta line under the title, and nowhere else on that page. A section may
-name the thing it edits; it may not restate the state the meta line carries.
+**The Said Once Rule.** Collection, current revision and date are stated in the
+meta line under the title. Sharing state is stated in its selected radio row.
+Neither fact is repeated elsewhere on the bundle page.
 
 **The Ask By Width Rule.** Grid tracks are declared with `minmax`, never with a
 fixed column count plus breakpoints. A count fixes the wrong thing.
@@ -297,24 +302,25 @@ shadow, because nothing in Hosti has a shadow.
 
 ## Shapes
 
-Radii step with the size of the thing. A control is 6px, something nested inside
-a panel is 8px, a panel or a card is 10px, a card standing alone on paper is
-12px, and a pill is reserved for chips and the preview's open label. Nothing
-exceeds 12px.
+Radii step with the size of the thing. Preview marks use 2px, the focus ring
+follows at 3px, a pin stamp uses 4px, and sharing flags use 5px. A control is
+6px, something nested inside a panel is 8px, a panel or card is 10px, and a
+card standing alone on paper is 12px. Pills are reserved for chips and the
+preview's open label. Nothing exceeds 12px.
 
-Borders are always 1px, always `--line` or `--line-soft`, always a full outline.
-A coloured edge on one side is not part of this language. The one 2px rule in
-the system is the ink line under the masthead, which is a printer's rule, not a
-border.
+Borders are 1px, always `--line` or `--line-soft`, always a full outline. A
+coloured edge on one side is not part of this language. The catalog and bundle
+mastheads use a 5px printer's rule over a hairline register. The bundle meta
+line uses a 2px ink rule to bind the select, revision, date and open action.
 
 Two silhouettes recur. The **card**: a rounded box with a preview at the top, a
 body, and a footer band. It exists in the catalog grid and nowhere else. The
 **window**: a rounded card whose first row is a mono bar naming a path, then
 live content cropped and faded at the base. Every preview is a window.
 
-A **section** is neither. It is a label, a `--line` rule running to the right
-edge, then rows on the paper itself. The bundle page is built from sections, so
-it has no box on it but the window.
+The **sharing island** is a third silhouette: one card-tone surface with a
+label band, three full-width radio rows and a foot band for the address. It is
+one control group, not a stack of smaller cards.
 
 ## Components
 
@@ -326,13 +332,14 @@ it has no box on it but the window.
   `--ink`. Border and colour transition on `--t` (140ms), nothing else.
 - **Go:** the one filled button on a screen. Ink fill, paper text, 13px, weight
   500, 6px by 15px. It opens something. A screen has at most one.
-- **Danger tone:** identical at rest; hover moves the border and the text to
-  `--danger`. There is no red button in Hosti.
-- **Inert:** a control whose action is unavailable keeps its place and its
-  label, switches its border to dashed, and drops to `--muted`. It is rendered
-  as a `span` with `aria-disabled`, never removed.
-- **Quiet danger:** a destructive action that is not a button. Muted text with a
-  `--line` underline, 13px, that turns `--danger` on hover.
+- **Danger tone:** confirmation actions may move border and text to
+  `--danger`. The final bundle delete is a filled burnt-red button, last on the
+  page.
+- **Inert:** a daily control whose action is unavailable keeps its place and
+  drops to `--muted`. The no-revision sharing block is different: it collapses
+  to one short reason because no share action exists yet.
+- **Delete:** a filled burnt-red button, 14px, with an inline confirmation that
+  names its real cost before the form can post.
 
 ### Chips
 
@@ -340,30 +347,18 @@ it has no box on it but the window.
   opacity.
 - **Selected:** border and text to `--ink`, fill to `--card`.
 
-### Sections and cards
+### Islands and cards
 
-- **Section:** no fill, no border, no radius. An uppercase label, 14px of gap,
-  then a 1px `--line` rule filling the rest of the row. Rows sit on the paper
-  and are divided by `--line-soft`. This is how the bundle page is built.
-- **Card:** `--card` fill, 1px `--line`, 10px radius, with a preview at the top,
-  a body, and a footer band on `--paper` divided by `--line-soft`. Hover moves
-  the border one step darker. Only the catalog grid has cards.
-
-### Disclosure
-
-A control the owner rarely needs folds into a `<details>`: the summary states
-where the thing stands (`options`, `no pin`, `pin set`) and opening it reveals
-the controls that change it. It is a browser element, never a script, because
-these pages post forms and have to work with JavaScript off.
-
-- **Summary:** 12.5px `--muted`, dotted `--line` underline at 4px offset, and a
-  4px border triangle that turns a quarter when it opens. A summary that names
-  a set state takes `--pop`.
-- **Body:** a wrapping row indented 15px under the summary.
+- **Sharing island:** `--card` fill, 1px `--line`, 10px radius. Its head and
+  foot use `--paper`; the selected radio row uses the same tone step. Choice
+  labels are 18px and the live address is 15px.
+- **Card:** `--card` fill, 1px `--line`, 10px radius, with a preview window, a
+  body, and a footer band on `--paper` divided by `--line-soft`. Below 560px the
+  same parts run across as a compact row. Only the catalog has these cards.
 
 ### Inputs
 
-- **Style:** `--card` fill, 1px `--line`, 6px radius, 4px by 9px. A PIN field is
+- **Style:** `--card` fill, 1px `--line`, 6px radius, 4px by 9px. A pin field is
   mono.
 - **Focus:** 2px `--pop` outline at 1px offset with the border also going
   `--pop`. Every focusable thing in the system gets a `--pop` ring; none of them
@@ -372,16 +367,17 @@ these pages post forms and have to work with JavaScript off.
 ### Navigation
 
 The masthead is the whole of it: mark plus wordmark on the left linking home,
-an optional meta line and `log out` on the right, a 2px ink rule beneath. It
-wraps rather than stacking, and it carries nothing the page below it already
-says: a bundle page leaves the meta slot empty. A bundle page adds a `← back to
-the catalog` link in muted 13px under the rule.
+an optional meta line and `log out` on the right. Catalog and bundle pages use
+a 5px ink printer's rule, followed by the uppercase register and one hairline.
+The bundle page leaves the meta slot empty and adds a `← back to the catalog`
+link below the register.
 
 ### The preview window (signature)
 
-The component the whole product is built around. A rounded panel whose first row
-is a mono bar carrying the bundle's path on the left and its revision on the
-right; then the bundle itself, live in a sandboxed frame, cropped.
+The component the whole product is built around. A rounded panel whose first
+row is a mono bar. Catalog cards carry the bundle path and current revision;
+the bundle page carries the path, entry file and byte size. The live sandboxed
+frame is cropped below it.
 
 A card crops to 16:10. The bundle page's window runs the full column, so it
 crops to 21:9 instead: 16:10 across 1080px is 675px of picture before the owner
@@ -389,10 +385,13 @@ reaches a single control. Below 700px, where the column is already short, it
 goes back to 16:10.
 
 The frame renders at a fixed viewport width and is scaled down to the slot:
-760px for a card, 1100px for the bundle page. A white gradient fades the last
-44px on a card and the last 58px on the bundle page, so the crop reads as a
-crop. Hovering the bundle page's window raises a dark scrim with a pill reading
-`open bundle ↗`.
+760px for a card, 1100px for the bundle page. Loading plate words run at 24px,
+30px on the wide bundle preview, and 17px in a phone card. A truthful plate
+stays under the frame and its entry file, file count and byte size remain
+legible at the base.
+The plate covers loading, almost-blank and no-revision states without painting
+an unexplained white rectangle. Hovering the bundle page's window raises a dark
+scrim with `open bundle ↗`.
 
 ### Named rule
 
@@ -405,15 +404,15 @@ the fade carry this on their own, with no caption underneath explaining them.
 
 ### Do
 
-- **Do** keep a control in place when its action is unavailable. Render it
-  inert with a reason beside it. A control that disappears sends the owner
-  hunting for something they already learned the position of.
+- **Do** keep daily controls in place when their action is unavailable. A
+  no-revision bundle is the exception: sharing collapses to one compact inert
+  line because there is no address that can answer yet.
 - **Do** put `open` in the loudest slot on any screen that shows a bundle. It is
   the first thing anyone reaches for.
 - **Do** spend teal on machine values and on the one next action, and nowhere
   else.
-- **Do** fold a rarely-used control into a `<details>` rather than deleting it.
-  Fewer things on screen, the same things reachable.
+- **Do** put rotate and delete confirmation inline, in the band where the
+  initiating control already lives.
 - **Do** set every path, slug, URL, size and command in mono with ligatures off.
 - **Do** time every transition from `--t` so `prefers-reduced-motion` is one
   override.
@@ -424,9 +423,8 @@ the fade carry this on their own, with no caption underneath explaining them.
 
 - **Don't** add a shadow. The system is flat, and a border under a shadow is the
   ghost card this world exists without.
-- **Don't** give a destructive control more weight than a daily one. Delete is
-  a quiet underlined link on a full-width strip, last on the page, under a rule.
-  It is never a panel of its own, and it is never on a catalog card.
+- **Don't** move delete above the daily controls. It is filled burnt red, but
+  it stays last, under a rule, and never appears on a catalog card.
 - **Don't** use a coloured dot, a badge or an icon for share state. Words on a
   block.
 - **Don't** use monospace as a costume for "technical". It marks machine values
@@ -434,8 +432,8 @@ the fade carry this on their own, with no caption underneath explaining them.
 - **Don't** explain the product on a screen the owner uses daily. A sentence
   earns its place only by carrying something nobody could guess: that a PIN is
   hashed and unreadable, and what a delete takes with it.
-- **Don't** put a section in a box. Boxes are for the catalog card and the
-  preview window.
+- **Don't** split sharing into a link list, per-link disclosures or nested
+  cards. One bundle has one sharing island and one address.
 - **Don't** declare grid tracks by count plus a breakpoint. Use `minmax`.
 - **Don't** introduce a second accent, a gradient on text, glass, a dark mode
   toggle, an icon font, or a second display face.

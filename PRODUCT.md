@@ -46,14 +46,14 @@ questions without being read closely:
 
 Two facts a neighbouring static host could not truthfully copy:
 
-1. **A push mints no share link.** A bundle is private the moment it lands,
-   whether it came from `hosti push` or from a file dropped on the catalog.
-   Every other way in is the same: nothing new is public until the owner
-   creates a share link.
+1. **A push never changes the sharing state.** A bundle is private the moment
+   it lands, whether it came from `hosti push` or from a file dropped on the
+   catalog. Every other way in is the same: nothing new is public until the
+   owner turns sharing on.
 2. **Every card runs the bundle itself.** No screenshot service, no stored
    image, no headless browser. The card is the bundle's current revision in a
    sandboxed iframe, served from an owner-only route. The preview works on a
-   private bundle with no share link, which is most of them.
+   private bundle, which is most of them.
 
 ## Operating context
 
@@ -62,7 +62,8 @@ The owner's loop, in order:
 ```
 agent pushes  ->  catalog shows it (private)  ->  owner opens it
                                               ->  owner shares it by link
-                                              ->  owner revokes the link
+                                              ->  owner rotates the link, or
+                                                 goes private again
 ```
 
 Screens that carry that loop:
@@ -72,7 +73,7 @@ Screens that carry that loop:
 | `/login` | Owner password, one field |
 | `/` | Every bundle, newest push first |
 | `/c/<collection>` | One collection; `/c/-` is bundles in none |
-| `/b/<slug>` | One bundle: preview, revisions, share links, collection, delete |
+| `/b/<slug>` | One bundle: preview, revisions, sharing state, collection, delete |
 | `/b/<slug>/preview/` | The bundle itself, owner only |
 | `/v/<share-slug>/` | The bundle, for whoever holds the link |
 | `/v/<share-slug>/` + PIN | Hosti's own gate, at the guest's own URL |
@@ -84,26 +85,33 @@ Two other ways in exist and have no screen: `hosti push` from a terminal and
 
 The words are binding and live in `CONTEXT.md`. Use them in code, in the
 schema and in the UI: **bundle**, **revision**, **catalog**, **collection**,
-**share link**, **push token**, **admin session**. Do not write site,
-artifact, report, project, version, build, deploy, dashboard, library,
-gallery, folder, tag, category, public URL, share token, API key, or user
-account.
+**sharing state**, **share link**, **rotate**, **pin**, **push token**,
+**admin session**. Do not write site, artifact, report, project, version,
+build, deploy, dashboard, library, gallery, folder, tag, category,
+visibility, access level, permission, public URL, share token, regenerate,
+refresh, reset, password, passcode, API key, or user account.
 
 Confirmed behaviour the design has to respect:
 
-- [x] A bundle is private until a share link exists. A private bundle answers
-      the same 404 at `/v/<slug>/` as a slug that was never pushed.
-- [x] One bundle may hold several share links. Revoking one touches neither
-      the bundle nor its other links.
-- [x] A PIN sits on a **share link**, never on the bundle. Four to eight
-      digits, typed by the owner, hashed with `scrypt`. Hosti never generates
-      one and never reads one back, so no screen can ever show a PIN.
+- [x] A bundle is private until the owner turns sharing on. A private bundle
+      answers the same 404 at `/v/<slug>/` as a slug that was never pushed.
+- [x] One bundle has one sharing state, one share slug and one pin. The three
+      states are `private`, `link` and `pin`. There is no second link to keep
+      in step and none to forget about.
+- [x] **Rotate** is the only way to cut off somebody who already has the
+      address. It mints a fresh share slug, the old URL stops answering at
+      once, and the state and the pin stay as they were.
+- [x] A PIN guards the bundle's one link. Four to eight digits, typed by the
+      owner, hashed with `scrypt`. Hosti never generates one and never reads
+      one back, so no screen can ever show a PIN. Going private or going to a
+      plain link clears it.
 - [x] A collection is a flat label. A bundle sits in zero or one. `-` is the
       catalog's path for "no collection", so no way in may set it as a name.
 - [x] Retention keeps the newest few revisions and deletes the rest, files and
       rows both. The current revision is never deleted.
-- [x] Expiry on a share link is not implemented. The column exists and carries
-      no behaviour, so no screen may claim a link expires.
+- [x] A share link never expires. There is no expiry column and no expiry
+      behaviour, so no screen may claim a link runs out. Rotating it or going
+      private is how a link ends.
 - [x] Every change the catalog makes is a POST carrying a mutation token
       derived from the session. No GET ever changes anything.
 - [x] The preview frame denies `allow-same-origin`, so the bundle inside it
@@ -140,8 +148,9 @@ Technical constraints on the interface itself:
 
 ## Evidence on hand
 
-- Seed data in `data/`: ten bundles across five collection states, four share
-  links, one multi-page bundle worth previewing.
+- Seed data in `data/`: ten bundles across five collection states, one
+  multi-page bundle worth previewing. The file is still on the old schema, so
+  the first open migrates it and every bundle lands private.
 - Bundle fixtures in `fixtures/`: three bundle shapes plus one that links from
   the root.
 - The design argument and three prototypes in

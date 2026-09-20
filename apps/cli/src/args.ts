@@ -2,45 +2,23 @@
 
 export class UsageError extends Error {}
 
-export const COMMANDS = [
-  "push",
-  "ls",
-  "share",
-  "links",
-  "pin",
-  "rm",
-  "revoke",
-  "open",
-  "prune",
-] as const;
+export const COMMANDS = ["push", "ls", "share", "rotate", "rm", "open", "prune"] as const;
 export type Command = (typeof COMMANDS)[number];
 
 /** Flags that stand alone. Everything else swallows the next word. */
-const SWITCHES = new Set([
-  "share",
-  "unlisted",
-  "allow-absolute",
-  "remove",
-  "yes",
-  "open",
-  "help",
-  "version",
-]);
-const VALUE_FLAGS = new Set(["slug", "title", "collection", "pin", "set", "url", "token"]);
+const SWITCHES = new Set(["allow-absolute", "yes", "open", "help", "version"]);
+const VALUE_FLAGS = new Set(["slug", "title", "collection", "mode", "pin", "url", "token"]);
 
 export type Flags = {
   slug?: string;
   title?: string;
   collection?: string;
-  /** The PIN to put on a link as it is created. Four to eight digits, owner's choice. */
+  /** The sharing state `share` asks for: private, link or pin. */
+  mode?: string;
+  /** The pin to store. Four to eight digits, the owner's choice, never Hosti's. */
   pin?: string;
-  /** The PIN `hosti pin` writes onto a link that already exists. */
-  set?: string;
-  remove?: boolean;
   url?: string;
   token?: string;
-  share?: boolean;
-  unlisted?: boolean;
   allowAbsolute?: boolean;
   yes?: boolean;
   /** Hand the URL `open` prints to the platform's browser as well as printing it. */
@@ -117,26 +95,23 @@ export function parseInvocation(argv: string[]): Invocation {
   if (command === "push") {
     if (!target) throw new UsageError("push needs a path: hosti push ./dist --slug my-bundle");
     if (!flags.slug) throw new UsageError("push needs --slug");
-    if (flags.pin && !flags.share && !flags.unlisted) {
-      throw new UsageError("--pin needs a link to sit on: add --share or --unlisted");
-    }
   }
   if (command !== "push" && command !== "ls" && !target) {
     throw new UsageError(`${command} needs a slug: hosti ${command} my-bundle`);
   }
-  if ((command === "ls" || command === "links" || command === "revoke") && flags.unlisted) {
-    throw new UsageError(`--unlisted means nothing to ${command}`);
-  }
-  if (command === "pin") {
-    if (flags.set && flags.remove) {
-      throw new UsageError("--set and --remove ask for opposite things");
+  if (command === "share") {
+    if (!flags.mode) throw new UsageError("share needs --mode private, link or pin");
+    if (!(MODES as readonly string[]).includes(flags.mode)) {
+      throw new UsageError(`--mode is one of ${MODES.join(", ")}`);
     }
-    if (!flags.set && !flags.remove) throw new UsageError("pin needs --set <digits> or --remove");
-  } else if (flags.remove) {
-    throw new UsageError(`--remove means nothing to ${command}`);
-  }
-  if (command !== "push" && command !== "share" && flags.pin) {
-    throw new UsageError(`--pin means nothing to ${command}; use hosti pin <share-slug> --set`);
+    // A pin under any other mode would be stored and then cleared, or stored
+    // and ignored. Both read as "it worked", so refuse instead.
+    if (flags.pin && flags.mode !== "pin") {
+      throw new UsageError("--pin only goes with --mode pin");
+    }
+  } else {
+    if (flags.mode) throw new UsageError(`--mode means nothing to ${command}`);
+    if (flags.pin) throw new UsageError(`--pin means nothing to ${command}`);
   }
   if (command !== "open" && flags.open) {
     throw new UsageError(`--open means nothing to ${command}`);
@@ -145,24 +120,36 @@ export function parseInvocation(argv: string[]): Invocation {
   return { kind: "run", command, target, flags };
 }
 
+/** The three sharing states, the same three words the server and catalog use. */
+const MODES = ["private", "link", "pin"] as const;
+
 export const HELP = `hosti - push static bundles to a Hosti server
 
   hosti push <path> --slug <slug> [--title T] [--collection C]
-                    [--share] [--unlisted] [--pin 4821] [--allow-absolute]
+                    [--allow-absolute]
   hosti ls [--collection C]
-  hosti share <slug> [--unlisted] [--pin 4821]
-  hosti links <slug>
-  hosti pin <share-slug> --set 1234 | --remove
+  hosti share <slug> --mode private|link|pin [--pin 4821]
+  hosti rotate <slug>
   hosti rm <slug> [--yes]
-  hosti revoke <share-slug>
   hosti open <slug> [--open]
   hosti prune <slug>
 
-A pin is four to eight digits and you type it. Hosti hashes it, so links
-prints "pin set" and never the digits.
+A bundle has one sharing state and at most one link:
+  private  nothing answers at the share URL
+  link     anyone holding the URL opens the bundle
+  pin      the URL asks for the pin, then opens the bundle
 
-open prints the bundle's share link, or its owner-only page when no link
-exists yet, and always on the last line. --open hands it to a browser.
+A push never changes that state. A new bundle arrives private.
+
+A pin is four to eight digits and you type it. Hosti hashes it, so nothing
+ever prints the digits back. --mode pin with no pin stored and no --pin is
+refused rather than left open.
+
+rotate mints a fresh share URL and the old one stops answering. That is the
+only way to cut off somebody who already has the address.
+
+open prints the bundle's share link, or its owner-only page while the bundle
+is private, and always on the last line. --open hands it to a browser.
 prune trims a bundle to the newest few revisions the server keeps.
 
 Config, in order: --url and --token, then HOSTI_URL and HOSTI_TOKEN,

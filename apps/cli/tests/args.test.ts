@@ -10,8 +10,8 @@ describe("reading the words", () => {
   });
 
   it("keeps switches apart from values", () => {
-    const { flags } = parseFlags(["--share", "--unlisted", "--allow-absolute", "--yes"]);
-    expect(flags).toEqual({ share: true, unlisted: true, allowAbsolute: true, yes: true });
+    const { flags } = parseFlags(["--allow-absolute", "--yes", "--open"]);
+    expect(flags).toEqual({ allowAbsolute: true, yes: true, open: true });
   });
 
   it("keeps positionals in order", () => {
@@ -21,21 +21,27 @@ describe("reading the words", () => {
 
   it("refuses a value flag with nothing after it", () => {
     expect(() => parseFlags(["--slug"])).toThrow(UsageError);
-    expect(() => parseFlags(["--slug", "--share"])).toThrow(UsageError);
+    expect(() => parseFlags(["--slug", "--yes"])).toThrow(UsageError);
   });
 
   it("refuses a flag it does not know", () => {
     expect(() => parseFlags(["--expires", "7d"])).toThrow(/Unknown flag --expires/);
   });
+
+  it("refuses the flags the one-link model took away", () => {
+    for (const flag of ["--share", "--unlisted", "--remove", "--set"]) {
+      expect(() => parseFlags([flag, "x"])).toThrow(/Unknown flag/);
+    }
+  });
 });
 
 describe("what the command means", () => {
   it("reads a push", () => {
-    expect(parseInvocation(["push", "./dist", "--slug", "atlas", "--share"])).toEqual({
+    expect(parseInvocation(["push", "./dist", "--slug", "atlas", "--title", "Atlas"])).toEqual({
       kind: "run",
       command: "push",
       target: "./dist",
-      flags: { slug: "atlas", share: true },
+      flags: { slug: "atlas", title: "Atlas" },
     });
   });
 
@@ -50,7 +56,7 @@ describe("what the command means", () => {
   });
 
   it("needs a slug for the commands that name one", () => {
-    for (const command of ["share", "links", "rm", "revoke"]) {
+    for (const command of ["share", "rotate", "rm", "open", "prune"]) {
       expect(() => parseInvocation([command])).toThrow(/needs a slug/);
     }
   });
@@ -68,54 +74,51 @@ describe("what the command means", () => {
     expect(() => parseInvocation(["rm", "one", "two"])).toThrow(/takes one argument/);
   });
 
-  it("refuses --unlisted where it means nothing", () => {
-    expect(() => parseInvocation(["revoke", "atlas-k7", "--unlisted"])).toThrow(/means nothing/);
+  it("refuses the commands the one-link model took away", () => {
+    for (const command of ["links", "revoke", "pin"]) {
+      expect(() => parseInvocation([command, "atlas"])).toThrow(/Unknown command/);
+    }
   });
 });
 
-describe("the pin flags", () => {
-  it("reads a pin onto a new link", () => {
-    expect(parseInvocation(["share", "atlas", "--pin", "4821"])).toMatchObject({
+describe("the sharing flags", () => {
+  it("reads a mode and a pin", () => {
+    expect(parseInvocation(["share", "atlas", "--mode", "pin", "--pin", "4821"])).toMatchObject({
       command: "share",
       target: "atlas",
-      flags: { pin: "4821" },
+      flags: { mode: "pin", pin: "4821" },
     });
   });
 
-  it("reads set and remove on an existing link", () => {
-    expect(parseInvocation(["pin", "atlas-k7", "--set", "1234"])).toMatchObject({
-      command: "pin",
-      target: "atlas-k7",
-      flags: { set: "1234" },
-    });
-    expect(parseInvocation(["pin", "atlas-k7", "--remove"])).toMatchObject({
-      command: "pin",
-      flags: { remove: true },
-    });
+  it("takes all three modes", () => {
+    for (const mode of ["private", "link", "pin"]) {
+      const parsed = parseInvocation(["share", "atlas", "--mode", mode]);
+      expect(parsed).toMatchObject({ command: "share", flags: { mode } });
+    }
   });
 
-  it("needs one of set or remove, never both and never neither", () => {
-    expect(() => parseInvocation(["pin", "atlas-k7"])).toThrow(/--set <digits> or --remove/);
-    expect(() => parseInvocation(["pin", "atlas-k7", "--set", "1234", "--remove"])).toThrow(
-      /opposite things/,
+  it("needs a mode to share", () => {
+    expect(() => parseInvocation(["share", "atlas"])).toThrow(/needs --mode/);
+  });
+
+  it("refuses a mode it does not know", () => {
+    expect(() => parseInvocation(["share", "atlas", "--mode", "unlisted"])).toThrow(
+      /--mode is one of/,
     );
   });
 
-  it("needs a share slug to move a pin", () => {
-    expect(() => parseInvocation(["pin", "--remove"])).toThrow(/needs a slug/);
+  it("refuses a pin under any mode but pin", () => {
+    for (const mode of ["private", "link"]) {
+      expect(() => parseInvocation(["share", "atlas", "--mode", mode, "--pin", "4821"])).toThrow(
+        /--pin only goes with --mode pin/,
+      );
+    }
   });
 
-  it("refuses --pin where it means nothing", () => {
-    expect(() => parseInvocation(["links", "atlas", "--pin", "4821"])).toThrow(/means nothing/);
-    expect(() => parseInvocation(["revoke", "atlas-k7", "--remove"])).toThrow(/means nothing/);
-  });
-
-  it("refuses a pin on a push that opens no link", () => {
-    expect(() => parseInvocation(["push", "./dist", "--slug", "atlas", "--pin", "4821"])).toThrow(
-      /needs a link to sit on/,
+  it("refuses --mode and --pin where they mean nothing", () => {
+    expect(() => parseInvocation(["rotate", "atlas", "--mode", "link"])).toThrow(/means nothing/);
+    expect(() => parseInvocation(["push", "./d", "--slug", "a", "--pin", "4821"])).toThrow(
+      /means nothing/,
     );
-    expect(
-      parseInvocation(["push", "./dist", "--slug", "atlas", "--share", "--pin", "4821"]).kind,
-    ).toBe("run");
   });
 });

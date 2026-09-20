@@ -1,13 +1,12 @@
 import type {
+  BundleResponse,
   CatalogResponse,
   DeletedBundleResponse,
   ErrorResponse,
   PrunedRevisionsResponse,
   PushResponse,
-  RevokedShareLinkResponse,
-  ShareLinkResponse,
-  ShareLinksResponse,
-  SharePinResponse,
+  SharingMode,
+  SharingResponse,
 } from "@hosti/shared";
 import type { Config } from "./config.ts";
 
@@ -76,36 +75,26 @@ export function createClient(config: Config) {
       return call<PrunedRevisionsResponse>(`/api/v1/bundles/${slug}/prune`, { method: "POST" });
     },
 
-    share(slug: string, unlisted: boolean, pin?: string): Promise<ShareLinkResponse> {
-      return call<ShareLinkResponse>(`/api/v1/bundles/${slug}/share-links`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pin ? { unlisted, pin } : { unlisted }),
-      });
-    },
-    setPin(shareSlug: string, pin: string): Promise<SharePinResponse> {
-      return call<SharePinResponse>(`/api/v1/share-links/${shareSlug}/pin`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin }),
-      });
-    },
-    removePin(shareSlug: string): Promise<SharePinResponse> {
-      return call<SharePinResponse>(`/api/v1/share-links/${shareSlug}/pin`, { method: "DELETE" });
+    bundle(slug: string): Promise<BundleResponse> {
+      return call<BundleResponse>(`/api/v1/bundles/${slug}`);
     },
 
-    links(slug: string): Promise<ShareLinksResponse> {
-      return call<ShareLinksResponse>(`/api/v1/bundles/${slug}/share-links`);
+    /** Put the bundle into one of the three states. The pin is never read back. */
+    share(slug: string, mode: SharingMode, pin?: string): Promise<SharingResponse> {
+      return call<SharingResponse>(`/api/v1/bundles/${slug}/sharing`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pin ? { mode, pin } : { mode }),
+      });
+    },
+
+    /** Mint a fresh share slug. The old URL stops answering. */
+    rotate(slug: string): Promise<SharingResponse> {
+      return call<SharingResponse>(`/api/v1/bundles/${slug}/sharing/rotate`, { method: "POST" });
     },
 
     remove(slug: string): Promise<DeletedBundleResponse> {
       return call<DeletedBundleResponse>(`/api/v1/bundles/${slug}`, { method: "DELETE" });
-    },
-
-    revoke(shareSlug: string): Promise<RevokedShareLinkResponse> {
-      return call<RevokedShareLinkResponse>(`/api/v1/share-links/${shareSlug}`, {
-        method: "DELETE",
-      });
     },
   };
 }

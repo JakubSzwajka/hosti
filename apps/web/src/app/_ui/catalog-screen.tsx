@@ -4,7 +4,6 @@ import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
 import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
 import { UploadDrop } from "@/app/_ui/upload-drop";
 
-/** The catalog grid, shared by `/` and `/c/<collection>`. */
 export function CatalogScreen(props: {
   bundles: Bundle[];
   chips: ChipCount[];
@@ -12,20 +11,20 @@ export function CatalogScreen(props: {
   token: string;
   heading?: string;
   emptyNote: React.ReactNode;
-  /** Every slug in the catalog, so the drop zone can warn before a revision lands. */
   allSlugs: string[];
-  /** The collection this page lists, if it lists one. */
   collection?: string;
 }) {
   const { bundles, chips, active, token, heading, emptyNote, allSlugs } = props;
-  // An empty catalog drops the chips: every count would read zero.
   const anyBundles = chips.some((chip) => chip.count > 0);
   return (
     <>
-      <div className="wrap">
+      <div className="wrap catalog-shell">
         <Masthead meta={heading} token={token} />
-        {/* One row: which collection is showing, and the one way to put a
-            bundle in by hand. The drop zone itself is the whole window. */}
+        <div className="register-line">
+          <span>catalog</span>
+          <span>{plural(bundles.length, "frame")}</span>
+        </div>
+
         <div className="bar">
           {anyBundles ? <Chips chips={chips} active={active} /> : null}
           <UploadDrop
@@ -38,53 +37,66 @@ export function CatalogScreen(props: {
           emptyNote
         ) : (
           <div className="grid">
-            {bundles.map((bundle) => (
-              <Card key={bundle.slug} bundle={bundle} />
+            {bundles.map((bundle, index) => (
+              <Card key={bundle.slug} bundle={bundle} frame={index + 1} />
             ))}
           </div>
         )}
+        {anyBundles ? (
+          <footer className="sheet-tail">
+            <span>{plural(bundles.length, "bundle")}, newest first</span>
+            <span>hosti, one box, one domain</span>
+          </footer>
+        ) : null}
       </div>
-      {/* The one page where this sentence is the most useful thing on screen. */}
-      {anyBundles ? null : <Footer />}
+      {anyBundles ? null : <EmptyFooter />}
     </>
   );
 }
 
-function Card({ bundle }: { bundle: Bundle }) {
+function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
   const href = `/b/${bundle.slug}`;
-  const open = bundle.currentRevision ? `/b/${bundle.slug}/preview/` : null;
+  const current = bundle.currentRevision;
   return (
     <article className="card">
-      <Thumb
-        seed={bundle.slug}
-        size="card"
-        href={href}
-        live={bundle.currentRevision ? bundle.slug : undefined}
-        label={`Preview of ${bundle.title}`}
-      />
-      <div className="card-body">
-        <h2>
-          <Link href={href}>{bundle.title}</Link>
-        </h2>
-        {/* The slug is a machine value, not a third link to the page the
-            picture and the title already open. */}
-        <p className="card-slug">{bundle.slug}</p>
-        <p className="card-meta">
-          {bundle.collection ?? "no collection"} &middot; {plural(bundle.revisionCount, "revision")}{" "}
-          &middot; {formatDate(bundle.updatedAt)}
+      <div className="card-window">
+        <p className="window-bar">
+          <span className="where">/b/{bundle.slug}/</span>
+          <span>{current ? `r${current.seq}` : "no revision"}</span>
         </p>
+        <Thumb
+          seed={bundle.slug}
+          size="card"
+          href={href}
+          live={current ? bundle.slug : undefined}
+          label={`Preview of ${bundle.title}`}
+          fileCount={current?.fileCount ?? 0}
+          byteSize={current?.byteSize ?? 0}
+        />
       </div>
-      {/* Two things, and each answers a different question: who can open this
-          without the owner password, and how do I open it right now. */}
+      <div className="card-body">
+        <span className="frame-no">{String(frame).padStart(2, "0")}</span>
+        <div className="card-name">
+          <h2>
+            <Link href={href}>{bundle.title}</Link>
+          </h2>
+          <p className="card-slug">{bundle.slug}</p>
+        </div>
+      </div>
+      <p className="card-meta">
+        {bundle.collection ?? "no collection"} <span>&middot;</span>{" "}
+        {plural(bundle.revisionCount, "revision")} <span>&middot;</span>{" "}
+        {formatDate(bundle.updatedAt)}
+      </p>
       <div className="card-foot">
-        <ShareFlag count={bundle.shareSlugs.length} />
-        {open ? (
-          <a className="card-open" href={open} target="_blank" rel="noreferrer">
+        <ShareFlag mode={bundle.sharing.mode} />
+        {current ? (
+          <Link className="card-open" href={href}>
             open <span aria-hidden="true">&#8599;</span>
-          </a>
+          </Link>
         ) : (
           <span className="card-open" aria-disabled="true">
-            no revision
+            nothing to open
           </span>
         )}
       </div>
@@ -92,19 +104,14 @@ function Card({ bundle }: { bundle: Bundle }) {
   );
 }
 
-function Footer() {
+function EmptyFooter() {
   return (
     <footer className="foot">
-      <span>The catalog needs the owner password. A share link never does.</span>
+      <span>The catalog needs an admin session. A share link never does.</span>
     </footer>
   );
 }
 
-/**
- * What a new install sees first. It is the only screen where the catalog has
- * to teach rather than list, so it is the whole first move in order: mint a
- * token, push a folder, then decide who may see it.
- */
 export function EmptyCatalog() {
   return (
     <div className="empty">
@@ -133,8 +140,9 @@ export function EmptyCatalog() {
         <li>
           <h3>Decide who may open it</h3>
           <p>
-            It arrives private, and it stays private. Nothing is public until you create a share
-            link from the bundle&apos;s own page.
+            It arrives private, and it stays private. Nothing is public until you switch the bundle
+            to <span className="mono">link</span> or <span className="mono">pin</span> on its own
+            page.
           </p>
         </li>
       </ol>
@@ -142,7 +150,6 @@ export function EmptyCatalog() {
   );
 }
 
-/** A collection with nothing in it. No setup advice, the owner has bundles. */
 export function EmptyCollection({ name }: { name: string }) {
   return (
     <div className="empty">

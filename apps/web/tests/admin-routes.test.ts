@@ -9,19 +9,26 @@ process.env.HOSTI_SECRET = SECRET;
 
 const ORIGIN = "http://127.0.0.1:3000";
 
-const { push } = await import("./api");
+const { push, serve } = await import("./api");
 const { createPushToken } = await import("@/server/push-tokens");
 const { findBundle, listRevisions } = await import("@/server/catalog");
-const { listShareLinks } = await import("@/server/share-links");
+const { describeSharing } = await import("@/server/sharing");
 const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
   "@/server/auth/session"
 );
 const { POST: LOGIN } = await import("@/app/login/submit/route");
 const { POST: LOGOUT } = await import("@/app/logout/route");
-const { POST: CREATE_LINK } = await import("@/app/b/[slug]/share-links/route");
-const { POST: REVOKE_LINK } = await import("@/app/b/[slug]/share-links/revoke/route");
+const { POST: SET_SHARING } = await import("@/app/b/[slug]/sharing/route");
+const { POST: ROTATE } = await import("@/app/b/[slug]/sharing/rotate/route");
 const { POST: DELETE_BUNDLE } = await import("@/app/b/[slug]/delete/route");
 const { GET: LIST_BUNDLES } = await import("@/app/api/v1/bundles/route");
+
+/** The sharing state straight off the row, which is what the form writes. */
+function sharingOf(slug: string) {
+  const bundle = findBundle(slug);
+  if (!bundle) throw new Error(`no bundle ${slug}`);
+  return describeSharing(bundle);
+}
 
 let dataDir: string;
 let pushToken: string;
@@ -92,94 +99,144 @@ describe("logging out", () => {
   });
 });
 
-describe("creating a share link from the catalog", () => {
+describe("setting the sharing state from the catalog", () => {
   it("refuses a caller with no admin session", async () => {
     await pushed("from-ui");
-    const response = await CREATE_LINK(
-      post("/b/from-ui/share-links", form({ token }), false),
+    const response = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "link" }), false),
       params("from-ui"),
     );
     expect(response.status).toBe(401);
-    const bundle = findBundle("from-ui");
-    expect(listShareLinks(bundle?.id ?? 0, ORIGIN)).toEqual([]);
+    expect(sharingOf("from-ui").mode).toBe("private");
   });
 
   it("refuses a session with a missing or wrong mutation token", async () => {
-    const missing = await CREATE_LINK(post("/b/from-ui/share-links", form({})), params("from-ui"));
+    const missing = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ mode: "link" })),
+      params("from-ui"),
+    );
     expect(missing.status).toBe(403);
-    const wrong = await CREATE_LINK(
-      post("/b/from-ui/share-links", form({ token: "guessed" })),
+    const wrong = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token: "guessed", mode: "link" })),
       params("from-ui"),
     );
     expect(wrong.status).toBe(403);
-    const bundle = findBundle("from-ui");
-    expect(listShareLinks(bundle?.id ?? 0, ORIGIN)).toEqual([]);
+    expect(sharingOf("from-ui").mode).toBe("private");
   });
 
   it("opens the bundle slug when the token matches", async () => {
-    const response = await CREATE_LINK(
-      post("/b/from-ui/share-links", form({ token })),
+    const response = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "link" })),
       params("from-ui"),
     );
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/b/from-ui");
-    const bundle = findBundle("from-ui");
-    expect(listShareLinks(bundle?.id ?? 0, ORIGIN).map((link) => link.slug)).toEqual(["from-ui"]);
+    expect(sharingOf("from-ui")).toMatchObject({ mode: "link", shareSlug: "from-ui" });
+    expect((await serve("/v/from-ui/")).status).toBe(200);
   });
 
-  it("names an unlisted link with eight extra characters", async () => {
-    await CREATE_LINK(
-      post("/b/from-ui/share-links", form({ token, unlisted: "1" })),
+  it("puts a pin on, then clears it on the way back to private", async () => {
+    await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "pin", pin: "4821" })),
       params("from-ui"),
     );
-    const bundle = findBundle("from-ui");
-    const slugs = listShareLinks(bundle?.id ?? 0, ORIGIN).map((link) => link.slug);
-    expect(slugs).toHaveLength(2);
-    expect(slugs[1]).toMatch(/^from-ui-[bcdfghjkmnpqrstvwxz2-9]{8}$/);
+    expect(sharingOf("from-ui")).toMatchObject({ mode: "pin", hasPin: true });
+
+    await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "private" })),
+      params("from-ui"),
+    );
+    expect(sharingOf("from-ui")).toMatchObject({ mode: "private", hasPin: false });
+    expect((await serve("/v/from-ui/")).status).toBe(404);
   });
 
-  it("says so when the bundle slug is already a share link", async () => {
-    const response = await CREATE_LINK(
-      post("/b/from-ui/share-links", form({ token })),
+  it("sends a refusal back to the bundle page and changes nothing", async () => {
+    const noPin = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "pin" })),
       params("from-ui"),
     );
-    expect(response.headers.get("location")).toBe("/b/from-ui?share=share_link_exists");
+    expect(noPin.headers.get("location")).toBe("/b/from-ui?share=pin_required");
+    expect(sharingOf("from-ui").mode).toBe("private");
+
+    const badMode = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "unlisted" })),
+      params("from-ui"),
+    );
+    expect(badMode.headers.get("location")).toBe("/b/from-ui?share=bad_mode");
+    expect(sharingOf("from-ui").mode).toBe("private");
+  });
+
+  it("says so when a pin is typed next to another mode, rather than dropping it", async () => {
+    for (const mode of ["link", "private"]) {
+      const response = await SET_SHARING(
+        post("/b/from-ui/sharing", form({ token, mode, pin: "4821" })),
+        params("from-ui"),
+      );
+      expect(response.headers.get("location")).toBe("/b/from-ui?share=pin_not_wanted");
+    }
+    expect(sharingOf("from-ui")).toMatchObject({ mode: "private", hasPin: false });
+  });
+
+  it("says so when the digits are wrong, rather than saving the mode alone", async () => {
+    const response = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "link", pin: "12ab" })),
+      params("from-ui"),
+    );
+    expect(response.headers.get("location")).toBe("/b/from-ui?share=bad_pin");
+    expect(sharingOf("from-ui").mode).toBe("private");
+  });
+
+  it("still takes an empty pin field as no pin, because the form always sends it", async () => {
+    const response = await SET_SHARING(
+      post("/b/from-ui/sharing", form({ token, mode: "link", pin: "" })),
+      params("from-ui"),
+    );
+    expect(response.headers.get("location")).toBe("/b/from-ui");
+    expect(sharingOf("from-ui")).toMatchObject({ mode: "link", hasPin: false });
   });
 
   it("refuses an unknown bundle", async () => {
-    const response = await CREATE_LINK(
-      post("/b/ghost/share-links", form({ token })),
+    const response = await SET_SHARING(
+      post("/b/ghost/sharing", form({ token, mode: "link" })),
       params("ghost"),
     );
     expect(response.status).toBe(404);
   });
 });
 
-describe("revoking from the catalog", () => {
-  it("needs the token and only touches this bundle's own links", async () => {
+describe("rotating from the catalog", () => {
+  it("needs the token, then changes the slug and only this bundle's", async () => {
     await pushed("other-bundle");
-    await CREATE_LINK(post("/b/other-bundle/share-links", form({ token })), params("other-bundle"));
-
-    const refused = await REVOKE_LINK(
-      post("/b/from-ui/share-links/revoke", form({ shareSlug: "from-ui" })),
-      params("from-ui"),
+    await SET_SHARING(
+      post("/b/other-bundle/sharing", form({ token, mode: "link" })),
+      params("other-bundle"),
     );
+    await SET_SHARING(post("/b/from-ui/sharing", form({ token, mode: "link" })), params("from-ui"));
+
+    const refused = await ROTATE(post("/b/from-ui/sharing/rotate", form({})), params("from-ui"));
     expect(refused.status).toBe(403);
+    expect(sharingOf("from-ui").shareSlug).toBe("from-ui");
 
-    const foreign = await REVOKE_LINK(
-      post("/b/from-ui/share-links/revoke", form({ token, shareSlug: "other-bundle" })),
-      params("from-ui"),
-    );
-    expect(foreign.status).toBe(404);
-    expect(listShareLinks(findBundle("other-bundle")?.id ?? 0, ORIGIN)).toHaveLength(1);
-
-    const response = await REVOKE_LINK(
-      post("/b/from-ui/share-links/revoke", form({ token, shareSlug: "from-ui" })),
+    const response = await ROTATE(
+      post("/b/from-ui/sharing/rotate", form({ token })),
       params("from-ui"),
     );
     expect(response.status).toBe(303);
-    const left = listShareLinks(findBundle("from-ui")?.id ?? 0, ORIGIN);
-    expect(left.map((link) => link.slug)).not.toContain("from-ui");
+    const rotated = sharingOf("from-ui");
+    expect(rotated.shareSlug).not.toBe("from-ui");
+    expect(rotated.mode).toBe("link");
+    expect((await serve("/v/from-ui/")).status).toBe(404);
+    expect((await serve(`/v/${rotated.shareSlug}/`)).status).toBe(200);
+    // The other bundle is untouched.
+    expect(sharingOf("other-bundle").shareSlug).toBe("other-bundle");
+  });
+
+  it("refuses an unknown bundle", async () => {
+    const response = await ROTATE(
+      post("/b/ghost/sharing/rotate", form({ token })),
+      params("ghost"),
+    );
+    expect(response.status).toBe(404);
   });
 });
 

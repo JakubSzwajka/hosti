@@ -1,7 +1,7 @@
-import type { Bundle } from "@hosti/shared";
+import type { Bundle, SharingMode, SharingResponse } from "@hosti/shared";
 import { scanForAbsoluteRefs } from "./absolute-refs.ts";
 import type { Flags } from "./args.ts";
-import type { Client } from "./client.ts";
+import { ApiError, type Client } from "./client.ts";
 import { packBundle } from "./pack.ts";
 import { say, table, warnAbsoluteRefs, type Writer } from "./output.ts";
 
@@ -39,13 +39,20 @@ export function against(base: string, url: string): string {
   }
 }
 
-function reportLinks(out: Writer, base: string, urls: string[], adminUrl: string): void {
-  if (urls.length === 0) {
-    say(out, "private", "no share link yet");
-    say(out, "admin", against(base, adminUrl));
-    return;
-  }
-  for (const url of urls) say(out, "shared", against(base, url));
+/**
+ * Where a bundle can be read after a write. The state word comes first,
+ * because it is the same word the catalog and the API use, and the URL only
+ * exists for two of the three.
+ */
+function reportSharing(out: Writer, base: string, state: SharingResponse): void {
+  say(out, state.sharing.mode, noteFor(state));
+  if (state.shareUrl) say(out, "url", against(base, state.shareUrl));
+}
+
+function noteFor(state: SharingResponse): string {
+  if (state.sharing.mode === "private") return "nothing answers at the share URL";
+  if (state.sharing.mode === "pin") return "the URL asks for the pin first";
+  return "anyone holding the URL can open it";
 }
 
 export async function push(context: Context): Promise<void> {
@@ -65,13 +72,10 @@ export async function push(context: Context): Promise<void> {
   });
   say(out, "pushed", `revision ${pushed.revision}`);
 
-  if (flags.share || flags.unlisted) {
-    const created = await client.share(slug, flags.unlisted === true, flags.pin);
-    say(out, "shared", against(context.base, created.link.url));
-    if (created.link.hasPin) say(out, "pin", "set");
-    return;
-  }
-  reportLinks(out, context.base, pushed.shareUrls, pushed.adminUrl);
+  // A push never changes the sharing state, so this only reports it.
+  say(out, pushed.sharing.mode, pushed.shareUrl ? "" : "nothing answers at the share URL");
+  if (pushed.shareUrl) say(out, "url", against(context.base, pushed.shareUrl));
+  else say(out, "admin", against(context.base, pushed.adminUrl));
 }
 
 export async function ls(context: Context): Promise<void> {
@@ -86,64 +90,47 @@ export async function ls(context: Context): Promise<void> {
     return;
   }
 
-  const rows = [["slug", "rev", "collection", "updated", "links", "url"]];
+  const rows = [["slug", "rev", "collection", "updated", "sharing", "url"]];
   for (const bundle of bundles) {
+    const { mode, shareSlug } = bundle.sharing;
     rows.push([
       bundle.slug,
       String(bundle.currentRevision?.seq ?? 0),
       bundle.collection ?? "-",
       when(bundle.updatedAt),
-      String(bundle.shareSlugs.length),
-      bundle.shareSlugs.length === 0 ? "private" : `${context.base}/v/${bundle.shareSlugs[0]}/`,
+      mode,
+      mode === "private" ? "-" : `${context.base}/v/${shareSlug}/`,
     ]);
   }
   table(out, rows);
 }
 
+/**
+ * Put the bundle into one of the three states. The pin is hashed the moment it
+ * arrives, so the only way to change one is to type a new one, and nothing
+ * ever prints the digits back.
+ */
 export async function share(context: Context): Promise<void> {
   const { flags } = context;
-  const created = await context.client.share(context.target, flags.unlisted === true, flags.pin);
-  say(context.out, "shared", against(context.base, created.link.url));
-  if (created.link.hasPin) say(context.out, "pin", "set");
-}
-
-export async function links(context: Context): Promise<void> {
-  const { links: found } = await context.client.links(context.target);
-  if (found.length === 0) {
-    say(context.out, "private", `${context.target} has no share link`);
-    return;
-  }
-  table(
-    context.out,
-    found.map((link) => [
-      link.slug,
-      when(link.createdAt),
-      link.hasPin ? "pin set" : "",
-      against(context.base, link.url),
-    ]),
-  );
+  const state = await context.client.share(context.target, flags.mode as SharingMode, flags.pin);
+  reportSharing(context.out, context.base, state);
 }
 
 /**
- * Put a PIN on a link that already exists, or take one off. There is no read:
- * the PIN is hashed the moment it arrives, so the only way to change one is to
- * type a new one.
+ * Mint a fresh share URL. The old one stops answering at once, which is the
+ * only way to cut off somebody who already has the address. The state and the
+ * pin stay as they were.
  */
-export async function pin(context: Context): Promise<void> {
-  const { client, flags, target, out } = context;
-  if (flags.remove) {
-    await client.removePin(target);
-    say(out, "pin", `removed from ${target}`);
-    return;
-  }
-  await client.setPin(target, flags.set as string);
-  say(out, "pin", `set on ${target}`);
+export async function rotate(context: Context): Promise<void> {
+  const state = await context.client.rotate(context.target);
+  say(context.out, "rotated", "the old URL stopped answering");
+  reportSharing(context.out, context.base, state);
 }
 
 export async function rm(context: Context): Promise<void> {
   const { target, flags, client, out } = context;
   if (!flags.yes) {
-    const question = `Delete bundle ${target} with every revision and share link? [y/N] `;
+    const question = `Delete bundle ${target} with every revision and its share link? [y/N] `;
     if (!(await context.confirm(question))) {
       say(out, "kept", target);
       return;
@@ -153,28 +140,24 @@ export async function rm(context: Context): Promise<void> {
   say(out, "removed", target);
 }
 
-export async function revoke(context: Context): Promise<void> {
-  await context.client.revoke(context.target);
-  say(context.out, "revoked", context.target);
-}
-
 /**
- * Where a bundle can be read: its share link, or the owner-only page when
- * nobody has created a share link yet. The URL is the last line on purpose,
- * bare, so `hosti open x | tail -1` is a URL and nothing else.
+ * Where a bundle can be read: its share link, or the owner-only page while the
+ * bundle is private. The URL is the last line on purpose, bare, so
+ * `hosti open x | tail -1` is a URL and nothing else.
  */
 export async function open(context: Context): Promise<void> {
   const { client, target, out, base } = context;
-  const bundle = (await client.catalog()).bundles.find((entry) => entry.slug === target);
-  if (!bundle) throw new CommandError(`No bundle is called "${target}"`);
+  const found = await client.bundle(target).catch((error: unknown) => {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  });
+  if (!found) throw new CommandError(`No bundle is called "${target}"`);
 
-  const shareSlug = bundle.shareSlugs[0];
-  const url = shareSlug ? `${base}/v/${shareSlug}/` : `${base}/b/${target}`;
-  if (shareSlug) {
-    say(out, "shared", `anyone holding this link can open ${target}`);
-  } else {
-    say(out, "private", `${target} has no share link, so this page wants the owner password`);
-  }
+  const { mode } = found.bundle.sharing;
+  const url = found.shareUrl ? against(base, found.shareUrl) : `${base}/b/${target}`;
+  if (mode === "link") say(out, "link", `anyone holding this URL can open ${target}`);
+  else if (mode === "pin") say(out, "pin", `this URL asks for the pin, then opens ${target}`);
+  else say(out, "private", `${target} is private, so this page wants the owner password`);
   if (context.flags.open) context.openUrl(url);
   out(url);
 }
@@ -192,4 +175,4 @@ export async function prune(context: Context): Promise<void> {
   say(out, "removed", pruned.removed.length ? pruned.removed.join(", ") : "nothing");
 }
 
-export const COMMAND_TABLE = { push, ls, share, links, pin, rm, revoke, open, prune } as const;
+export const COMMAND_TABLE = { push, ls, share, rotate, rm, open, prune } as const;

@@ -5,7 +5,7 @@ import { useTempDataDir } from "./helpers";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 
-const { createShare, navigate, push, serve, unlock } = await import("./api");
+const { navigate, push, serve, setSharing, unlock } = await import("./api");
 const { grantFrom, openLink, protectedLink } = await import("./pin-helpers");
 const { tarFixture } = await import("./helpers");
 const { createPushToken } = await import("@/server/push-tokens");
@@ -16,8 +16,10 @@ const { isValidPin } = await import("@hosti/shared");
 let dataDir: string;
 let token: string;
 
-const opened = (slug: string, options?: { pin?: string; unlisted?: boolean }) =>
-  protectedLink(token, slug, options);
+const opened = (slug: string, options?: { pin?: string }) => protectedLink(token, slug, options);
+
+/** A stand-in binding for the grants these unit tests sign by hand. */
+const BOUND = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
 
 beforeAll(async () => {
   dataDir = await useTempDataDir();
@@ -76,10 +78,14 @@ describe("what counts as a pin", () => {
   it("says so plainly when the API is handed the wrong shape", async () => {
     await push(token, "bad-pin-bundle", await tarFixture("multi-page"));
     for (const pin of ["482", "135713571", "abcd"]) {
-      const response = await createShare(token, "bad-pin-bundle", { pin });
+      const response = await setSharing(token, "bad-pin-bundle", { mode: "pin", pin });
       expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ error: "bad_pin" });
+      const body = (await response.json()) as { error: string; message: string };
+      expect(body.error).toBe("bad_pin");
+      expect(body.message).not.toContain(pin);
     }
+    // Every one of those was refused, so the bundle never opened.
+    expect((await serve("/v/bad-pin-bundle/")).status).toBe(404);
   });
 });
 
@@ -101,6 +107,15 @@ describe("the gate", () => {
     expect(await asset.text()).not.toContain("This link is protected");
   });
 
+  it("answers the same 404 as an unknown slug once the bundle goes private", async () => {
+    const link = await opened("gated-then-private", { pin: "4821" });
+    expect((await setSharing(token, "gated-then-private", { mode: "private" })).status).toBe(200);
+    const gone = await navigate(`/v/${link}/`);
+    const unknown = await navigate("/v/never-pushed-at-all/");
+    expect(gone.status).toBe(unknown.status);
+    expect(await gone.text()).toBe(await unknown.text());
+  });
+
   it("gives a page request for a deep path the gate too", async () => {
     const link = await opened("gated-deep", { pin: "4821" });
     const response = await navigate(`/v/${link}/athletes/`);
@@ -113,7 +128,7 @@ describe("the gate", () => {
       title: "Quarterly numbers",
       collection: "reports",
     });
-    const link = await openLink(token, "secret-bundle", { pin: "4821", unlisted: true });
+    const link = await openLink(token, "secret-bundle", { pin: "4821" });
     const html = await navigate(`/v/${link}/`).then((response) => response.text());
     expect(html).not.toContain("Quarterly numbers");
     expect(html).not.toContain("reports");
@@ -178,36 +193,64 @@ describe("unlocking", () => {
     expect(html).toContain('data-state="wrong"');
   });
 
-  it("asks again on a second protected link to the same bundle", async () => {
+  it("asks again once the link has been rotated", async () => {
+    const { rotateSharing } = await import("./api");
     const first = await opened("two-doors", { pin: "4821" });
-    const second = await openLink(token, "two-doors", { pin: "9999", unlisted: true });
 
     const response = await unlock(first, { pin: "4821", next: `/v/${first}/` });
     const cookie = grantFrom(response, unlockCookieName(first));
     expect((await navigate(`/v/${first}/`, { cookie })).status).toBe(200);
 
+    const rotated = (await (await rotateSharing(token, "two-doors")).json()) as {
+      sharing: { shareSlug: string };
+    };
+    const second = rotated.sharing.shareSlug;
+    // The old URL is gone and the grant was scoped to its path, so the fresh
+    // one asks again.
+    expect((await navigate(`/v/${first}/`, { cookie })).status).toBe(404);
     const other = await navigate(`/v/${second}/`, { cookie });
     expect(other.status).toBe(200);
     expect(await other.text()).toContain("This link is protected");
   });
 
   it("refuses a grant minted for another link", () => {
-    const stolen = signUnlock(TEST_SECRET, "some-other-link");
-    expect(verifyUnlock(TEST_SECRET, "this-link", stolen)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "some-other-link", stolen)).toBe(true);
+    const stolen = signUnlock(TEST_SECRET, "some-other-link", BOUND);
+    expect(verifyUnlock(TEST_SECRET, "this-link", BOUND, stolen)).toBe(false);
+    expect(verifyUnlock(TEST_SECRET, "some-other-link", BOUND, stolen)).toBe(true);
+  });
+
+  it("refuses a grant minted for another bundle on the same slug", () => {
+    const grant = signUnlock(TEST_SECRET, "reused-slug", BOUND);
+    expect(verifyUnlock(TEST_SECRET, "reused-slug", BOUND, grant)).toBe(true);
+    const otherBundle = { bundleId: BOUND.bundleId + 1, pinHash: BOUND.pinHash };
+    expect(verifyUnlock(TEST_SECRET, "reused-slug", otherBundle, grant)).toBe(false);
+  });
+
+  it("refuses a grant once the pin behind it has changed", () => {
+    const grant = signUnlock(TEST_SECRET, "pin-moved", BOUND);
+    const newPin = { bundleId: BOUND.bundleId, pinHash: "scrypt$16384$8$1$other$hash" };
+    expect(verifyUnlock(TEST_SECRET, "pin-moved", newPin, grant)).toBe(false);
   });
 
   it("refuses a grant that has run out", () => {
-    const grant = signUnlock(TEST_SECRET, "expiring", { maxAgeSeconds: 60 });
-    expect(verifyUnlock(TEST_SECRET, "expiring", grant)).toBe(true);
-    expect(verifyUnlock(TEST_SECRET, "expiring", grant, Date.now() + 61_000)).toBe(false);
+    const grant = signUnlock(TEST_SECRET, "expiring", BOUND, { maxAgeSeconds: 60 });
+    expect(verifyUnlock(TEST_SECRET, "expiring", BOUND, grant)).toBe(true);
+    expect(verifyUnlock(TEST_SECRET, "expiring", BOUND, grant, Date.now() + 61_000)).toBe(false);
   });
 
   it("refuses a grant signed with another key, or edited", () => {
-    const grant = signUnlock(TEST_SECRET, "signed");
-    expect(verifyUnlock("another-key", "signed", grant)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "signed", `${grant}x`)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "signed", null)).toBe(false);
+    const grant = signUnlock(TEST_SECRET, "signed", BOUND);
+    expect(verifyUnlock("another-key", "signed", BOUND, grant)).toBe(false);
+    expect(verifyUnlock(TEST_SECRET, "signed", BOUND, `${grant}x`)).toBe(false);
+    expect(verifyUnlock(TEST_SECRET, "signed", BOUND, null)).toBe(false);
+  });
+
+  it("keeps the bundle id and the pin hash out of the cookie", () => {
+    const grant = signUnlock(TEST_SECRET, "opaque", BOUND);
+    const [payload] = grant.split(".") as [string];
+    const claims = Buffer.from(payload, "base64url").toString("utf8");
+    expect(claims).not.toContain(BOUND.pinHash);
+    expect(claims).toContain("opaque");
   });
 
   it("will not be turned into an open redirect", async () => {

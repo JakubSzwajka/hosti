@@ -30,11 +30,59 @@ export function openDatabase(databaseFile) {
   const hasMeta = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'meta'")
     .get();
-  if (!hasMeta) {
-    db.exec(readSchemaSql());
-  }
+  if (hasMeta) migrate(db);
+  else createSchema(db);
   repairReservedCollection(db);
   return db;
+}
+
+/**
+ * Write the whole schema or none of it. A failure part way used to leave a few
+ * tables and no `meta` row, and the next open then read that as an old database
+ * and tried to migrate it.
+ */
+function createSchema(db) {
+  const sql = readSchemaSql();
+  db.transaction(() => db.exec(sql))();
+}
+
+/** The schema version this code expects. schema.sql writes the same number. */
+const SCHEMA_VERSION = 2;
+
+function schemaVersion(db) {
+  const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get();
+  const parsed = Number.parseInt(row?.value ?? "0", 10);
+  return Number.isSafeInteger(parsed) ? parsed : 0;
+}
+
+/**
+ * Bring an older database up to SCHEMA_VERSION. Each step runs in its own
+ * transaction, so a failure leaves the version it started from rather than
+ * half a step.
+ */
+function migrate(db) {
+  if (schemaVersion(db) < 2) db.transaction(toVersion2)(db);
+}
+
+/**
+ * Version 2 moves sharing onto the bundle. A bundle used to carry any number
+ * of share_links rows, each with its own slug, pin and expiry; now it carries
+ * one mode, one share slug and one pin. Every existing link is dropped and
+ * every bundle lands on 'private', which is the only honest default: the old
+ * rows held slugs and pins nobody can map onto a single link.
+ *
+ * Bundles, revisions and push tokens keep every row they had.
+ */
+function toVersion2(db) {
+  db.exec(`
+    ALTER TABLE bundles ADD COLUMN share_mode TEXT NOT NULL DEFAULT 'private';
+    ALTER TABLE bundles ADD COLUMN share_slug TEXT NOT NULL DEFAULT '';
+    ALTER TABLE bundles ADD COLUMN pin_hash TEXT;
+    UPDATE bundles SET share_slug = slug;
+    CREATE UNIQUE INDEX IF NOT EXISTS bundles_share_slug_idx ON bundles (share_slug);
+    DROP TABLE IF EXISTS share_links;
+  `);
+  db.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
 }
 
 /**

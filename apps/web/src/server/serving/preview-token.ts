@@ -18,11 +18,10 @@ import { constantTimeEquals } from "@/server/auth/session";
  * path instead, where a relative asset URL inherits it.
  *
  * What it can do, stated plainly: anyone holding the URL can read that one
- * bundle's current revision until the stamp runs out. It is the same power as
- * an unlisted share link with a short expiry. It cannot be bound to the admin
- * session's nonce, because the nonce lives in the cookie the sandbox strips,
- * so logging out does not kill an outstanding token. Changing `HOSTI_SECRET`
- * does.
+ * bundle's current revision until the stamp runs out, whatever the bundle's
+ * sharing state says. It cannot be bound to the admin session's nonce, because
+ * the nonce lives in the cookie the sandbox strips, so logging out does not
+ * kill an outstanding token. Changing `HOSTI_SECRET` does.
  */
 
 /** How long one grant lives. Long enough to scroll a catalog, short enough to forget. */

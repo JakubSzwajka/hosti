@@ -117,6 +117,13 @@ describe("setting, changing and clearing", () => {
     expect(collectionOf("filed")).toBeNull();
   });
 
+  it("opens the new collection follow-up without changing the bundle", async () => {
+    const response = await post("filed", { token, collection: "__new" });
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/b/filed?collection=new");
+    expect(collectionOf("filed")).toBeNull();
+  });
+
   // The bundle page has one field and no clear button, so an empty field
   // submitted on its own is now the only way out of a collection. The guard
   // in front of it is the same one every other change goes through.

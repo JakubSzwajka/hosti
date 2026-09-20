@@ -1,10 +1,10 @@
 /**
- * Hashing the PIN on a share link. A PIN stops a forwarded link; it is not a
+ * Hashing the pin on a bundle. A pin stops a forwarded link; it is not a
  * password and Hosti does not treat it as one. Four to eight digits is a small
  * space, so the cost here comes from scrypt and from the rate limit on the
  * gate, not from the length of what the owner typed.
  *
- * The plaintext PIN is never stored, never logged and never returned by any
+ * The typed pin is never stored, never logged and never returned by any
  * endpoint. Once it is set, the owner sees `pin set` and nothing more.
  */
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
@@ -31,7 +31,7 @@ function derive(pin: string, salt: Buffer, cost: ScryptCost): Promise<Buffer> {
   });
 }
 
-/** Hash a PIN with a fresh salt. The caller has already validated the digits. */
+/** Hash a pin with a fresh salt. The caller has already validated the digits. */
 export async function hashPin(pin: string): Promise<string> {
   const salt = randomBytes(SALT_BYTES);
   const key = await derive(pin, salt, COST);
@@ -46,7 +46,7 @@ export async function hashPin(pin: string): Promise<string> {
 }
 
 /**
- * Does this PIN open that hash? False for anything malformed, so a row written
+ * Does this pin open that hash? False for anything malformed, so a row written
  * by a future format cannot be opened by accident.
  */
 export async function verifyPin(pin: string, stored: string): Promise<boolean> {
@@ -68,11 +68,27 @@ export async function verifyPin(pin: string, stored: string): Promise<boolean> {
 }
 
 /**
- * Read a PIN off a request body. `undefined` and an empty string both mean "no
- * PIN"; anything else must be four to eight digits or the call is refused.
+ * Read a pin out of a JSON body. Leaving the key out means "no pin", which is
+ * how a caller asks to keep the pin a bundle already holds. Sending the key
+ * means sending digits: `""`, `null` and `"12ab"` are all refused, because a
+ * caller who sent a pin field meant something by it and dropping it in silence
+ * would answer 200 to a request Hosti did not carry out.
  */
-export function readPin(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
+export function readJsonPin(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (typeof value !== "string") throw new PushError("bad_pin", PIN_RULE);
+  const pin = value.trim();
+  if (!isValidPin(pin)) throw new PushError("bad_pin", PIN_RULE);
+  return pin;
+}
+
+/**
+ * Read a pin off a form field. The bundle page always sends the field, so an
+ * empty one is the owner typing nothing rather than asking for anything.
+ * Anything else must be four to eight digits or the form is refused.
+ */
+export function readFormPin(value: FormDataEntryValue | null): string | null {
+  if (value === null) return null;
   if (typeof value !== "string") throw new PushError("bad_pin", PIN_RULE);
   const pin = value.trim();
   if (!pin) return null;
@@ -80,23 +96,16 @@ export function readPin(value: unknown): string | null {
   return pin;
 }
 
-/** The same read, but a missing PIN is itself a refusal. */
-export function requirePin(value: unknown): string {
-  const pin = readPin(value);
-  if (!pin) throw new PushError("bad_pin", PIN_RULE);
-  return pin;
-}
-
 /**
  * The unlock cookie is signed with the same key as the admin session, so a box
- * without that key could take a PIN and then never let anybody through. Refuse
+ * without that key could take a pin and then never let anybody through. Refuse
  * up front rather than leave a link nobody can open.
  */
 export function requireSigningSecret(): void {
   if (signingSecret()) return;
   throw new PushError(
     "not_configured",
-    `${SECRET_VAR} must be set before a share link can carry a pin`,
+    `${SECRET_VAR} must be set before a bundle can carry a pin`,
     503,
   );
 }

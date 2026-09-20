@@ -1,5 +1,5 @@
 /**
- * Deciding whether a guest gets through, and taking the PIN when they do not.
+ * Deciding whether a guest gets through, and taking the pin when they do not.
  *
  * Two rules shape everything here:
  *
@@ -10,13 +10,20 @@
  *    miss, so a script or a stylesheet under a locked link tells a prober
  *    nothing and no half-rendered bundle appears.
  */
+
 import { signingSecret } from "@/server/auth/config";
 import { isSecureRequest, readCookie } from "@/server/auth/cookie";
 import { pinKey, pinLimiter } from "@/server/auth/rate-limit";
 import { verifyPin } from "@/server/share-pin";
 import { type GateFault, gatePageHtml } from "@/server/serving/gate-page";
 import { hostiNotFound, hostiPage } from "@/server/serving/respond";
-import { signUnlock, unlockCookie, unlockCookieName, verifyUnlock } from "@/server/serving/unlock";
+import {
+  signUnlock,
+  type UnlockBinding,
+  unlockCookie,
+  unlockCookieName,
+  verifyUnlock,
+} from "@/server/serving/unlock";
 
 /** The one path under a share link that Hosti answers itself. */
 export const UNLOCK_PATH = "/unlock";
@@ -34,12 +41,12 @@ export function wantsPage(request: Request): boolean {
   return (request.headers.get("accept") ?? "").includes("text/html");
 }
 
-/** Does the caller already hold a live grant for this link? */
-export function isUnlocked(request: Request, shareSlug: string): boolean {
+/** Does the caller already hold a live grant for this link on this bundle? */
+export function isUnlocked(request: Request, shareSlug: string, binding: UnlockBinding): boolean {
   const secret = signingSecret();
   if (!secret) return false;
   const cookie = readCookie(request.headers, unlockCookieName(shareSlug));
-  return verifyUnlock(secret, shareSlug, cookie);
+  return verifyUnlock(secret, shareSlug, binding, cookie);
 }
 
 /** Where the guest lands once the PIN is right, and what the gate posts back. */
@@ -58,7 +65,7 @@ function displayPath(request: Request, parsed: ShareRequest): string {
   return host ? `${host}${parsed.sharePrefix}` : parsed.sharePrefix;
 }
 
-/** `?pin=wrong` and `?pin=locked` are how the failed POST talks to the gate. */
+/** `?pin=wrong` and `?pin=locked` are how the refused POST talks to the gate. */
 function faultFromQuery(url: string): GateFault | undefined {
   const value = new URL(url).searchParams.get("pin");
   if (value === "wrong" || value === "locked" || value === "unavailable") return value;
@@ -66,8 +73,8 @@ function faultFromQuery(url: string): GateFault | undefined {
 }
 
 /**
- * The gate, or a 404. Called only when the link carries a PIN and the caller
- * holds no grant for it.
+ * The gate, or a 404. Called only when the bundle carries a pin and the caller
+ * holds no grant for this link.
  */
 export function lockedResponse(request: Request, parsed: ShareRequest): Response {
   if (!wantsPage(request)) return hostiNotFound();
@@ -83,6 +90,7 @@ export function lockedResponse(request: Request, parsed: ShareRequest): Response
 }
 
 /** Back to the gate at the guest's own URL, one error line showing. */
+
 function backToGate(next: string, fault: GateFault): Response {
   const separator = next.includes("?") ? "&" : "?";
   return new Response(null, {
@@ -107,20 +115,21 @@ function safeNext(parsed: ShareRequest, supplied: FormDataEntryValue | null): st
 }
 
 /**
- * `POST /v/<share-slug>/unlock`. Right PIN, a cookie scoped to this link and a
- * 303 onward, so a reload does not repost. Wrong PIN, the gate again. The rate
+ * `POST /v/<share-slug>/unlock`. Right pin, a cookie scoped to this link and a
+ * 303 onward, so a reload does not repost. Wrong pin, the gate again. The rate
  * limit is checked before the hash, so a locked caller is refused even when the
- * PIN they typed is the right one.
+ * pin they typed is the right one.
  */
 export async function unlockResponse(
   request: Request,
   parsed: ShareRequest,
-  pinHash: string | null,
+  share: { bundleId: number; pinHash: string | null },
 ): Promise<Response> {
   const form = await request.formData().catch(() => null);
   if (!form) return hostiNotFound();
   const next = safeNext(parsed, form.get("next"));
 
+  const pinHash = share.pinHash;
   if (!pinHash) return redirectTo(next);
 
   const secret = signingSecret();
@@ -141,9 +150,11 @@ export async function unlockResponse(
   const response = redirectTo(next);
   response.headers.append(
     "Set-Cookie",
-    unlockCookie(parsed.shareSlug, signUnlock(secret, parsed.shareSlug), {
-      secure: isSecureRequest(request),
-    }),
+    unlockCookie(
+      parsed.shareSlug,
+      signUnlock(secret, parsed.shareSlug, { bundleId: share.bundleId, pinHash }),
+      { secure: isSecureRequest(request) },
+    ),
   );
   return response;
 }

@@ -1,6 +1,3 @@
-/* Every breakpoint in one place, so a change to one screen's narrow shape is
-   made where the others can be seen. */
-
 @media (max-width: 900px) {
   .wrap {
     padding: 26px 20px 0;
@@ -8,44 +5,152 @@
   .foot {
     padding: 18px 20px 0;
   }
-  .detail-head h2 {
-    font-size: 30px;
-    max-width: none;
-  }
   .empty {
     padding: 22px 22px 24px;
   }
 }
 
 @media (max-width: 560px) {
-  .detail-head h2 {
-    font-size: 25px;
+  .bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    margin: 18px 0 var(--gap);
   }
-  .detail-head {
-    gap: 14px;
+  .bar .chips {
+    margin: 0;
   }
-  .head-acts {
-    width: 100%;
+  .bar .drop {
+    grid-column: 1 / -1;
   }
-  .head-acts .btn {
-    flex: 1;
-    text-align: center;
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
-  .revs li {
-    grid-template-columns: 30px 1fr auto;
-    gap: 9px;
+  .card {
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    grid-template-areas:
+      "shot body"
+      "shot foot";
   }
-  .revs .tag {
+  .card-window {
+    grid-area: shot;
+    min-width: 0;
+    border-right: 1px solid var(--line-soft);
+    border-bottom: 0;
+  }
+  .card .window-bar {
     display: none;
   }
-  .revs li[data-current] span:first-child::after {
-    content: " ·";
-    color: var(--pop);
+  .card .thumb {
+    height: 100%;
+    min-height: 118px;
+    aspect-ratio: auto;
   }
-  .set-collection input {
-    flex: 1 1 100%;
-    width: auto;
+  .card .shot-art {
+    padding: 13px 10px 28px;
   }
+  .card .plate-word {
+    font-size: 17px;
+  }
+  .card .plate-bars {
+    height: 34px;
+    gap: 4px;
+  }
+  .card .plate-path {
+    display: none;
+  }
+  .card .shot-facts {
+    inset: auto 10px 9px;
+  }
+  .card .shot-facts span:not(.bytes) {
+    display: none;
+  }
+  .card-body {
+    grid-area: body;
+    padding: 11px 13px 2px;
+    gap: 9px;
+  }
+  .card-body h2 {
+    font-size: 19px;
+    letter-spacing: -0.022em;
+  }
+  .card-slug {
+    display: block;
+  }
+  .card-meta {
+    display: none;
+  }
+  .card-foot {
+    grid-area: foot;
+    padding: 5px 13px 9px;
+    border-top: 0;
+    background: transparent;
+  }
+  .card-open {
+    min-height: 44px;
+  }
+  .sheet-tail {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .detail-head {
+    margin-top: 13px;
+  }
+  .detail-meta {
+    align-items: flex-start;
+  }
+  .detail-facts {
+    flex-basis: 100%;
+  }
+  .detail-meta > .btn {
+    min-height: 42px;
+    padding-inline: 18px;
+  }
+  .collection-picker {
+    max-width: 100%;
+  }
+  .collection-select {
+    max-width: min(14em, 70vw);
+  }
+  .new-collection {
+    flex-basis: 100%;
+  }
+  .new-collection input {
+    width: min(13em, 52vw);
+  }
+  .preview {
+    aspect-ratio: 16 / 10;
+  }
+  .preview .plate-word {
+    font-size: 24px;
+  }
+  .preview .shot-facts {
+    inset: auto 14px 10px;
+  }
+  .sharing-choice {
+    min-height: 54px;
+    padding: 12px 18px;
+  }
+  .sharing-choice > label {
+    min-height: 30px;
+  }
+  .pin-controls {
+    padding-left: 0;
+  }
+  .share-url,
+  .share-foot p {
+    flex-basis: 100%;
+  }
+  .share-actions {
+    width: 100%;
+  }
+  .danger-strip:not([data-confirm]) .btn-red {
+    width: 100%;
+  }
+
   .drop-form label {
     flex-basis: 100%;
   }
@@ -57,9 +162,6 @@
   }
 }
 
-/* Every transition on the catalog is timed from one variable, so asking the
-   system to stop moving things is one line rather than an `!important` sheet
-   fighting the rest of the CSS. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --t: 0ms;

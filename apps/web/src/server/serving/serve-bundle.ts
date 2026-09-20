@@ -1,4 +1,4 @@
-import { resolveShareLink } from "@/server/catalog";
+import { resolveShare } from "@/server/catalog";
 import { isUnlocked, lockedResponse, UNLOCK_PATH, unlockResponse } from "@/server/serving/gate";
 import { hostiNotFound } from "@/server/serving/respond";
 import { serveFromRevision } from "@/server/serving/serve-revision";
@@ -30,21 +30,25 @@ export function parseBundleUrl(url: string): ParsedRequest | null {
 }
 
 /**
- * Serve one file out of a share link's current revision. An unknown share slug
- * and a bundle without a revision answer the same 404, so a guess tells the
- * guesser nothing.
+ * Serve one file out of the bundle's current revision. An unknown share slug,
+ * a private bundle and a bundle without a revision answer the same 404, so a
+ * guess tells the guesser nothing.
  *
- * A PIN on the link is checked before the revision is even looked up, so a
- * locked link gives away nothing about the state of what sits behind it.
+ * A pin is checked before the revision is even looked up, so a locked link
+ * gives away nothing about the state of what sits behind it. That is also why
+ * the bundle's own `404.html` cannot reach a guest here: a locked or a private
+ * bundle never gets past this point, so its 404 page answers only on a link
+ * the bundle would have answered on anyway.
  */
 export async function serveBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed) return hostiNotFound();
 
-  const link = resolveShareLink(parsed.shareSlug);
+  const link = resolveShare(parsed.shareSlug);
   if (!link) return hostiNotFound();
 
-  if (link.pinHash && !isUnlocked(request, parsed.shareSlug)) {
+  const pinHash = link.pinHash;
+  if (pinHash && !isUnlocked(request, parsed.shareSlug, { bundleId: link.bundleId, pinHash })) {
     return lockedResponse(request, parsed);
   }
 
@@ -66,8 +70,8 @@ export async function unlockBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed || parsed.requestPath !== UNLOCK_PATH) return hostiNotFound();
 
-  const link = resolveShareLink(parsed.shareSlug);
+  const link = resolveShare(parsed.shareSlug);
   if (!link) return hostiNotFound();
 
-  return unlockResponse(request, parsed, link.pinHash);
+  return unlockResponse(request, parsed, { bundleId: link.bundleId, pinHash: link.pinHash });
 }

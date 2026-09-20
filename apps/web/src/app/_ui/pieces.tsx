@@ -1,13 +1,9 @@
+import type { SharingMode } from "@hosti/shared";
 import Link from "next/link";
-import { plural } from "@/app/_ui/format";
+import { formatBytes, plural } from "@/app/_ui/format";
 import { Mark } from "@/app/_ui/mark";
 import { Shot } from "@/app/_ui/shot";
 import { previewGrant } from "@/server/serving/preview-token";
-
-/**
- * The small parts every catalog screen reuses: the masthead, the collection
- * chips, the share-state block and the placeholder preview.
- */
 
 export function Masthead({ meta, token }: { meta?: React.ReactNode; token: string }) {
   return (
@@ -56,47 +52,23 @@ export function Chips({
   );
 }
 
-/**
- * Share state as words on a block, not a coloured dot. A private bundle reads
- * `private`, a shared one reads `shared` with how many links it has.
- */
-export function ShareFlag({ count }: { count: number }) {
-  if (count === 0) {
-    return (
-      <span className="flag" data-s="private">
-        <b>private</b>
-        <small>no link</small>
-      </span>
-    );
-  }
+export function ShareFlag({ mode }: { mode: SharingMode }) {
   return (
-    <span className="flag" data-s="shared">
-      <b>shared</b>
-      <small>{plural(count, "link")}</small>
+    <span className="flag" data-s={mode}>
+      {mode}
     </span>
   );
 }
 
-/** Deterministic bar heights, so a card looks the same on every render. */
-function bars(seed: string, count: number, scale: number): { id: string; height: number }[] {
+function bars(seed: string, count: number): { id: string; height: number }[] {
   let hash = 0;
   for (const character of seed) hash = (hash * 31 + character.charCodeAt(0)) % 9973;
-  const out: { id: string; height: number }[] = [];
-  for (let step = 0; step < count; step += 1) {
-    const spread = (hash + step * 37) % 100;
-    out.push({
-      id: `${seed}-bar-${step}`,
-      height: Math.round(scale * (0.35 + (spread / 100) * 0.65)),
-    });
-  }
-  return out;
+  return Array.from({ length: count }, (_, step) => ({
+    id: `${seed}-bar-${step}`,
+    height: 22 + ((hash + step * 37) % 42),
+  }));
 }
 
-/**
- * A bundle's preview slot. The bundle itself renders here, live, in a
- * sandboxed frame. The drawn shape underneath is what shows while the frame
- * is still coming, and what is left when a bundle has no revision to render.
- */
 export function Thumb({
   seed,
   size,
@@ -104,38 +76,29 @@ export function Thumb({
   live,
   openHref,
   label,
+  fileCount,
+  byteSize,
 }: {
   seed: string;
   size: "card" | "detail";
   href?: string;
-  /** The bundle slug, when it has a current revision worth framing. */
   live?: string;
-  /** Where clicking the picture opens the bundle itself, in a new tab. */
   openHref?: string;
   label?: string;
+  fileCount: number;
+  byteSize: number;
 }) {
   const card = size === "card";
   const grant = live ? previewGrant(live) : null;
-  const inside = (
+  const entry = live ? "index.html" : "no entry file";
+  const facts = (
     <>
-      <i className="h" />
-      <i className="w1" />
-      <i className="w2" />
-      <i className="w3" />
-      <span className="bars">
-        {bars(seed, card ? 6 : 9, card ? 62 : 84).map((bar) => (
-          <i key={bar.id} style={{ height: `${bar.height}px` }} />
-        ))}
-      </span>
-      {card ? (
-        <>
-          <i className="w1" />
-          <i className="w3" />
-          <i className="w2" />
-        </>
-      ) : null}
+      <span className="entry">{entry}</span>
+      <span>{plural(fileCount, "file")}</span>
+      <span className="bytes">{formatBytes(byteSize)}</span>
     </>
   );
+
   return (
     <Shot
       className={card ? "thumb" : "preview"}
@@ -145,8 +108,18 @@ export function Thumb({
       href={href}
       openHref={openHref}
       label={label ?? `Preview of ${seed}`}
+      facts={facts}
     >
-      {inside}
+      <span className="plate-word">{live ? "loading" : "no revision"}</span>
+      {live ? (
+        <span className="plate-bars">
+          {bars(seed, card ? 6 : 9).map((bar) => (
+            <i key={bar.id} style={{ height: `${bar.height}px` }} />
+          ))}
+        </span>
+      ) : (
+        <span className="plate-path">nothing to serve at /b/{seed}/</span>
+      )}
     </Shot>
   );
 }

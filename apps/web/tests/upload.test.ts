@@ -134,7 +134,14 @@ describe("a zip becoming a bundle", () => {
       file: { name: "Dropped In.zip", bytes: await zipFixture("multi-page") },
     });
     expect(response.status).toBe(201);
-    expect(await response.json()).toMatchObject({ bundle: "dropped", revision: 1, shareUrls: [] });
+    // The catalog's own upload mints nothing: a bundle is private however it
+    // arrived.
+    expect(await response.json()).toMatchObject({
+      bundle: "dropped",
+      revision: 1,
+      sharing: { mode: "private", hasPin: false },
+      shareUrl: null,
+    });
 
     const root = path.join(dataDir, "bundles/dropped/r1");
     expect(await exists(path.join(root, "index.html"))).toBe(true);

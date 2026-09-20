@@ -1,16 +1,10 @@
 /** Calling the route handlers the way a client does, without a live server. */
+import type { SharingMode } from "@hosti/shared";
 import { POST as PRUNE } from "@/app/api/v1/bundles/[slug]/prune/route";
-import { DELETE as DELETE_BUNDLE } from "@/app/api/v1/bundles/[slug]/route";
+import { DELETE as DELETE_BUNDLE, GET as GET_BUNDLE } from "@/app/api/v1/bundles/[slug]/route";
 import { POST as PUSH } from "@/app/api/v1/bundles/[slug]/revisions/route";
-import {
-  GET as LIST_SHARES,
-  POST as CREATE_SHARE,
-} from "@/app/api/v1/bundles/[slug]/share-links/route";
-import {
-  DELETE as REMOVE_PIN,
-  PUT as SET_PIN,
-} from "@/app/api/v1/share-links/[shareSlug]/pin/route";
-import { DELETE as REVOKE_SHARE } from "@/app/api/v1/share-links/[shareSlug]/route";
+import { POST as ROTATE } from "@/app/api/v1/bundles/[slug]/sharing/rotate/route";
+import { PUT as SET_SHARING } from "@/app/api/v1/bundles/[slug]/sharing/route";
 import { GET as SERVE, POST as UNLOCK } from "@/app/v/[slug]/[[...path]]/route";
 
 export const ORIGIN = "http://localhost:3000";
@@ -37,34 +31,35 @@ export function push(
   return PUSH(request, { params: Promise.resolve({ slug }) });
 }
 
-export function createShare(
+/** `PUT /api/v1/bundles/<slug>/sharing`, the one write that moves the state. */
+export function setSharing(
   token: string,
   slug: string,
-  options: { unlisted?: boolean; pin?: string } = {},
+  body: { mode?: unknown; pin?: unknown },
 ): Promise<Response> {
   const headers = auth(token);
   headers.set("Content-Type", "application/json");
-  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/share-links`, {
-    method: "POST",
+  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/sharing`, {
+    method: "PUT",
     headers,
-    body: JSON.stringify(options),
+    body: JSON.stringify(body),
   });
-  return CREATE_SHARE(request, { params: Promise.resolve({ slug }) });
+  return SET_SHARING(request, { params: Promise.resolve({ slug }) });
 }
 
-export function listShares(token: string, slug: string): Promise<Response> {
-  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/share-links`, {
+/** `POST /api/v1/bundles/<slug>/sharing/rotate`. */
+export function rotateSharing(token: string, slug: string): Promise<Response> {
+  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/sharing/rotate`, {
+    method: "POST",
     headers: auth(token),
   });
-  return LIST_SHARES(request, { params: Promise.resolve({ slug }) });
+  return ROTATE(request, { params: Promise.resolve({ slug }) });
 }
 
-export function revokeShare(token: string, shareSlug: string): Promise<Response> {
-  const request = new Request(`${ORIGIN}/api/v1/share-links/${shareSlug}`, {
-    method: "DELETE",
-    headers: auth(token),
-  });
-  return REVOKE_SHARE(request, { params: Promise.resolve({ shareSlug }) });
+/** `GET /api/v1/bundles/<slug>`, which now reports the sharing state. */
+export function getBundle(token: string, slug: string): Promise<Response> {
+  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}`, { headers: auth(token) });
+  return GET_BUNDLE(request, { params: Promise.resolve({ slug }) });
 }
 
 /** `POST /api/v1/bundles/<slug>/prune`, with no bearer when the token is empty. */
@@ -84,25 +79,6 @@ export function removeBundle(token: string, slug: string): Promise<Response> {
     headers: auth(token),
   });
   return DELETE_BUNDLE(request, { params: Promise.resolve({ slug }) });
-}
-
-export function setPin(token: string, shareSlug: string, pin: unknown): Promise<Response> {
-  const headers = auth(token);
-  headers.set("Content-Type", "application/json");
-  const request = new Request(`${ORIGIN}/api/v1/share-links/${shareSlug}/pin`, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({ pin }),
-  });
-  return SET_PIN(request, { params: Promise.resolve({ shareSlug }) });
-}
-
-export function removePin(token: string, shareSlug: string): Promise<Response> {
-  const request = new Request(`${ORIGIN}/api/v1/share-links/${shareSlug}/pin`, {
-    method: "DELETE",
-    headers: auth(token),
-  });
-  return REMOVE_PIN(request, { params: Promise.resolve({ shareSlug }) });
 }
 
 export function serve(urlPath: string, headers?: HeadersInit): Promise<Response> {
@@ -134,17 +110,31 @@ export function unlock(
   );
 }
 
-/** Push a fixture and open it, the two-step walk most tests need. */
+/** The share slug out of any sharing or bundle response. */
+export async function shareSlugOf(response: Response): Promise<string> {
+  const body = (await response.json()) as
+    | { sharing: { shareSlug: string } }
+    | { bundle: { sharing: { shareSlug: string } } };
+  return "sharing" in body ? body.sharing.shareSlug : body.bundle.sharing.shareSlug;
+}
+
+/**
+ * Push a fixture and open it, the two-step walk most tests need. A push leaves
+ * the bundle private, so the sharing call is always a second request.
+ */
 export async function pushAndShare(
   token: string,
   slug: string,
   body: Buffer,
-  options: { unlisted?: boolean } = {},
+  options: { mode?: SharingMode; pin?: string } = {},
 ): Promise<string> {
   const pushed = await push(token, slug, body);
   if (pushed.status !== 201) throw new Error(`push failed: ${await pushed.text()}`);
-  const shared = await createShare(token, slug, options);
-  if (shared.status !== 201) throw new Error(`share failed: ${await shared.text()}`);
-  const body_ = (await shared.json()) as { link: { slug: string } };
-  return body_.link.slug;
+  const mode = options.mode ?? (options.pin ? "pin" : "link");
+  const shared = await setSharing(token, slug, {
+    mode,
+    ...(options.pin ? { pin: options.pin } : {}),
+  });
+  if (shared.status !== 200) throw new Error(`sharing failed: ${await shared.text()}`);
+  return shareSlugOf(shared);
 }

@@ -46,6 +46,7 @@ export function Shot({
   href,
   openHref,
   label,
+  facts,
   children,
 }: {
   className: string;
@@ -68,6 +69,8 @@ export function Shot({
    */
   openHref?: string;
   label: string;
+  /** Truth that stays legible even when the framed page is almost blank. */
+  facts: ReactNode;
   children: ReactNode;
 }) {
   const holder = useRef<HTMLDivElement>(null);
@@ -160,6 +163,9 @@ export function Shot({
           }}
         />
       ) : null}
+      <span className="shot-facts" aria-hidden="true">
+        {facts}
+      </span>
       {href ? <Link className="shot-hit" href={href} aria-hidden="true" tabIndex={-1} /> : null}
       {openHref ? (
         <a className="shot-open" href={openHref} target="_blank" rel="noreferrer">

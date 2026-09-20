@@ -5,8 +5,8 @@ import { useTempDataDir } from "./helpers";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 
-const { listShares, navigate, removePin, setPin, unlock } = await import("./api");
-const { protectedLink } = await import("./pin-helpers");
+const { getBundle, navigate, setSharing, unlock } = await import("./api");
+const { openLink, protectedLink } = await import("./pin-helpers");
 const { createPushToken } = await import("@/server/push-tokens");
 const { unlockCookieName } = await import("@/server/serving/unlock");
 
@@ -61,24 +61,24 @@ describe("the attempt budget", () => {
 });
 
 describe("the owner moving a pin", () => {
-  it("opens the link again once the pin is removed", async () => {
+  it("opens the link again once the bundle drops to a plain link", async () => {
     const link = await opened("un-pinned", { pin: "4821" });
     expect(await navigate(`/v/${link}/`).then((r) => r.text())).toContain("This link is protected");
 
-    const removed = await removePin(token, link);
-    expect(removed.status).toBe(200);
-    expect(await removed.json()).toEqual({ shareSlug: link, hasPin: false });
+    const dropped = await setSharing(token, "un-pinned", { mode: "link" });
+    expect(dropped.status).toBe(200);
+    expect(await dropped.json()).toMatchObject({ sharing: { mode: "link", hasPin: false } });
 
     const page = await navigate(`/v/${link}/`);
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("Squad 2026");
   });
 
-  it("puts a pin on a link that had none", async () => {
+  it("puts a pin on a bundle that had none", async () => {
     const link = await opened("late-pin");
     expect((await navigate(`/v/${link}/`)).status).toBe(200);
 
-    expect((await setPin(token, link, "1234")).status).toBe(200);
+    expect((await setSharing(token, "late-pin", { mode: "pin", pin: "1234" })).status).toBe(200);
     expect(await navigate(`/v/${link}/`).then((r) => r.text())).toContain("This link is protected");
 
     const response = await unlock(link, { pin: "1234", next: `/v/${link}/` });
@@ -87,7 +87,9 @@ describe("the owner moving a pin", () => {
 
   it("replaces a pin, and the old one stops working", async () => {
     const link = await opened("replaced-pin", { pin: "4821" });
-    expect((await setPin(token, link, "5555")).status).toBe(200);
+    expect((await setSharing(token, "replaced-pin", { mode: "pin", pin: "5555" })).status).toBe(
+      200,
+    );
 
     const old = await unlock(link, { pin: "4821", next: `/v/${link}/` });
     expect(old.headers.get("location")).toBe(`/v/${link}/?pin=wrong`);
@@ -97,34 +99,59 @@ describe("the owner moving a pin", () => {
   });
 
   it("refuses the wrong shape and quotes nothing it was sent", async () => {
-    const link = await opened("guarded-pin", { pin: "4821" });
-    const response = await setPin(token, link, "12");
+    await opened("guarded-pin", { pin: "4821" });
+    const response = await setSharing(token, "guarded-pin", { mode: "pin", pin: "12" });
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: string; message: string };
     expect(body.error).toBe("bad_pin");
     expect(body.message).not.toContain("12");
   });
 
-  it("404s on a share link that is not there", async () => {
-    expect((await setPin(token, "nothing-here", "4821")).status).toBe(404);
-    expect((await removePin(token, "nothing-here")).status).toBe(404);
+  it("404s on a bundle that is not there", async () => {
+    expect((await setSharing(token, "nothing-here", { mode: "pin", pin: "4821" })).status).toBe(
+      404,
+    );
   });
 
   it("needs a push token", async () => {
-    const link = await opened("pin-needs-token", { pin: "4821" });
-    const { DELETE } = await import("@/app/api/v1/share-links/[shareSlug]/pin/route");
-    const response = await DELETE(
-      new Request(`http://localhost:3000/api/v1/share-links/${link}/pin`, { method: "DELETE" }),
-      { params: Promise.resolve({ shareSlug: link }) },
+    await opened("pin-needs-token", { pin: "4821" });
+    const { PUT } = await import("@/app/api/v1/bundles/[slug]/sharing/route");
+    const response = await PUT(
+      new Request("http://localhost:3000/api/v1/bundles/pin-needs-token/sharing", {
+        method: "PUT",
+        body: JSON.stringify({ mode: "private" }),
+      }),
+      { params: Promise.resolve({ slug: "pin-needs-token" }) },
     );
     expect(response.status).toBe(401);
+    // The refused call changed nothing.
+    expect((await navigate("/v/pin-needs-token/")).status).toBe(200);
   });
 
   it("never reports the digits back, only that a pin is there", async () => {
     await opened("never-echoed", { pin: "4821" });
-    const body = await listShares(token, "never-echoed").then((r) => r.text());
+    const body = await getBundle(token, "never-echoed").then((r) => r.text());
     expect(body).toContain('"hasPin":true');
     expect(body).not.toContain("4821");
+  });
+
+  it("leaves a pushed bundle private however it arrived", async () => {
+    const { push } = await import("./api");
+    const { tarFixture } = await import("./helpers");
+    await push(token, "push-stays-private", await tarFixture("multi-page"));
+    const body = (await (await getBundle(token, "push-stays-private")).json()) as {
+      bundle: { sharing: { mode: string } };
+    };
+    expect(body.bundle.sharing.mode).toBe("private");
+    expect((await navigate("/v/push-stays-private/")).status).toBe(404);
+
+    // A second push onto a link bundle leaves that bundle on link.
+    await openLink(token, "push-stays-private", { mode: "link" });
+    await push(token, "push-stays-private", await tarFixture("multi-page"));
+    const after = (await (await getBundle(token, "push-stays-private")).json()) as {
+      bundle: { sharing: { mode: string } };
+    };
+    expect(after.bundle.sharing.mode).toBe("link");
   });
 });
 

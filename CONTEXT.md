@@ -35,10 +35,28 @@ zone, or by the owner on the bundle page, and cleared only by the owner. `-` is
 the catalog's path for bundles in no collection, so no way in may set it.
 _Avoid_: folder, directory, tag, category.
 
+**Sharing state**:
+Which of three states a bundle is in. `private` answers nothing at the share
+URL. `link` opens the bundle to anyone holding it. `pin` shows the pin gate
+first. One bundle, one state.
+_Avoid_: visibility, access level, permission.
+
 **Share link**:
-A public path that grants access to one bundle. It carries its own slug, its own
-optional PIN and its own optional expiry. Revoking it does not touch the bundle.
+The one public path to a bundle, at `/v/<share-slug>/`. The share slug is the
+bundle slug until a rotate mints a fresh random one. A bundle has at most one,
+and it answers only while the sharing state is `link` or `pin`.
 _Avoid_: public URL, share token.
+
+**Rotate**:
+Minting a fresh share slug. The old URL stops answering at once. It is the only
+way to cut off somebody who already has the address. The sharing state and the
+pin stay as they were.
+_Avoid_: regenerate, refresh, reset.
+
+**Pin**:
+Four to eight digits the owner types, guarding this bundle's link. Hashed with
+`scrypt`. Hosti never invents one and never reads one back.
+_Avoid_: password, passcode, PIN code.
 
 **Push token**:
 A bearer secret an agent or the CLI uses to write. Never used by a browser.
@@ -53,7 +71,7 @@ _Avoid_: login, user account.
 
 ```
 POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
-        | push token                               | share link
+        | push token                               | link or pin
 POST /upload                                       |
         | admin session + mutation token           |
         v                                          v
@@ -68,17 +86,19 @@ The two ways in differ only in who they let through and what the bytes are
 wrapped in. A tarball is read by one reader and a zip by another, and both hand
 every entry to one sink, so the limits and the path rules cannot drift apart.
 
-A push stops at the left column. Nothing on the right answers until a share
-link exists, and share links are their own endpoints, all on the push token:
+A push stops at the left column. Nothing on the right answers while the bundle
+is private, and sharing has its own endpoints, all on the push token:
 
 ```
-POST   /api/v1/bundles/<slug>/share-links    create a link, unlisted on request
-GET    /api/v1/bundles/<slug>/share-links    the links this bundle has
-PUT    /api/v1/share-links/<share-slug>/pin  set or replace the pin on a link
-DELETE /api/v1/share-links/<share-slug>/pin  take the pin off
-DELETE /api/v1/share-links/<share-slug>      revoke one link
-DELETE /api/v1/bundles/<slug>                forget the bundle, files and all
+PUT    /api/v1/bundles/<slug>/sharing         set the state: private, link, pin
+POST   /api/v1/bundles/<slug>/sharing/rotate  mint a fresh share slug
+GET    /api/v1/bundles/<slug>                 the bundle and its sharing state
+DELETE /api/v1/bundles/<slug>                 forget the bundle, files and all
 ```
+
+The body of the `PUT` is `{"mode": "private" | "link" | "pin", "pin"?: "4821"}`.
+Asking for `pin` with no pin stored and none in the body is refused. Setting
+`private` or `link` clears the stored pin hash.
 
 One path under `/v/` is Hosti's own rather than the bundle's:
 
@@ -87,7 +107,7 @@ POST   /v/<share-slug>/unlock                the pin gate's form, no token
 ```
 
 And one path outside `/v/` serves bundle bytes to the owner alone, so the
-catalog can show a bundle nobody has shared:
+catalog can show a private bundle:
 
 ```
 GET    /b/<slug>/preview/                    admin session
@@ -96,25 +116,38 @@ POST   /api/v1/bundles/<slug>/prune          push token, prune on demand
 POST   /upload                               admin session, an archive from the browser
 ```
 
+The catalog's own writes take the admin session and the mutation token, never a
+push token:
+
+```
+POST   /b/<slug>/sharing                     set the state from the bundle page
+POST   /b/<slug>/sharing/rotate              mint a fresh share slug
+```
+
 ## Rules the code must keep
 
 1. [x] A half-finished push never becomes the current revision. Unpack, verify
    the entry file, then flip the `current` symlink with a rename.
 2. [x] A refused push leaves no partial directory and does not move `current`.
 3. [x] Bundle URLs are path-based on one domain. No subdomains, and no `<base>`
-   tag injected at push time, because one bundle can answer several share links.
+   tag injected at push time, because a rotate changes the path a bundle
+   answers on.
 4. [x] `/v/<slug>` redirects to `/v/<slug>/` before anything is served, or every
    relative asset link inside the bundle misses.
 5. [x] Bearer tokens open `/api/v1/`. Cookies never do, because a bundle runs
    its own JavaScript on this origin.
-6. [x] An unknown share link, a bundle with no revision and a bundle nobody has
-   shared all answer the same 404. A push mints no share link, so a bundle is
-   private until someone asks for one.
-7. [x] Revoking a share link touches neither the bundle nor its other links.
-8. [x] A PIN guards one share link, never the bundle. Its unlock cookie is
-   scoped to that link's path, so a second link on the same bundle asks again
-   and no unlock cookie ever opens the catalog.
-9. [x] A PIN is typed by the owner, four to eight digits, hashed with `scrypt`.
+6. [x] An unknown share slug, a private bundle, a bundle with no revision and a
+   bundle nobody has shared all answer the same 404. The 404 names nothing. A
+   push never changes the sharing state, so a bundle is private until the owner
+   says otherwise. A bundle's own `404.html` answers only where the bundle
+   itself would answer, so a private or a locked link never serves it.
+7. [x] Going private touches neither the bundle nor its revisions, and neither
+   does a rotate. Going private and going to a plain link both clear the stored
+   pin hash, because a pin that survives going private is a trap.
+8. [x] A pin guards this bundle's one link. Its unlock cookie is scoped to that
+   link's path, so a rotate makes every outstanding grant useless and no unlock
+   cookie ever opens the catalog.
+9. [x] A pin is typed by the owner, four to eight digits, hashed with `scrypt`.
    Hosti never generates one and never reads one back.
 10. [x] A locked link answers a page request with the gate at the same URL, and
     everything else with the same 404 as any other miss. The gate names neither
@@ -131,5 +164,5 @@ POST   /upload                               admin session, an archive from the 
 14. [x] Only a preview response may be framed, and only by this origin. Every
     `/v/` response stays `frame-ancestors 'none'`.
 15. [x] The catalog's upload is a change the catalog makes, so it wants the
-    admin session and the mutation token, never a push token. It mints no
-    share link either: a bundle is private however it arrived.
+    admin session and the mutation token, never a push token. It changes no
+    sharing state either: a bundle is private however it arrived.

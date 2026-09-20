@@ -11,7 +11,7 @@ import {
 } from "@/server/catalog";
 import { PushError } from "@/server/errors";
 import { pruneRevisions } from "@/server/retention";
-import { shareLinkUrls } from "@/server/share-links";
+import { describeSharing, shareUrl } from "@/server/sharing";
 import { type ArchiveFormat, writeRevision } from "@/server/storage/revisions";
 
 const MAX_HEADER_TEXT = 200;
@@ -55,8 +55,9 @@ export type RevisionInput = {
 /**
  * Take one revision, whether it came from `hosti push` or from the catalog's
  * drop zone: unpack to disk first, then write metadata. A revision that fails
- * leaves no bundle row, no revision row and no directory. It never opens the
- * bundle to the public either: share links are asked for separately.
+ * leaves no bundle row, no revision row and no directory. It never changes the
+ * sharing state either: a new bundle lands private and an existing one keeps
+ * the state it had.
  */
 export async function storeRevision(input: RevisionInput): Promise<PushResponse> {
   const { slug, title, collection } = input;
@@ -97,11 +98,15 @@ export async function storeRevision(input: RevisionInput): Promise<PushResponse>
   }
 
   const { baseUrl } = input;
+  // Read the row back rather than reusing `bundle`: an existing bundle's row
+  // was fetched before this push and the sharing state is what it already was.
+  const sharing = describeSharing(findBundle(slug) ?? bundle);
   return {
     bundle: slug,
     revision: revision.seq,
     adminUrl: `${baseUrl}/b/${slug}`,
-    shareUrls: shareLinkUrls(bundle.id, baseUrl),
+    sharing,
+    shareUrl: shareUrl(sharing, baseUrl),
   };
 }
 

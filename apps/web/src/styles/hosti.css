@@ -67,7 +67,7 @@ textarea {
 }
 :focus-visible {
   outline: 2px solid var(--pop);
-  outline-offset: 2px;
+  outline-offset: 1px;
   border-radius: 3px;
 }
 * {
@@ -94,9 +94,12 @@ textarea {
 }
 
 .mono,
-.revs,
-.link .path,
-.card-slug {
+.window-bar,
+.preview-bar,
+.share-url,
+.card-slug,
+.shot-facts,
+.plate-path {
   font-family: var(--font-mono);
   font-variant-ligatures: none;
   font-feature-settings:
@@ -163,6 +166,27 @@ textarea {
 .sign-out:hover {
   color: var(--ink);
 }
+.catalog-shell .mast,
+.bundle-shell .mast {
+  border-bottom-width: 5px;
+}
+.register-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.register-line span:last-child {
+  color: var(--muted);
+  font-weight: 500;
+}
 
 /* One row under the masthead: which collection is showing, and the one
    control that puts a bundle in by hand. */
@@ -171,7 +195,7 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
-  margin: 26px 0 24px;
+  margin: 22px 0 34px;
 }
 .bar .chips {
   margin: 0;

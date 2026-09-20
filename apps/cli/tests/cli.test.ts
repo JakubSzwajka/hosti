@@ -67,21 +67,25 @@ describe("the exit code an agent reads", () => {
     expect(result.stderr.trim().split("\n").at(-1)).toContain("Cannot reach http://127.0.0.1:9");
   });
 
-  it("names the pin commands in the usage", async () => {
+  it("names the three sharing states and rotate in the usage", async () => {
     const result = await hosti([]);
-    expect(result.stdout).toContain("hosti pin <share-slug> --set 1234 | --remove");
+    expect(result.stdout).toContain("hosti share <slug> --mode private|link|pin");
+    expect(result.stdout).toContain("hosti rotate <slug>");
     expect(result.stdout).toContain("four to eight digits");
+    // The words the one-link model took away are gone from the help too.
+    expect(result.stdout).not.toContain("--unlisted");
+    expect(result.stdout).not.toContain("revoke");
   });
 
-  it("stops at usage when pin is asked for nothing", async () => {
-    const result = await hosti(["pin", "atlas-k7"]);
+  it("stops at usage when share is given no mode", async () => {
+    const result = await hosti(["share", "atlas"]);
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("--set <digits> or --remove");
+    expect(result.stderr).toContain("needs --mode");
     expect(result.stdout).toBe("");
   });
 
   it("lets the server judge the digits, and prints its message last", async () => {
-    const result = await hosti(["pin", "atlas-k7", "--set", "12"], {
+    const result = await hosti(["share", "atlas", "--mode", "pin", "--pin", "12"], {
       HOSTI_URL: "http://127.0.0.1:9",
       HOSTI_TOKEN: "hosti_x",
     });

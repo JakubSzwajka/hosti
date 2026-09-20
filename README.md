@@ -36,7 +36,7 @@ in `allowScripts`.
 /login                   the owner password, one field
 /                        every bundle, newest push first
 /c/reports               one collection; /c/- is the bundles no push put in one
-/b/garmin-q3             one bundle: preview, revisions, share links, collection, delete
+/b/garmin-q3             one bundle: preview, revisions, sharing, collection, delete
 /b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
 /upload                  drop an archive here; the drop zone posts to it
 ```
@@ -47,9 +47,9 @@ The login form takes five wrong passwords per caller per fifteen minutes and
 then locks that caller out for ten. The count lives in memory, so a restart
 clears it.
 
-Every change the catalog makes, creating a share link, revoking one, setting a
-collection, deleting a bundle, logging out, is a POST carrying a token derived
-from the session. No GET ever changes anything.
+Every change the catalog makes, setting the sharing state, rotating the link,
+setting a collection, deleting a bundle, logging out, is a POST carrying a token
+derived from the session. No GET ever changes anything.
 
 ### Putting a bundle in from the browser
 
@@ -88,8 +88,8 @@ refused before a directory is made.
 Each card on the catalog runs the bundle itself, scaled down. There is no
 screenshot, no stored image and no headless browser: it is the bundle's current
 revision in an `<iframe>`, served from `/b/<slug>/preview/`. That route needs
-the admin session, so a preview works on a private bundle with no share link,
-which is most of them.
+the admin session, so a preview works on a private bundle, which is most of
+them.
 
 The frame carries `sandbox="allow-scripts"` and deliberately **not**
 `allow-same-origin`, so the bundle runs in an opaque origin and cannot read the
@@ -102,8 +102,8 @@ So the preview URL carries a short-lived signed grant in its path,
 `/b/<slug>/preview/~<grant>/`, which a relative asset URL inherits. A grant is
 minted per page render, lasts 30 minutes, is bound to one bundle slug and is
 signed with `HOSTI_SECRET`. It gives whoever holds that URL read access to that
-one bundle's current revision until it runs out, which is the same power as an
-unlisted share link with a short expiry. It cannot be tied to the session nonce,
+one bundle's current revision until it runs out, which is the same power as a
+share link somebody rotates half an hour later. It cannot be tied to the session nonce,
 because the nonce lives in the cookie the sandbox strips, so logging out does
 not kill an outstanding grant. Rotating `HOSTI_SECRET` does.
 
@@ -142,33 +142,38 @@ export HOSTI_URL=http://127.0.0.1:3000
 export HOSTI_TOKEN=$(npm run --silent token:new -- --name laptop | sed -n 2p)
 
 hosti push ./fixtures/multi-page --slug squad-2026 --title "Squad 2026"
-hosti share squad-2026
-hosti share squad-2026 --unlisted --pin 4821
-hosti push ./out --slug atlas --share --unlisted
+hosti share squad-2026 --mode link
+hosti share squad-2026 --mode pin --pin 4821
+hosti share squad-2026 --mode private
+hosti rotate squad-2026
 hosti ls
-hosti links squad-2026
-hosti pin squad-2026-k7f3n9qp --set 1234
-hosti pin squad-2026-k7f3n9qp --remove
-hosti revoke atlas-k7f3n9qp
 hosti rm atlas
 hosti open squad-2026
 hosti open squad-2026 --open
 hosti prune squad-2026
 ```
 
+`share` is the only way the sharing state moves. `--mode pin` needs a pin: send
+`--pin`, or leave it off only when the bundle already holds one. `--pin` under
+any other mode is refused by the CLI before a request leaves.
+
+`rotate` mints a fresh share URL and the old one stops answering. It is the
+only way to cut off somebody who already has the address, and it leaves the
+state and the pin alone.
+
 `open` prints where a bundle can be read: its share link, or its owner-only
-page when no link exists yet. The URL is always the last line and nothing else
-is on it, so `hosti open x | tail -1` is a URL. `--open` hands it to the
+page while the bundle is private. The URL is always the last line and nothing
+else is on it, so `hosti open x | tail -1` is a URL. `--open` hands it to the
 platform's browser as well. An unknown slug exits 1.
 
 `prune` trims a bundle to the newest few revisions and says which it kept and
 which it took away. The count is the server's, from `HOSTI_KEEP_REVISIONS`;
 the CLI has no flag for it, because the endpoint takes none.
 
-`links` prints `pin set` beside a protected link and never the digits, because
-Hosti holds a hash and cannot read the PIN back. `--pin` needs a link to sit on,
-so on `push` it only makes sense with `--share` or `--unlisted`. Digits the
-server refuses come back as its own message on the last line, exit code 1.
+`ls` prints `private`, `link` or `pin`, the same three words the catalog uses.
+Nothing ever prints the digits of a pin, because Hosti holds a hash and cannot
+read one back. Digits the server refuses come back as its own message on the
+last line, exit code 1.
 
 The binary is `apps/cli`. It runs its TypeScript straight on Node, which strips
 the types itself from **22.18 onwards**, so there is no build step and nothing
@@ -200,13 +205,14 @@ its own message as the last line.
 that start with a slash, because those ask for the root of the domain:
 
 ```
-$ hosti push ./fixtures/root-absolute --slug repo-atlas --share
+$ hosti push ./fixtures/root-absolute --slug repo-atlas
 warning  5 root-absolute references will 404 under /v/repo-atlas/
             about.html:4   <script src="/assets/nav.js">
             index.html:6   <link rel="stylesheet" href="/assets/atlas.css" />
           fix them, or push anyway with --allow-absolute
 pushed   revision 1
-shared   http://127.0.0.1:3000/v/repo-atlas/
+private  nothing answers at the share URL
+admin    http://127.0.0.1:3000/b/repo-atlas
 ```
 
 The push still goes through, and the CLI never rewrites your files. The links
@@ -223,15 +229,17 @@ curl -X POST localhost:3000/api/v1/bundles/squad-2026/revisions \
   -H "X-Hosti-Title: Squad 2026" \
   --data-binary @/tmp/b.tgz
 # 201 {"bundle":"squad-2026","revision":1,
-#      "adminUrl":"http://localhost:3000/b/squad-2026","shareUrls":[]}
+#      "adminUrl":"http://localhost:3000/b/squad-2026",
+#      "sharing":{"mode":"private","shareSlug":"squad-2026","hasPin":false},
+#      "shareUrl":null}
 
 curl localhost:3000/api/v1/bundles -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
 ```
 
 Pushing an unknown slug creates the bundle. Pushing it again creates the next
-revision and moves `current` onto it. **A push never creates a share link**, so
-`shareUrls` is empty until someone asks for one, and the bundle answers 404 at
-`/v/<slug>/` until then.
+revision and moves `current` onto it. **A push never changes the sharing
+state**, so a new bundle is `private` and answers 404 at `/v/<slug>/` until the
+owner says otherwise.
 
 ## Keeping the last few revisions
 
@@ -277,70 +285,81 @@ opened, which is where its own chip link already pointed.
 Clearing a collection is still the catalog's job alone. A push or an upload
 that names none leaves the label the owner chose where it is.
 
-## Share links
+## Sharing
 
-A share link is the only public path to a bundle. One bundle may hold several,
-and revoking one leaves the bundle and its other links alone. Every call needs a
-push token.
+A bundle has one sharing state and at most one link:
+
+```
+private   nothing answers at the share URL, the same 404 as any other miss
+link      anyone holding the URL opens the bundle
+pin       the URL shows the pin gate, then opens the bundle
+```
+
+The share URL uses the bundle slug, so `squad-2026` is shared at
+`/v/squad-2026/`. Every call needs a push token.
 
 ```bash
-# create it; the link takes the bundle slug
-curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
-  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
-# 201 {"bundle":"squad-2026","link":{"slug":"squad-2026",
-#      "url":"http://localhost:3000/v/squad-2026/","createdAt":"..."}}
-
-# create it behind an unguessable slug: eight characters, no vowels
-curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
+# open it
+curl -X PUT localhost:3000/api/v1/bundles/squad-2026/sharing \
   -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
-  -H "Content-Type: application/json" -d '{"unlisted":true}'
-# 201 ... "slug":"squad-2026-k7f3n9qp"
+  -H "Content-Type: application/json" -d '{"mode":"link"}'
+# 200 {"bundle":"squad-2026",
+#      "sharing":{"mode":"link","shareSlug":"squad-2026","hasPin":false},
+#      "shareUrl":"http://localhost:3000/v/squad-2026/"}
 
-curl localhost:3000/api/v1/bundles/squad-2026/share-links \
-  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
-# 200 {"bundle":"squad-2026","links":[...]}
+# put it behind a pin
+curl -X PUT localhost:3000/api/v1/bundles/squad-2026/sharing \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
+  -H "Content-Type: application/json" -d '{"mode":"pin","pin":"4821"}'
+# 200 ... "sharing":{"mode":"pin","shareSlug":"squad-2026","hasPin":true}
 
-curl -X DELETE localhost:3000/api/v1/share-links/squad-2026-k7f3n9qp \
+# shut it again. This also clears the stored pin hash.
+curl -X PUT localhost:3000/api/v1/bundles/squad-2026/sharing \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
+  -H "Content-Type: application/json" -d '{"mode":"private"}'
+# 200 ... "sharing":{"mode":"private",...,"hasPin":false},"shareUrl":null
+
+# cut off everyone holding the old address
+curl -X POST localhost:3000/api/v1/bundles/squad-2026/sharing/rotate \
   -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
-# 200 {"shareSlug":"squad-2026-k7f3n9qp","revoked":true}
+# 200 ... "shareSlug":"k7f3n9qpbcdf",
+#         "shareUrl":"http://localhost:3000/v/k7f3n9qpbcdf/"
+
+curl localhost:3000/api/v1/bundles/squad-2026 \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
+# 200 {"bundle":{...,"sharing":{...}},"shareUrl":"..."}
 
 curl -X DELETE localhost:3000/api/v1/bundles/squad-2026 \
   -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
 # 200 {"bundle":"squad-2026","deleted":true}   # revisions and files go too
 ```
 
-A second link on the bundle slug answers 409. Revoking drops the row, so the
-slug can be handed out again. Expiry is not implemented: the `expires_at` column
-exists and carries no behaviour.
+`rotate` mints a fresh random share slug, twelve characters with no vowels. The
+old URL stops answering at once, and that is the only way to cut off somebody
+who already has the address. It keeps whatever state and pin the bundle had, so
+rotating a private bundle just changes the address it will use.
 
-## PINs on a share link
+A mode that is not one of the three comes back 400 `bad_mode`.
 
-A PIN makes one link ask for four to eight digits first. **You type the digits;
+## Pins
+
+A pin makes the link ask for four to eight digits first. **You type the digits;
 Hosti never invents them.** It hashes what you send with `scrypt` and a fresh
-salt, so no endpoint and no page ever shows a PIN again. To change one, set a
-new one. To get rid of the gate, remove it.
+salt, so no endpoint and no page ever shows a pin again. To change one, send
+new digits. To get rid of the gate, set the mode to `link`.
 
-```bash
-# born protected
-curl -X POST localhost:3000/api/v1/bundles/squad-2026/share-links \
-  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
-  -H "Content-Type: application/json" -d '{"unlisted":true,"pin":"4821"}'
-# 201 ... "link":{"slug":"squad-2026-k7f3n9qp",...,"hasPin":true}
+`{"mode":"pin"}` with no pin stored and no `pin` in the body comes back 400
+`pin_required`. It is refused rather than quietly downgraded, because a bundle
+you asked to guard should not end up open. Once a pin is stored you may send
+`{"mode":"pin"}` on its own and the stored one stays.
 
-# put one on later, or replace the one there
-curl -X PUT localhost:3000/api/v1/share-links/squad-2026-k7f3n9qp/pin \
-  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
-  -H "Content-Type: application/json" -d '{"pin":"1234"}'
-# 200 {"shareSlug":"squad-2026-k7f3n9qp","hasPin":true}
-
-# take the gate away
-curl -X DELETE localhost:3000/api/v1/share-links/squad-2026-k7f3n9qp/pin \
-  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
-# 200 {"shareSlug":"squad-2026-k7f3n9qp","hasPin":false}
-```
+A `pin` sent with `private` or `link` comes back 400 `pin_not_wanted`. Moving
+to either of those clears the stored hash, because a pin that survives going
+private is a trap: you turn the link back on months later and meet a gate whose
+digits you no longer remember.
 
 Anything that is not four to eight digits comes back 400 `bad_pin`, and the
-message never quotes what you sent. Setting a PIN needs `HOSTI_SECRET`, because
+message never quotes what you sent. Setting a pin needs `HOSTI_SECRET`, because
 that key signs the cookie a guest gets for typing it right; without the key the
 call is refused 503 rather than leaving a link nobody could open.
 
@@ -354,12 +373,12 @@ POST .../unlock, wrong    303 back to the gate, one error line
 ```
 
 The cookie is `hosti_pin_<share-slug>`: HttpOnly, SameSite=Lax, Secure over TLS,
-`Path=/v/<share-slug>`, good for 12 hours. It opens that one link. A second
-protected link on the same bundle asks again, because the PIN sits on the link
-and not on the bundle.
+`Path=/v/<share-slug>`, good for 12 hours. It opens that one link. A rotate
+changes the slug, so every grant anyone is holding stops working and the fresh
+URL asks again.
 
-The gate takes ten wrong PINs per caller per fifteen minutes and then shuts that
-link to that caller for an hour, and while it is shut the right PIN is refused
+The gate takes ten wrong pins per caller per fifteen minutes and then shuts that
+link to that caller for an hour, and while it is shut the right pin is refused
 too. The count lives in memory, so a restart clears it. The gate itself names
 nothing: not the bundle title, not the collection, not whether the slug is real.
 
@@ -382,7 +401,7 @@ so a single-file push from a mac shell still has exactly one root HTML file.
 ## Read a bundle
 
 ```
-/v/x                  308 to /v/x/, unless a PIN gates it
+/v/x                  308 to /v/x/, unless a pin gates it
 /v/x/                 index.html
 /v/x/athletes/        athletes/index.html
 /v/x/athletes         308 to /v/x/athletes/
@@ -443,8 +462,8 @@ disappear into a full square and iOS applies its own mask.
 ## Layout
 
 ```
-apps/web         Next.js: the catalog UI, push API, share-link API, serving
-apps/cli         hosti: push, ls, share, links, pin, rm, revoke, open, prune
+apps/web         Next.js: the catalog UI, push API, sharing API, serving
+apps/cli         hosti: push, ls, share, rotate, rm, open, prune
 packages/shared  types both sides need
 fixtures/        the three bundle shapes plus one that links from the root
 ```

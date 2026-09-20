@@ -7,17 +7,25 @@ CREATE TABLE meta (
 );
 
 -- One static site. The unit a person opens, shares and deletes.
+-- A bundle carries its whole sharing state: one mode, one share slug, one pin.
+--   share_mode  'private' answers nothing, 'link' opens, 'pin' asks first
+--   share_slug  the slug the share URL uses, the bundle slug until a rotate
+--   pin_hash    the scrypt hash, and only ever set while share_mode is 'pin'
 CREATE TABLE bundles (
   id                  INTEGER PRIMARY KEY,
   slug                TEXT    NOT NULL UNIQUE,
   title               TEXT    NOT NULL,
   collection          TEXT,
   current_revision_id INTEGER REFERENCES revisions (id),
+  share_mode          TEXT    NOT NULL DEFAULT 'private',
+  share_slug          TEXT    NOT NULL DEFAULT '',
+  pin_hash            TEXT,
   created_at          TEXT    NOT NULL,
   updated_at          TEXT    NOT NULL
 );
 
 CREATE INDEX bundles_collection_idx ON bundles (collection);
+CREATE UNIQUE INDEX bundles_share_slug_idx ON bundles (share_slug);
 
 -- One push of a bundle. seq counts from 1 and names the directory on disk (r1, r2, ...).
 CREATE TABLE revisions (
@@ -30,20 +38,6 @@ CREATE TABLE revisions (
   UNIQUE (bundle_id, seq)
 );
 
--- A public path granting access to one bundle. The slug defaults to the bundle slug.
--- pin_hash, expires_at and revoked_at carry no behaviour in slice 1; slice 2 fills them in.
-CREATE TABLE share_links (
-  id         INTEGER PRIMARY KEY,
-  slug       TEXT    NOT NULL UNIQUE,
-  bundle_id  INTEGER NOT NULL REFERENCES bundles (id) ON DELETE CASCADE,
-  pin_hash   TEXT,
-  expires_at TEXT,
-  revoked_at TEXT,
-  created_at TEXT    NOT NULL
-);
-
-CREATE INDEX share_links_bundle_idx ON share_links (bundle_id);
-
 -- A bearer secret an agent or the CLI uses to write. Stored as a SHA-256 hex digest.
 CREATE TABLE push_tokens (
   id           INTEGER PRIMARY KEY,
@@ -53,4 +47,4 @@ CREATE TABLE push_tokens (
   last_used_at TEXT
 );
 
-INSERT INTO meta (key, value) VALUES ('schema_version', '1');
+INSERT INTO meta (key, value) VALUES ('schema_version', '2');

@@ -1,5 +1,5 @@
 /**
- * The PIN gate: Hosti's own page, served at the guest's own URL.
+ * The pin gate: Hosti's own page, served at the guest's own URL.
  *
  * It must leak nothing. No bundle title, no collection, no revision, no hint
  * that the slug is real, beyond the unavoidable fact that a gate appeared. An
@@ -165,7 +165,7 @@ body {
  *
  * `sharePath` is the host and prefix the guest already typed, echoed back so
  * they can see they are at the right link. `next` is where they land once the
- * PIN is right; the caller has already checked it sits under this share link.
+ * pin is right; the caller has already checked it sits under this share link.
  */
 export function gatePageHtml(input: {
   sharePath: string;
@@ -206,7 +206,7 @@ export function gatePageHtml(input: {
       <p class="err">${escapeHtml(message)}</p>
       <button class="go" type="submit">Open the bundle</button>
       <p class="note">
-        The pin sits on the share link, not on the bundle. Getting it right opens
+        The pin opens this link alone. Getting it right opens
         <span class="mono">${escapeHtml(input.sharePrefix)}</span> and nothing else.
       </p>
       </form>

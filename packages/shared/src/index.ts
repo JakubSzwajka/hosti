@@ -1,7 +1,7 @@
 /**
  * Types and constants shared by the Hosti web app and the Hosti CLI.
  * The words here are the ones from CONTEXT.md: bundle, revision, catalog,
- * collection, share link, push token.
+ * collection, share link, sharing state, pin, push token.
  */
 
 export type PushLimits = {
@@ -31,6 +31,40 @@ export type Revision = {
   createdAt: string;
 };
 
+/**
+ * How a bundle is shared. One bundle, one sharing state, at most one link.
+ *
+ *   private  nothing answers at the share URL, the same 404 as any other miss
+ *   link     anyone holding the URL opens the bundle
+ *   pin      the URL shows the pin gate, then opens the bundle
+ */
+export type SharingMode = "private" | "link" | "pin";
+
+export const SHARING_MODES: readonly SharingMode[] = ["private", "link", "pin"] as const;
+
+export function isSharingMode(value: unknown): value is SharingMode {
+  return typeof value === "string" && (SHARING_MODES as readonly string[]).includes(value);
+}
+
+/** What the caller is told when the mode is not one of the three. */
+export const SHARING_MODE_RULE = `A sharing mode is one of ${SHARING_MODES.join(", ")}`;
+
+/** The whole sharing state of one bundle. */
+export type SharingState = {
+  mode: SharingMode;
+  /**
+   * The slug the share URL uses. It is the bundle slug until a rotate mints a
+   * fresh random one. It is reported whatever the mode, because the owner
+   * asking over a push token already knows the bundle.
+   */
+  shareSlug: string;
+  /**
+   * Whether a guest must type a pin first. The pin itself is hashed, so it is
+   * never readable and never travels back out of Hosti.
+   */
+  hasPin: boolean;
+};
+
 /** One static site: the unit a person opens, shares and deletes. */
 export type Bundle = {
   slug: string;
@@ -40,21 +74,7 @@ export type Bundle = {
   updatedAt: string;
   currentRevision: Revision | null;
   revisionCount: number;
-  /** Share slugs pointing at this bundle. Empty while the bundle is private. */
-  shareSlugs: string[];
-};
-
-/** A public path granting access to one bundle. Revoking it leaves the bundle alone. */
-export type ShareLink = {
-  slug: string;
-  /** The absolute URL a guest opens, trailing slash included. */
-  url: string;
-  createdAt: string;
-  /**
-   * Whether a guest must type a PIN first. The PIN itself is hashed, so it is
-   * never readable and never travels back out of Hosti.
-   */
-  hasPin: boolean;
+  sharing: SharingState;
 };
 
 /** Body of `GET /api/v1/bundles`: the catalog as JSON. */
@@ -64,39 +84,35 @@ export type CatalogResponse = {
 
 /**
  * Body of a successful `POST /api/v1/bundles/:slug/revisions`. A push never
- * creates a share link, so `shareUrls` is empty until someone asks for one.
+ * changes the sharing state, so `shareUrl` is null on a bundle that is
+ * private, however that bundle arrived.
  */
 export type PushResponse = {
   bundle: string;
   revision: number;
   /** Where the owner manages the bundle: `/b/<slug>`. */
   adminUrl: string;
-  /** Every live share link of this bundle. Empty means private. */
-  shareUrls: string[];
+  sharing: SharingState;
+  /** The absolute share URL, or null while the bundle is private. */
+  shareUrl: string | null;
 };
 
-/** Body of `POST /api/v1/bundles/:slug/share-links`. */
-export type ShareLinkResponse = {
+/**
+ * Body of `PUT /api/v1/bundles/:slug/sharing` and of
+ * `POST /api/v1/bundles/:slug/sharing/rotate`.
+ */
+export type SharingResponse = {
   bundle: string;
-  link: ShareLink;
+  sharing: SharingState;
+  /** The absolute share URL, or null while the bundle is private. */
+  shareUrl: string | null;
 };
 
-/** Body of `GET /api/v1/bundles/:slug/share-links`. */
-export type ShareLinksResponse = {
-  bundle: string;
-  links: ShareLink[];
-};
-
-/** Body of `DELETE /api/v1/share-links/:shareSlug`. */
-export type RevokedShareLinkResponse = {
-  shareSlug: string;
-  revoked: true;
-};
-
-/** Body of `PUT` and `DELETE` on `/api/v1/share-links/:shareSlug/pin`. */
-export type SharePinResponse = {
-  shareSlug: string;
-  hasPin: boolean;
+/** Body of `GET /api/v1/bundles/:slug`. */
+export type BundleResponse = {
+  bundle: Bundle;
+  /** The absolute share URL, or null while the bundle is private. */
+  shareUrl: string | null;
 };
 
 /** Body of `DELETE /api/v1/bundles/:slug`. */
@@ -192,14 +208,26 @@ export function readCollection(value: string): string | null | undefined {
 }
 
 /**
- * A PIN is four to eight digits, always typed by the owner. Hosti never makes
- * one up: a PIN the owner did not choose is a PIN the owner cannot pass on.
+ * A pin is four to eight digits, always typed by the owner. Hosti never makes
+ * one up: a pin the owner did not choose is a pin the owner cannot pass on.
  */
 export const PIN_PATTERN = /^[0-9]{4,8}$/;
 
-/** What the owner is told when the digits are wrong. Never quotes the PIN. */
+/** What the owner is told when the digits are wrong. Never quotes the pin. */
 export const PIN_RULE = "A pin is four to eight digits and nothing else";
 
 export function isValidPin(value: string): boolean {
   return PIN_PATTERN.test(value);
 }
+
+/**
+ * A rotated share slug. Lowercase letters with the vowels taken out, plus
+ * digits that read clearly, so the slug spells nothing and reads back over a
+ * phone. It carries no part of the bundle slug: a rotate exists to cut off
+ * whoever held the old URL, and a slug that names the bundle hands that back.
+ */
+export const ROTATED_ALPHABET = "bcdfghjkmnpqrstvwxz23456789";
+export const ROTATED_LENGTH = 12;
+
+/** Does this look like a slug a rotate minted rather than a bundle slug? */
+export const ROTATED_PATTERN = new RegExp(`^[${ROTATED_ALPHABET}]{${ROTATED_LENGTH}}$`);
