@@ -31,10 +31,16 @@ export function signingSecret(): string | null {
   return process.env[SECRET_VAR]?.trim() || null;
 }
 
-/** The secrets, or null when either one is missing. */
+/**
+ * The secrets, or null when either one is missing. Both are trimmed so that
+ * every reader agrees on the value: a deployment panel that stores a trailing
+ * space or a `\r` would otherwise pass the configured check here, fail every
+ * password comparison, and sign admin cookies with a key the PIN gate cannot
+ * reproduce through `signingSecret()`.
+ */
 export function adminSecrets(): AdminSecrets | null {
-  const password = process.env[OWNER_PASSWORD_VAR];
-  const secret = process.env[SECRET_VAR];
-  if (!password?.trim() || !secret?.trim()) return null;
+  const password = process.env[OWNER_PASSWORD_VAR]?.trim();
+  const secret = process.env[SECRET_VAR]?.trim();
+  if (!password || !secret) return null;
   return { password, secret };
 }
