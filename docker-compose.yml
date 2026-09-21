@@ -17,8 +17,11 @@ services:
       HOSTI_OWNER_PASSWORD: ${HOSTI_OWNER_PASSWORD:?set HOSTI_OWNER_PASSWORD in .env}
       HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
       PORT: "3000"
-    ports:
-      - "${HOSTI_PORT:-3000}:3000"
+    # No host port is published. A reverse proxy on the same Docker network
+    # (Dokploy, Traefik, Caddy) targets service `web` on container port 3000,
+    # so the box never has to have port 3000 free.
+    expose:
+      - "3000"
     healthcheck:
       test:
         [
