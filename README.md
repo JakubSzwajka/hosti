@@ -22,17 +22,20 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
 3. Set these environment variables in the Compose application:
 
    ```dotenv
-   HOSTI_OWNER_PASSWORD=choose-a-long-owner-password
-   HOSTI_SECRET=replace-with-output-from-openssl-rand-hex-32
+   HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
+   HOSTI_SECRET='replace-with-output-from-openssl-rand-hex-32'
    HOSTI_PUBLIC_URL=https://hosti.example.com
    ```
 
-   Write a literal `$` in a value as `$$`. Compose reads `$name` in the env
-   file as a variable and substitutes it, usually with nothing, so a password
-   of `secr$tone` has to be typed `secr$$tone` or the container receives
-   `secr` and every login fails. Do not wrap a value in quotes and do not put
-   a `#` after it; both change the value that arrives. After changing a
-   variable, redeploy so the container is recreated. A restart keeps the old
+   Wrap every secret value in single quotes. Two parsers read this text before
+   the container does: Dokploy's environment editor, then Compose reading the
+   `.env` it writes. Single quotes are the one form both pass through
+   unchanged. Unquoted, Dokploy drops everything from the first `#` onward, so
+   a password ending in `#` loses it and login fails. Compose reads `$name` in
+   an unquoted value as a variable and substitutes it, usually with nothing,
+   so `secr$tone` arrives as `secr`. Double quotes do not protect a `$`; `$$`
+   does, but single quotes cover both cases. After changing a variable,
+   redeploy so the container is recreated. A restart keeps the old
    environment.
 
    Compose refuses to start if `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is
