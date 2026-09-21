@@ -1,6 +1,7 @@
 /* single-screen landing layout */
 body {
   display: grid;
+  height: 100svh;
   min-height: 100svh;
   grid-template-rows: minmax(0, 1fr) auto;
 }
@@ -160,4 +161,131 @@ body {
   color: var(--pop);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+.terminal {
+  position: relative;
+  width: min(100%, 470px);
+  margin-top: var(--gap);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--paper);
+  overflow: hidden;
+}
+
+.terminal-bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--muted);
+  color: var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.terminal-note {
+  color: var(--line);
+}
+
+.terminal-static,
+.terminal-animation {
+  margin: 0;
+  padding: 13px 14px 15px;
+  overflow: hidden;
+  color: var(--paper);
+  font-size: clamp(10px, 1.15vw, 12px);
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.terminal-static code,
+.terminal-animation code {
+  display: block;
+}
+
+.terminal-animation {
+  display: none;
+}
+
+.terminal-line,
+.terminal-gap {
+  display: block;
+  min-height: 1.45em;
+}
+
+.terminal-line[data-output] {
+  visibility: hidden;
+}
+
+.terminal-gap {
+  min-height: 1.45em;
+}
+
+.demo-live .terminal-static {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.demo-live .terminal-animation {
+  display: block;
+}
+
+.demo-live .terminal-animation.is-resetting {
+  visibility: hidden;
+}
+
+.demo-live .bundle-content {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.demo-live.bundle-pushed .bundle-content {
+  visibility: visible;
+  opacity: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page-footer {
+  width: 100%;
+  max-width: none;
+  min-height: 54px;
+  padding: 12px 32px;
+  border-top: 1px solid var(--ink);
+}
+
+.page-footer .brand {
+  font-size: 17px;
+}
+
+.page-footer .brand svg {
+  width: 22px;
+  height: 22px;
+}
+
+.footer-repo {
+  white-space: nowrap;
+}
+
+.register {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  white-space: nowrap;
 }

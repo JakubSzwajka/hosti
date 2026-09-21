@@ -37,29 +37,51 @@
               <button class="copy-button" type="button" data-copy="docker compose up -d">copy</button>
               <span class="copy-status" role="status" aria-live="polite"></span>
             </div>
+
+            <section class="terminal" data-terminal aria-label="hosti cli transcript">
+              <div class="terminal-bar">
+                <span>hosti cli</span>
+                <span class="terminal-note">looping demo</span>
+              </div>
+              <pre class="terminal-static"><code>$ hosti push ./dist --slug squad-2026
+pushed   revision 1
+private  nothing answers at the share URL
+admin    http://127.0.0.1:3000/b/squad-2026
+
+$ hosti share squad-2026 --mode link
+link     anyone holding the URL can open it
+url      http://127.0.0.1:3000/v/squad-2026/</code></pre>
+              <pre class="terminal-animation" aria-hidden="true"><code><span class="terminal-line" data-command data-text="$ hosti push ./dist --slug squad-2026"></span><span class="terminal-line" data-output data-phase="push">pushed   revision 1</span><span class="terminal-line" data-output data-phase="push">private  nothing answers at the share URL</span><span class="terminal-line" data-output data-phase="push">admin    http://127.0.0.1:3000/b/squad-2026</span><span class="terminal-gap" data-phase="push"></span><span class="terminal-line" data-command data-text="$ hosti share squad-2026 --mode link"></span><span class="terminal-line" data-output data-phase="link">link     anyone holding the URL can open it</span><span class="terminal-line" data-output data-phase="link">url      http://127.0.0.1:3000/v/squad-2026/</span></code></pre>
+            </section>
           </div>
 
-          <figure class="proof-art" aria-label="A private bundle card in the catalog" role="img">
-            <svg viewBox="0 0 520 390" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M22 44.5H498" stroke="var(--line)" />
-              <rect x="22.5" y="44.5" width="475" height="305" rx="9.5" fill="var(--card)" stroke="var(--ink)" />
-              <path d="M23 78H497" stroke="var(--line)" />
-              <circle cx="42" cy="61" r="4" fill="var(--line)" />
-              <circle cx="58" cy="61" r="4" fill="var(--line)" />
-              <circle cx="74" cy="61" r="4" fill="var(--line)" />
-              <text x="103" y="65" fill="var(--muted)" font-family="var(--font-mono)" font-size="13">squad-2026</text>
-              <rect x="390" y="54" width="82" height="20" rx="10" fill="var(--pop-wash)" stroke="var(--pop)" />
-              <text x="431" y="68" fill="var(--pop)" font-family="var(--font-mono)" font-size="11" text-anchor="middle">private</text>
-              <text x="54" y="128" fill="var(--ink)" font-family="var(--font-serif)" font-size="26" font-weight="900">Squad 2026</text>
-              <text x="54" y="156" fill="var(--muted)" font-family="var(--font-sans)" font-size="14">current revision · 8 files</text>
-              <path d="M54 191H466" stroke="var(--line-soft)" />
-              <path d="M54 226H294" stroke="var(--ink)" stroke-width="2" />
-              <path d="M54 249H390" stroke="var(--line)" stroke-width="2" />
-              <path d="M54 272H346" stroke="var(--line)" stroke-width="2" />
-              <path d="M54 308H138" stroke="var(--pop)" stroke-width="2" />
-              <path d="M146 308H230" stroke="var(--line)" stroke-width="2" />
-              <path d="M238 308H322" stroke="var(--line)" stroke-width="2" />
-            </svg>
+          <figure class="proof-art" aria-labelledby="bundle-caption">
+            <div class="bundle-window">
+              <div class="bundle-bar">
+                <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="bundle-slug">squad-2026</span>
+                <span class="bundle-state" data-bundle-state>link</span>
+              </div>
+              <div class="bundle-content">
+                <header class="bundle-content-head">
+                  <div>
+                    <p class="bundle-kicker">q3 2026</p>
+                    <h2>Squad 2026</h2>
+                  </div>
+                  <p class="bundle-kind">weekly brief</p>
+                </header>
+                <ul class="bundle-stats">
+                  <li><strong>12</strong><span>focus items</span></li>
+                  <li><strong>08</strong><span>field days</span></li>
+                  <li><strong>04</strong><span>next steps</span></li>
+                </ul>
+                <div class="bundle-chart" role="img" aria-label="bar chart for the quarter">
+                  <div class="chart-bars" aria-hidden="true"><i style="--bar: 42%"></i><i style="--bar: 68%"></i><i style="--bar: 54%"></i><i style="--bar: 86%"></i><i style="--bar: 61%"></i><i style="--bar: 76%"></i></div>
+                  <div class="chart-labels" aria-hidden="true"><span>jan</span><span>feb</span><span>mar</span><span>apr</span><span>may</span><span>jun</span></div>
+                </div>
+              </div>
+            </div>
+            <figcaption id="bundle-caption" class="sr-only">a generated bundle page</figcaption>
           </figure>
         </section>
       </div>
@@ -77,19 +99,6 @@
       <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
       <p class="register">one VPS, one domain, one person</p>
     </footer>
-    <script>
-      document.querySelectorAll('[data-copy-wrap]').forEach((wrap) => {
-        const button = wrap.querySelector('[data-copy]');
-        const status = wrap.querySelector('.copy-status');
-        button.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(button.dataset.copy);
-            status.textContent = 'copied';
-          } catch {
-            status.textContent = 'select the command to copy it';
-          }
-        });
-      });
-    </script>
+    <script src="scripts/demo.js"></script>
   </body>
 </html>
