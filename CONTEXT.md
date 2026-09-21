@@ -60,6 +60,9 @@ _Avoid_: password, passcode, PIN code.
 
 **Push token**:
 A bearer secret an agent or the CLI uses to write. Never used by a browser.
+The owner mints one at `/tokens` and reads its value exactly once; Hosti keeps
+only a digest. A revision records the name of the push token that wrote it, or
+nothing when the owner uploaded the archive through the catalog.
 _Avoid_: API key, access token.
 
 **Admin session**:
@@ -122,7 +125,14 @@ push token:
 ```
 POST   /b/<slug>/sharing                     set the state from the bundle page
 POST   /b/<slug>/sharing/rotate              mint a fresh share slug
+POST   /tokens/mint                          mint a push token from the catalog
+POST   /tokens/revoke                        forget one push token's digest
 ```
+
+Hosti serves no skill. The `hosti-publish` skill is a file in this repository,
+at `skills/hosti-publish/SKILL.md`, and an agent installs it with
+`npx skills add JakubSzwajka/hosti`. It reads `HOSTI_URL` and `HOSTI_TOKEN`
+from its own environment, so no instance value is written into it.
 
 ## Rules the code must keep
 
@@ -166,3 +176,8 @@ POST   /b/<slug>/sharing/rotate              mint a fresh share slug
 15. [x] The catalog's upload is a change the catalog makes, so it wants the
     admin session and the mutation token, never a push token. It changes no
     sharing state either: a bundle is private however it arrived.
+16. [x] Minting and revoking a push token are catalog writes on the same gate,
+    so no push token can mint another one. A minted secret is held in memory,
+    shown once and forgotten on the first read. Nothing writes it to disk, to
+    a URL or to a log, because the digest exists so that it cannot be read
+    back.

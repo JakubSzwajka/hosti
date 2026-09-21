@@ -1,5 +1,6 @@
 /**
  * Schema 1 to 2: sharing moves onto the bundle and `share_links` goes.
+ * Schema 2 to 3: a revision records which push token wrote it.
  *
  * The test builds a version 1 database by hand, then opens it the way the app
  * does and checks what survived. Bundles, revisions and push tokens keep every
@@ -57,6 +58,45 @@ CREATE TABLE push_tokens (
 INSERT INTO meta (key, value) VALUES ('schema_version', '1');
 `;
 
+/**
+ * Version 2, which is version 1 with sharing on the bundle row and no
+ * `share_links`. `revisions` has no `pushed_by` yet: version 3 adds it.
+ */
+const VERSION_2_SCHEMA = `
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE bundles (
+  id INTEGER PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  collection TEXT,
+  current_revision_id INTEGER REFERENCES revisions (id),
+  share_mode TEXT NOT NULL DEFAULT 'private',
+  share_slug TEXT NOT NULL DEFAULT '',
+  pin_hash TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX bundles_collection_idx ON bundles (collection);
+CREATE UNIQUE INDEX bundles_share_slug_idx ON bundles (share_slug);
+CREATE TABLE revisions (
+  id INTEGER PRIMARY KEY,
+  bundle_id INTEGER NOT NULL REFERENCES bundles (id) ON DELETE CASCADE,
+  seq INTEGER NOT NULL,
+  byte_size INTEGER NOT NULL,
+  file_count INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE (bundle_id, seq)
+);
+CREATE TABLE push_tokens (
+  id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+INSERT INTO meta (key, value) VALUES ('schema_version', '2');
+`;
+
 const NOW = "2026-09-17T10:00:00.000Z";
 
 let dataDir: string | null = null;
@@ -101,6 +141,46 @@ async function makeVersion1(): Promise<string> {
   db.prepare(
     "INSERT INTO push_tokens (name, token_hash, created_at) VALUES ('laptop', 'abc123', ?)",
   ).run(NOW);
+  db.close();
+  return file;
+}
+
+/** A version 2 file with two bundles, three revisions, two tokens, one pin. */
+async function makeVersion2(): Promise<string> {
+  dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-migration-2-"));
+  const file = path.join(dataDir, "hosti.db");
+  const db = new Database(file);
+  db.exec(VERSION_2_SCHEMA);
+  db.prepare(
+    `INSERT INTO bundles (id, slug, title, collection, share_mode, share_slug, created_at, updated_at)
+     VALUES (1, 'squad-2026', 'Squad 2026', 'reports', 'link', 'squad-2026', ?, ?)`,
+  ).run(NOW, NOW);
+  db.prepare(
+    `INSERT INTO bundles (id, slug, title, collection, share_mode, share_slug, pin_hash, created_at, updated_at)
+     VALUES (2, 'garmin-q3', 'Garmin Q3', NULL, 'pin', 'kmqbwxz23456', 'scrypt$16384$8$1$salt$key', ?, ?)`,
+  ).run(NOW, NOW);
+  for (const [id, bundleId, seq] of [
+    [1, 1, 1],
+    [2, 1, 2],
+    [3, 2, 1],
+  ] as const) {
+    db.prepare(
+      `INSERT INTO revisions (id, bundle_id, seq, byte_size, file_count, created_at)
+       VALUES (?, ?, ?, 100, 3, ?)`,
+    ).run(id, bundleId, seq, NOW);
+  }
+  db.prepare("UPDATE bundles SET current_revision_id = 2 WHERE id = 1").run();
+  db.prepare("UPDATE bundles SET current_revision_id = 3 WHERE id = 2").run();
+  for (const [name, hash] of [
+    ["laptop", "abc123"],
+    ["ci", "def456"],
+  ] as const) {
+    db.prepare("INSERT INTO push_tokens (name, token_hash, created_at) VALUES (?, ?, ?)").run(
+      name,
+      hash,
+      NOW,
+    );
+  }
   db.close();
   return file;
 }
@@ -162,7 +242,7 @@ describe("the move from schema 1 to 2", () => {
     const file = await makeVersion1();
     const first = openDatabase(file);
     expect(first.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({
-      value: "2",
+      value: "3",
     });
     // Prove a second open is a no-op rather than a second attempt to add columns.
     first.prepare("UPDATE bundles SET share_mode = 'link' WHERE slug = 'squad-2026'").run();
@@ -185,12 +265,81 @@ describe("the move from schema 1 to 2", () => {
   });
 });
 
+describe("the move from schema 2 to 3", () => {
+  it("keeps every bundle, revision and push token", async () => {
+    const file = await makeVersion2();
+    const db = openDatabase(file);
+
+    expect(db.prepare("SELECT COUNT(*) AS n FROM bundles").get()).toEqual({ n: 2 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM revisions").get()).toEqual({ n: 3 });
+    expect(db.prepare("SELECT COUNT(*) AS n FROM push_tokens").get()).toEqual({ n: 2 });
+
+    expect(
+      db
+        .prepare("SELECT slug, title, collection, share_mode, share_slug FROM bundles ORDER BY id")
+        .all(),
+    ).toEqual([
+      {
+        slug: "squad-2026",
+        title: "Squad 2026",
+        collection: "reports",
+        share_mode: "link",
+        share_slug: "squad-2026",
+      },
+      {
+        slug: "garmin-q3",
+        title: "Garmin Q3",
+        collection: null,
+        share_mode: "pin",
+        share_slug: "kmqbwxz23456",
+      },
+    ]);
+    expect(db.prepare("SELECT name FROM push_tokens ORDER BY name").all()).toEqual([
+      { name: "ci" },
+      { name: "laptop" },
+    ]);
+    db.close();
+  });
+
+  it("leaves pushed_by NULL on every revision that was already there", async () => {
+    const file = await makeVersion2();
+    const db = openDatabase(file);
+    expect(db.prepare("SELECT id, seq, pushed_by FROM revisions ORDER BY id").all()).toEqual([
+      { id: 1, seq: 1, pushed_by: null },
+      { id: 2, seq: 2, pushed_by: null },
+      { id: 3, seq: 1, pushed_by: null },
+    ]);
+    expect(db.prepare("SELECT current_revision_id FROM bundles ORDER BY id").all()).toEqual([
+      { current_revision_id: 2 },
+      { current_revision_id: 3 },
+    ]);
+    db.close();
+  });
+
+  it("writes the new version and runs only once", async () => {
+    const file = await makeVersion2();
+    const first = openDatabase(file);
+    expect(first.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({
+      value: "3",
+    });
+    // Prove a second open is a no-op rather than a second ALTER, which would throw.
+    first.prepare("UPDATE revisions SET pushed_by = 'laptop' WHERE id = 1").run();
+    first.close();
+
+    const second = openDatabase(file);
+    expect(second.prepare("SELECT pushed_by FROM revisions WHERE id = 1").get()).toEqual({
+      pushed_by: "laptop",
+    });
+    second.close();
+  });
+});
+
 describe("a database made from scratch", () => {
   it("starts at the same version with the same columns", async () => {
     dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-fresh-"));
     const db = openDatabase(path.join(dataDir, "hosti.db"));
     expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({
-      value: "2",
+      value: "3",
     });
     expect(tableNames(db)).toEqual(["bundles", "meta", "push_tokens", "revisions"]);
     const columns = (db.prepare("PRAGMA table_info(bundles)").all() as { name: string }[]).map(
@@ -199,6 +348,10 @@ describe("a database made from scratch", () => {
     expect(columns).toContain("share_mode");
     expect(columns).toContain("share_slug");
     expect(columns).toContain("pin_hash");
+    const revisionColumns = (
+      db.prepare("PRAGMA table_info(revisions)").all() as { name: string }[]
+    ).map((row) => row.name);
+    expect(revisionColumns).toContain("pushed_by");
     db.close();
   });
 

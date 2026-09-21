@@ -28,6 +28,14 @@ export type Revision = {
   seq: number;
   byteSize: number;
   fileCount: number;
+  /**
+   * The name of the push token that wrote this revision, or a reserved marker
+   * when the owner uploaded the archive through the catalog. Null means only
+   * one thing: the revision was written before Hosti kept this, so nobody
+   * knows how it arrived. It records who wrote, and Hosti still keeps no
+   * record of who opened a link.
+   */
+  pushedBy: string | null;
   createdAt: string;
 };
 

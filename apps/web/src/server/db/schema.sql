@@ -28,12 +28,16 @@ CREATE INDEX bundles_collection_idx ON bundles (collection);
 CREATE UNIQUE INDEX bundles_share_slug_idx ON bundles (share_slug);
 
 -- One push of a bundle. seq counts from 1 and names the directory on disk (r1, r2, ...).
+--   pushed_by  the push token's name when the revision came through the push API,
+--              NULL when the owner dropped an archive on the catalog. It records
+--              who wrote, never who read: Hosti keeps no record of who opens a link.
 CREATE TABLE revisions (
   id         INTEGER PRIMARY KEY,
   bundle_id  INTEGER NOT NULL REFERENCES bundles (id) ON DELETE CASCADE,
   seq        INTEGER NOT NULL,
   byte_size  INTEGER NOT NULL,
   file_count INTEGER NOT NULL,
+  pushed_by  TEXT,
   created_at TEXT    NOT NULL,
   UNIQUE (bundle_id, seq)
 );
@@ -47,4 +51,4 @@ CREATE TABLE push_tokens (
   last_used_at TEXT
 );
 
-INSERT INTO meta (key, value) VALUES ('schema_version', '2');
+INSERT INTO meta (key, value) VALUES ('schema_version', '3');

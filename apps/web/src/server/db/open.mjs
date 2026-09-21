@@ -47,7 +47,12 @@ function createSchema(db) {
 }
 
 /** The schema version this code expects. schema.sql writes the same number. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+
+/** Stamp the version a step has just finished, so a later step starts from it. */
+function setSchemaVersion(db, version) {
+  db.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run(String(version));
+}
 
 function schemaVersion(db) {
   const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get();
@@ -62,6 +67,7 @@ function schemaVersion(db) {
  */
 function migrate(db) {
   if (schemaVersion(db) < 2) db.transaction(toVersion2)(db);
+  if (schemaVersion(db) < SCHEMA_VERSION) db.transaction(toVersion3)(db);
 }
 
 /**
@@ -82,7 +88,20 @@ function toVersion2(db) {
     CREATE UNIQUE INDEX IF NOT EXISTS bundles_share_slug_idx ON bundles (share_slug);
     DROP TABLE IF EXISTS share_links;
   `);
-  db.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
+  setSchemaVersion(db, 2);
+}
+
+/**
+ * Version 3 records which push token wrote a revision. The column is nullable
+ * and every revision already stored gets NULL: nothing was recorded at the
+ * time, and guessing a name would be inventing one. NULL is also what an
+ * upload through the catalog stores, because the owner is not a push token.
+ *
+ * Bundles, revisions and push tokens keep every row they had.
+ */
+function toVersion3(db) {
+  db.exec("ALTER TABLE revisions ADD COLUMN pushed_by TEXT;");
+  setSchemaVersion(db, SCHEMA_VERSION);
 }
 
 /**

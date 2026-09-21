@@ -1,6 +1,7 @@
 import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
 import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
+import { OnboardingPanel } from "@/app/_ui/onboarding-panel";
 import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
 import { UploadDrop } from "@/app/_ui/upload-drop";
 
@@ -19,7 +20,7 @@ export function CatalogScreen(props: {
   return (
     <>
       <div className="wrap catalog-shell">
-        <Masthead meta={heading} token={token} />
+        <Masthead meta={<CatalogMeta heading={heading} />} token={token} />
         <div className="register-line">
           <span>catalog</span>
           <span>{plural(bundles.length, "frame")}</span>
@@ -104,6 +105,20 @@ function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
   );
 }
 
+/**
+ * The masthead's right-hand slot. `/tokens` is reachable from here because
+ * the onboarding panel stops being the page the moment a bundle lands, and
+ * the owner still has to get back to it to mint or revoke.
+ */
+function CatalogMeta({ heading }: { heading?: string }) {
+  return (
+    <span className="mast-meta">
+      {heading ? <span>{heading}</span> : null}
+      <Link href="/tokens">push tokens</Link>
+    </span>
+  );
+}
+
 function EmptyFooter() {
   return (
     <footer className="foot">
@@ -112,40 +127,24 @@ function EmptyFooter() {
   );
 }
 
-export function EmptyCatalog() {
+/**
+ * The empty catalog is the onboarding panel and nothing else. It used to be
+ * three steps that sent the owner to a shell on the server for
+ * `npm run token:new`, which nobody on a Dokploy box can reach without
+ * opening a container terminal.
+ */
+export function EmptyCatalog({ baseUrl, token }: { baseUrl: string; token: string }) {
   return (
-    <div className="empty">
-      <h2>Nothing pushed yet</h2>
-      <p className="empty-lead">
-        A bundle is a folder of static files with an <span className="mono">index.html</span> at its
-        root. Hosti gives it a URL.
-      </p>
-      <ol className="steps">
-        <li>
-          <h3>Mint a push token</h3>
-          <p>From the repository root. It is the only secret an agent ever holds.</p>
-          <pre>npm run token:new -- --name laptop</pre>
-        </li>
-        <li>
-          <h3>Push a folder</h3>
-          <p>
-            From wherever the bundle is. Or drag a <span className="mono">.zip</span> onto this
-            page.
-          </p>
-          <pre>
-            export HOSTI_URL=http://127.0.0.1:3000{"\n"}export HOSTI_TOKEN=hosti_&hellip;{"\n"}hosti
-            push ./out --slug my-report
-          </pre>
-        </li>
-        <li>
-          <h3>Decide who may open it</h3>
-          <p>
-            It arrives private, and it stays private. Nothing is public until you switch the bundle
-            to <span className="mono">link</span> or <span className="mono">pin</span> on its own
-            page.
-          </p>
-        </li>
-      </ol>
+    <div className="empty onboard-shell">
+      {/* A refused name lands on /tokens, never here: the mint route sends
+          every answer there, so this panel has no refusal to show. */}
+      <OnboardingPanel
+        baseUrl={baseUrl}
+        token={token}
+        secret={null}
+        nameRefused={false}
+        heading="Nothing pushed yet"
+      />
     </div>
   );
 }

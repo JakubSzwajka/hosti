@@ -49,23 +49,26 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
 4. Add an HTTPS domain in Dokploy and route it to service `web`, internal
    container port `3000`. Compose has no host port binding. Hosti is reached
    through the domain, not through port 3000 on the VPS.
-5. Deploy the Compose application. After it starts, open the running `web`
-   service's Terminal in Dokploy and mint the first push token inside the
-   container:
+5. Deploy the Compose application, open the domain, and log in with
+   `HOSTI_OWNER_PASSWORD`. The empty catalog mints the first push token for
+   you and hands you the agent prompt to go with it. No container shell is
+   involved. See [Getting an agent pushing](#getting-an-agent-pushing).
+
+   If you would rather mint from a shell, the script still works. In Dokploy,
+   open the running `web` service's Terminal:
 
    ```bash
    node scripts/new-token.mjs --name vps
    ```
 
-   If you use the VPS host shell instead, run this from a directory containing
-   this Compose file:
+   From the VPS host shell instead, run this from a directory containing this
+   Compose file:
 
    ```bash
    docker compose exec web node scripts/new-token.mjs --name vps
    ```
 
-   Save the printed token for the CLI or `curl`. Hosti stores its record in
-   `hosti.db` on the volume.
+   Either way Hosti stores only the digest, in `hosti.db` on the volume.
 
 The `latest` tag is the update channel. After a new image is published, redeploy
 the Compose application in Dokploy. If you manage it directly from the VPS host
@@ -118,7 +121,7 @@ serves no admin page. Useful repository commands:
 npm run build          # Next production build
 npm run test           # vitest
 npm run check          # Biome, then tsc across the workspaces
-npm run token:new -- --name laptop
+npm run token:new -- --name laptop   # or mint it at /tokens in the browser
 npm run env:check      # what the environment holds, no secret printed
 ```
 
@@ -135,6 +138,7 @@ On npm 11, `npm install` asks before running dependency install scripts.
 /b/garmin-q3             one bundle: preview, revisions, sharing, collection, delete
 /b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
 /upload                  drop an archive here; the drop zone posts to it
+/tokens                  mint a push token, copy the agent prompt, revoke a token
 ```
 
 The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
@@ -146,6 +150,53 @@ clears it.
 Every change the catalog makes, setting the sharing state, rotating the link,
 setting a collection, deleting a bundle, logging out, is a POST carrying a token
 derived from the session. No GET ever changes anything.
+
+### Getting an agent pushing
+
+An empty catalog is one panel, and `/tokens` is the same panel with the list of
+existing tokens under it. The masthead links to it. Three things happen there:
+
+1. Type a name and mint a push token. The secret is shown once, on the page
+   the mint redirects to, and then it is gone. Hosti holds the SHA-256 digest
+   and nothing else, so nobody, including the owner, can read it back.
+2. Copy the agent prompt. It already carries this instance's URL and the token
+   you just minted, so it is ready to paste into an agent.
+3. Copy `npx skills add JakubSzwajka/hosti` if you would rather install the
+   skill by hand.
+
+The secret waits in the server's memory for five minutes and the first read
+takes it away. A restart or a reload loses it, and the page then shows nothing
+to copy. That is deliberate: the alternative is writing the secret somewhere it
+outlives the one read.
+
+The list under the panel shows every push token, when it was minted and when it
+last pushed, with a revoke on each. Revoking drops the digest, so that secret
+stops opening `/api/v1/` from the next request on. Revisions it already pushed
+keep its name, which is what the `pushed by` line on a bundle page reads.
+
+Minting and revoking are catalog writes: admin session plus mutation token,
+exactly like setting a sharing state. Neither lives under `/api/v1/`, so no
+push token can mint another one.
+
+### The hosti-publish skill
+
+The skill is a file in this repository, at `skills/hosti-publish/SKILL.md`. An
+agent on any machine installs it by repository name:
+
+```bash
+npx skills add JakubSzwajka/hosti
+```
+
+Hosti serves nothing to make that work, so no route has to answer an
+unauthenticated fetch. The file is the same text for every instance: it reads
+`HOSTI_URL` and `HOSTI_TOKEN` from the environment and asks the owner when
+either is missing. The prompt on `/tokens` is where this instance's URL and
+the minted token go.
+
+The skill teaches `curl`, not the CLI. `@hosti/cli` is a private workspace
+package, so an agent on somebody else's laptop has nothing to install. It
+covers pushing and sharing only, and it says outright that it must not rotate a
+share slug, delete a bundle or set a pin.
 
 ### Putting a bundle in from the browser
 

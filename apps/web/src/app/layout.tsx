@@ -5,6 +5,7 @@ import "../styles/grid.css";
 import "../styles/detail.css";
 import "../styles/share.css";
 import "../styles/forms.css";
+import "../styles/onboard.css";
 import "../styles/narrow.css";
 
 export const metadata = {

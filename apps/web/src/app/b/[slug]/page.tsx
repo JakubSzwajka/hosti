@@ -8,6 +8,7 @@ import { SharingIsland } from "@/app/b/[slug]/sharing-island";
 import { requireAdmin } from "@/server/auth/admin";
 import { findBundle, listCatalog, listCollections, listRevisions } from "@/server/catalog";
 import { baseUrlFromHeaders } from "@/server/config";
+import { CATALOG_UPLOAD } from "@/server/push-tokens";
 import { describeSharing, shareUrl } from "@/server/sharing";
 
 export const runtime = "nodejs";
@@ -20,6 +21,18 @@ const SHARE_REFUSALS: Record<string, string> = {
   pin_not_wanted: "a pin only belongs on the pin state.",
   not_configured: "set HOSTI_SECRET before a bundle can carry a pin.",
 };
+
+/**
+ * What the meta line says about how a revision arrived, or null when nobody
+ * knows. A revision written before Hosti kept this has no name on it, and the
+ * page then says nothing rather than claiming the owner uploaded it. The
+ * reserved marker never reaches the page as itself.
+ */
+function arrivalNote(pushedBy: string | null): string | null {
+  if (pushedBy === null) return null;
+  if (pushedBy === CATALOG_UPLOAD) return "uploaded in the catalog";
+  return `pushed by ${pushedBy}`;
+}
 
 export default async function BundleDetail({
   params,
@@ -42,6 +55,7 @@ export default async function BundleDetail({
   const baseUrl = baseUrlFromHeaders(await headers());
   const revisions = listRevisions(bundle.id);
   const current = revisions.find((revision) => revision.current);
+  const arrival = current ? arrivalNote(current.pushedBy) : null;
   const sharing = describeSharing(bundle);
   const liveUrl = shareUrl(sharing, baseUrl);
   const deadUrl = `${baseUrl.replace(/\/$/, "")}/v/${sharing.shareSlug}/`;
@@ -86,6 +100,12 @@ export default async function BundleDetail({
           <span>{current ? `r${current.seq}` : "no revision"}</span>
           <span className="dot">&middot;</span>
           <span>{formatDate(bundle.updated_at)}</span>
+          {arrival ? (
+            <>
+              <span className="dot">&middot;</span>
+              <span>{arrival}</span>
+            </>
+          ) : null}
         </div>
         <OpenButton slug={bundle.slug} hasRevision={Boolean(current)} />
       </div>

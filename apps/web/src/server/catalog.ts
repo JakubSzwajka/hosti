@@ -1,5 +1,6 @@
 import type { Bundle, Revision } from "@hosti/shared";
 import { db, nowIso } from "@/server/db";
+import type { CATALOG_UPLOAD } from "@/server/push-tokens";
 import { describeSharing, initialShareSlug } from "@/server/sharing";
 
 type BundleRow = {
@@ -21,6 +22,7 @@ type RevisionRow = {
   seq: number;
   byte_size: number;
   file_count: number;
+  pushed_by: string | null;
   created_at: string;
 };
 
@@ -31,6 +33,7 @@ function toRevision(row: RevisionRow): Revision {
     seq: row.seq,
     byteSize: row.byte_size,
     fileCount: row.file_count,
+    pushedBy: row.pushed_by,
     createdAt: row.created_at,
   };
 }
@@ -134,15 +137,22 @@ export function recordRevision(input: {
   seq: number;
   byteSize: number;
   fileCount: number;
+  /**
+   * How this revision arrived: a push token's name when it came through the
+   * push API, or {@link CATALOG_UPLOAD} when the owner uploaded the archive in
+   * the catalog. Required, because the column's third state, NULL, means
+   * "written before schema 3, nobody knows" and only the migration writes it.
+   */
+  pushedBy: string;
 }): Revision {
   const now = nowIso();
   const record = db().transaction(() => {
     const result = db()
       .prepare(
-        `INSERT INTO revisions (bundle_id, seq, byte_size, file_count, created_at)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT INTO revisions (bundle_id, seq, byte_size, file_count, pushed_by, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(input.bundleId, input.seq, input.byteSize, input.fileCount, now);
+      .run(input.bundleId, input.seq, input.byteSize, input.fileCount, input.pushedBy, now);
     db()
       .prepare("UPDATE bundles SET current_revision_id = ?, updated_at = ? WHERE id = ?")
       .run(result.lastInsertRowid, now, input.bundleId);

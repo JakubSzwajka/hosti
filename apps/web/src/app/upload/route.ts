@@ -10,6 +10,7 @@ import { errorResponse, failureResponse, jsonResponse } from "@/server/api-respo
 import { guardMutation, guardSession } from "@/server/auth/admin";
 import { baseUrlFromHeaders } from "@/server/config";
 import { storeRevision } from "@/server/push";
+import { CATALOG_UPLOAD } from "@/server/push-tokens";
 import { archiveFormat } from "@/server/storage/revisions";
 
 export const runtime = "nodejs";
@@ -73,6 +74,9 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
+    // The owner's own hand, so there is no push token to name. It records the
+    // reserved marker rather than nothing, because nothing is what a revision
+    // from before Hosti kept this looks like.
     const stored = await storeRevision({
       slug,
       body: Readable.from([bytes]),
@@ -80,6 +84,7 @@ export async function POST(request: Request): Promise<Response> {
       title: text(form.get("title")) || null,
       collection,
       baseUrl: baseUrlFromHeaders(request.headers),
+      pushedBy: CATALOG_UPLOAD,
     });
     return jsonResponse(stored, 201);
   } catch (error) {

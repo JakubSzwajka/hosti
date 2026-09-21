@@ -10,6 +10,7 @@ import {
   updateBundleMeta,
 } from "@/server/catalog";
 import { PushError } from "@/server/errors";
+import type { CATALOG_UPLOAD, PushIdentity } from "@/server/push-tokens";
 import { pruneRevisions } from "@/server/retention";
 import { describeSharing, shareUrl } from "@/server/sharing";
 import { type ArchiveFormat, writeRevision } from "@/server/storage/revisions";
@@ -50,7 +51,22 @@ export type RevisionInput = {
   collection: string | null;
   /** The origin the returned links hang off. */
   baseUrl: string;
+  /** How this revision arrived. Every way in names one. */
+  pushedBy: RevisionSource;
 };
+
+/**
+ * How a revision arrived: the push token that carried it, or the catalog's own
+ * upload. There is no third option and no absent one, because a revision that
+ * records nothing is a revision written before Hosti kept this, and only the
+ * migration may leave that.
+ */
+export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD;
+
+/** The name a revision row stores for one way in. Never null. */
+function writerName(source: RevisionSource): string {
+  return typeof source === "string" ? source : source.name;
+}
 
 /**
  * Take one revision, whether it came from `hosti push` or from the catalog's
@@ -86,6 +102,7 @@ export async function storeRevision(input: RevisionInput): Promise<PushResponse>
     seq,
     byteSize: stats.byteSize,
     fileCount: stats.fileCount,
+    pushedBy: writerName(input.pushedBy),
   });
 
   // Retention runs after the pointer has moved, so the revision this push just
@@ -115,7 +132,11 @@ export async function storeRevision(input: RevisionInput): Promise<PushResponse>
  * with the title and the collection riding on headers. The headers are judged
  * before a byte hits the disk, so a refused one leaves no revision directory.
  */
-export async function acceptPush(request: Request, slug: string): Promise<PushResponse> {
+export async function acceptPush(
+  request: Request,
+  slug: string,
+  pushedBy: PushIdentity,
+): Promise<PushResponse> {
   if (!request.body) {
     throw new PushError("empty_body", "Push a gzipped tarball as the request body");
   }
@@ -127,5 +148,6 @@ export async function acceptPush(request: Request, slug: string): Promise<PushRe
     title,
     collection,
     baseUrl: publicBaseUrl(request),
+    pushedBy,
   });
 }

@@ -5,7 +5,8 @@ import { makeTar, tarFixture, useTempDataDir } from "./helpers";
 
 const { GET } = await import("@/app/api/v1/bundles/route");
 const { POST } = await import("@/app/api/v1/bundles/[slug]/revisions/route");
-const { createPushToken } = await import("@/server/push-tokens");
+const { CATALOG_UPLOAD, createPushToken } = await import("@/server/push-tokens");
+const { findBundle, listRevisions } = await import("@/server/catalog");
 
 let dataDir: string;
 let token: string;
@@ -150,6 +151,34 @@ describe("the collection a push asks for", () => {
     };
     const bundle = body.bundles.find((entry) => entry.slug === "kept-collection");
     expect(bundle?.collection).toBe("reports");
+  });
+});
+
+describe("who wrote a revision", () => {
+  it("records the push token's name on the revision it wrote", async () => {
+    const named = createPushToken("laptop").secret;
+    const response = await push("who-wrote", await tarFixture("single-file"), { token: named });
+    expect(response.status).toBe(201);
+
+    const revisions = listRevisions(findBundle("who-wrote")?.id ?? 0);
+    expect(revisions[0]?.pushedBy).toBe("laptop");
+  });
+
+  it("records the token that pushed each revision, not the latest one", async () => {
+    const first = createPushToken("ci-one").secret;
+    const second = createPushToken("ci-two").secret;
+    await push("two-writers", await tarFixture("single-file"), { token: first });
+    await push("two-writers", await tarFixture("single-file"), { token: second });
+
+    const revisions = listRevisions(findBundle("two-writers")?.id ?? 0);
+    expect(revisions.map((revision) => revision.pushedBy)).toEqual(["ci-two", "ci-one"]);
+  });
+
+  it("refuses a token named like the catalog's own marker", () => {
+    // The marker has to stay a value no token name can reach, or a push could
+    // dress itself up as the owner's upload. The `@` is what keeps it apart.
+    expect(() => createPushToken(CATALOG_UPLOAD)).toThrow();
+    expect(CATALOG_UPLOAD.startsWith("@")).toBe(true);
   });
 });
 

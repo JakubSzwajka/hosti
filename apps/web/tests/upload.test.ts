@@ -17,6 +17,7 @@ process.env.HOSTI_SECRET = SECRET;
 const ORIGIN = "http://127.0.0.1:3000";
 
 const { findBundle, listRevisions } = await import("@/server/catalog");
+const { CATALOG_UPLOAD } = await import("@/server/push-tokens");
 const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
   "@/server/auth/session"
 );
@@ -163,6 +164,19 @@ describe("a zip becoming a bundle", () => {
     expect(await fs.readlink(path.join(bundle, "current"))).toBe("r2");
     expect(await exists(path.join(bundle, "r1/athletes/index.html"))).toBe(true);
     expect(listRevisions(findBundle("dropped")?.id ?? 0)).toHaveLength(2);
+  });
+
+  it("marks it as the catalog's own upload, never leaving the row blank", async () => {
+    // The owner's own hand is no push token, but it is still a known way in.
+    // A blank row is what a revision from before Hosti kept this looks like,
+    // so an upload writes the reserved marker instead.
+    const revisions = listRevisions(findBundle("dropped")?.id ?? 0);
+    expect(revisions).not.toHaveLength(0);
+    expect(revisions.map((revision) => revision.pushedBy)).toEqual([
+      CATALOG_UPLOAD,
+      CATALOG_UPLOAD,
+    ]);
+    expect(revisions.some((revision) => revision.pushedBy === null)).toBe(false);
   });
 
   it("takes a gzipped tarball too, which is what the CLI sends", async () => {

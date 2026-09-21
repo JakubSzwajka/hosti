@@ -1,0 +1,195 @@
+/* Getting an agent pushing: the onboarding panel on the empty catalog and on
+   /tokens, and the list of tokens under it. Everything the owner has to carry
+   somewhere else is mono with a copy button beside it. */
+
+/* The panel is wider than a plain empty state, because the agent prompt is
+   72 columns of mono and wrapping it would make it unreadable to copy. */
+.onboard-shell {
+  max-width: 740px;
+}
+.onboard h2 {
+  font-family: var(--font-serif);
+  font-weight: 900;
+  font-size: 26px;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+.onboard p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  max-width: 56ch;
+}
+.onboard .empty-lead {
+  /* forms.css sets this, but `.onboard p` outranks it on specificity. */
+  margin-bottom: 22px;
+}
+.onboard .steps h3 {
+  margin-top: 0;
+}
+/* The prompt is written to 72 columns and the owner copies it rather than
+   reads it, so a narrow screen scrolls it sideways instead of rewrapping
+   `HOSTI_TOKEN=` onto two lines. */
+.onboard pre {
+  white-space: pre;
+}
+.onboard-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+.onboard-error {
+  color: var(--danger);
+  font-size: 13.5px;
+  margin: 0 0 8px;
+}
+
+/* mint ---------------------------------------------------------------- */
+.mint-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+.mint-form input[name="name"] {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  min-width: 190px;
+}
+.mint-form input[name="name"]:focus {
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+  border-color: var(--pop);
+}
+
+/* The one read of a secret. It is loud because it does not come back. */
+.minted {
+  background: var(--paper);
+  border: 1px solid var(--pop);
+  border-radius: 8px;
+  padding: 11px 14px 13px;
+  margin: 2px 0 14px;
+}
+.minted-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.minted-once {
+  color: var(--pop);
+}
+.minted-secret {
+  font-size: 13px;
+  color: var(--ink);
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.minted .onboard-acts {
+  margin-top: 10px;
+}
+
+/* the list ------------------------------------------------------------ */
+.tokens-page {
+  margin-top: var(--gap);
+  display: grid;
+  gap: var(--gap-lg);
+}
+.token-list {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 24px 22px;
+  max-width: 740px;
+}
+.token-list h2 {
+  font-family: var(--font-serif);
+  font-weight: 900;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  margin: 0 0 14px;
+}
+.token-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line-soft);
+}
+.token-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.token-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.token-name > span:first-child {
+  font-size: 15px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.token-when {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.token-none,
+.token-note {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin: 0;
+  max-width: 60ch;
+}
+.token-note {
+  margin-top: 14px;
+}
+
+/* The masthead's right slot now carries a link as well as the meta word. It
+   matches `log out` rather than taking teal: teal names a machine value or
+   the one next action, and a nav link is neither. */
+.mast-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+.mast-meta a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.mast-meta a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .token-list {
+    padding: 16px 16px 18px;
+  }
+  .token-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mint-form input[name="name"] {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
+}

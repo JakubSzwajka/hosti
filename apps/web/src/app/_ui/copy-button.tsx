@@ -3,11 +3,23 @@
 import { useState } from "react";
 
 /**
- * Copies the absolute share URL. The clipboard API needs a secure context,
- * which localhost counts as; the textarea fallback covers a plain-http box on
- * a LAN, where the owner would otherwise have no copy at all.
+ * Copies a value the owner would otherwise retype: a share URL, an agent
+ * prompt, an install command. The clipboard API needs a secure context, which
+ * localhost counts as; the textarea fallback covers a plain-http box on a LAN,
+ * where the owner would otherwise have no copy at all.
+ *
+ * `tone` is the button family's own, so the one copy that is the next action
+ * on a screen can be the filled control without a second component.
  */
-export function CopyButton({ value, label = "copy link" }: { value: string; label?: string }) {
+export function CopyButton({
+  value,
+  label = "copy link",
+  tone,
+}: {
+  value: string;
+  label?: string;
+  tone?: "go" | "danger";
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -29,7 +41,13 @@ export function CopyButton({ value, label = "copy link" }: { value: string; labe
   }
 
   return (
-    <button className="btn" type="button" onClick={copy} {...(copied ? { "data-copied": "" } : {})}>
+    <button
+      className="btn"
+      type="button"
+      onClick={copy}
+      {...(tone ? { "data-tone": tone } : {})}
+      {...(copied ? { "data-copied": "" } : {})}
+    >
       {copied ? "copied" : label}
     </button>
   );
