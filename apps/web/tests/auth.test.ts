@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { adminSecrets, OWNER_PASSWORD_VAR, SECRET_VAR, signingSecret } from "@/server/auth/config";
 import {
   expiredSessionCookie,
   isSecureRequest,
@@ -69,6 +70,39 @@ describe("comparing the owner password", () => {
 
   it("survives a length mismatch instead of throwing", () => {
     expect(() => constantTimeEquals("a", "a much longer password")).not.toThrow();
+  });
+});
+
+describe("the configured secrets", () => {
+  const savedPassword = process.env[OWNER_PASSWORD_VAR];
+  const savedSecret = process.env[SECRET_VAR];
+
+  afterEach(() => {
+    if (savedPassword === undefined) delete process.env[OWNER_PASSWORD_VAR];
+    else process.env[OWNER_PASSWORD_VAR] = savedPassword;
+    if (savedSecret === undefined) delete process.env[SECRET_VAR];
+    else process.env[SECRET_VAR] = savedSecret;
+  });
+
+  it("strips the whitespace a deployment panel pastes in", () => {
+    process.env[OWNER_PASSWORD_VAR] = "  hunter2\r\n";
+    process.env[SECRET_VAR] = ` ${SECRET} `;
+    expect(adminSecrets()).toEqual({ password: "hunter2", secret: SECRET });
+  });
+
+  it("hands the session and the PIN gate the same signing key", () => {
+    process.env[OWNER_PASSWORD_VAR] = "hunter2";
+    process.env[SECRET_VAR] = `${SECRET}\n`;
+    expect(adminSecrets()?.secret).toBe(signingSecret());
+  });
+
+  it("is null when either value is missing or only whitespace", () => {
+    process.env[OWNER_PASSWORD_VAR] = "   ";
+    process.env[SECRET_VAR] = SECRET;
+    expect(adminSecrets()).toBeNull();
+    delete process.env[SECRET_VAR];
+    process.env[OWNER_PASSWORD_VAR] = "hunter2";
+    expect(adminSecrets()).toBeNull();
   });
 });
 
