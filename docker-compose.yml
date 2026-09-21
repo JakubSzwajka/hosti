@@ -1,10 +1,11 @@
-# One service, one named volume. The volume holds both the bundles and the
-# SQLite file, so a backup is `tar` over /data.
+# A deployment example: one service, one named volume. The volume holds both
+# the bundles and the SQLite file, so a backup is `tar` over /data.
+#
+# Nothing is built here. The image is the one the publish workflow pushes from
+# main; `docker compose pull` picks up a newer `latest`.
 services:
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/jakubszwajka/hosti:latest
     restart: unless-stopped
     environment:
       HOSTI_DATA_DIR: /data
