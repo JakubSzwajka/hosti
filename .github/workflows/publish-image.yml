@@ -1,0 +1,79 @@
+name: Publish image
+
+on:
+  push:
+    branches: [main]
+
+# Reading the tree and writing the package is all this needs. GITHUB_TOKEN
+# gets nothing else.
+permissions:
+  contents: read
+  packages: write
+
+# Two publishes on main must not race for the latest tag, and a push already
+# in flight is never cancelled.
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    name: Build and push to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # github.repository is JakubSzwajka/hosti; metadata-action lowercases it,
+      # which GHCR requires.
+      - name: Work out tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+          labels: |
+            org.opencontainers.image.title=Hosti
+            org.opencontainers.image.description=Self-hosted catalog for static bundles
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # One platform, so the provenance manifest only adds an
+          # unknown/unknown entry to the package listing.
+          provenance: false
+
+      - name: Report what was pushed
+        run: |
+          {
+            echo "### Pushed to ${{ env.REGISTRY }}"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo "digest: ${{ steps.build.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

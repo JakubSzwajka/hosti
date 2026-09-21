@@ -429,16 +429,62 @@ $HOSTI_DATA_DIR/
 
 ## Docker
 
+`docker-compose.yml` is a deployment example. It runs the published image,
+`ghcr.io/jakubszwajka/hosti:latest`, which the publish workflow builds from
+`apps/web/Dockerfile` on every push to main. Nothing is built on the box.
+
 ```bash
-docker compose build
+cp .env.example .env   # then set HOSTI_OWNER_PASSWORD and HOSTI_SECRET
+docker login ghcr.io -u YOUR_GITHUB_USERNAME   # once per box, see below
+docker compose pull    # fetch the image, and again whenever main moves
 docker compose up -d
 docker compose exec web node scripts/new-token.mjs --name vps
 docker compose down
 ```
 
-One service, one named volume at `/data`. Put Caddy in front for TLS. The
-compose file does not pass `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` through yet,
-so add them to the service's `environment:` before the catalog will open.
+This repository is private, so the package the workflow publishes is private
+too. Without the login `docker compose pull` is refused. `docker login` asks for
+a password: give it a GitHub token that carries `read:packages`, not your
+account password. The token belongs in your hands and in Docker's own config on
+the box, never in this repository and never in `.env`. One login lasts, so this
+is a first-time step and not part of every deploy.
+
+`pull` is the only update step: pull, then `up -d` again, and Compose replaces
+the container while the data stays put. `npm run compose:up` from the repository
+root is `up -d --pull always`, which does both in one go.
+
+`new-token.mjs` mints a push token for the CLI or for `curl`. The image's
+working directory is the app, so the path is `scripts/new-token.mjs`, and the
+token is written to the database in the volume.
+
+`down` stops the container and leaves the volume alone. Only `down -v` deletes
+the bundles and the database.
+
+One service, one named volume. `hosti_data` mounts at `/data`, and the service
+pins `HOSTI_DATA_DIR=/data`, so the bundles and `hosti.db` both live in the
+volume and a backup is `tar` over `/data`. Put Caddy in front for TLS.
+
+Compose reads `.env` from the directory it runs in and passes four of its
+values through:
+
+```
+HOSTI_OWNER_PASSWORD   required; Compose refuses to start without it
+HOSTI_SECRET           required; `openssl rand -hex 32`
+HOSTI_PUBLIC_URL       the origin in push responses; http://localhost:3000
+HOSTI_PORT             the host port in front of the container's 3000; 3000
+```
+
+The two required ones have no default on purpose: Compose stops with the
+message in the file rather than starting a catalog nobody can open. The rest of
+[.env.example](./.env.example) is for `npm run dev`. `HOSTI_DATA_DIR` and `PORT`
+are fixed by the compose file, and anything else you want the container to read,
+`HOSTI_KEEP_REVISIONS` among them, has to be added to the service's
+`environment:` first.
+
+The login above is what a private package costs. You can drop it: open the
+package in GitHub and set its visibility to public. After that
+`docker compose pull` needs no credentials on any box. The image is the app,
+not your bundles, which stay in the volume either way.
 
 ## The mark
 
