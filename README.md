@@ -71,19 +71,32 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
    Either way Hosti stores only the digest, in `hosti.db` on the volume.
 
 The `latest` tag is the update channel. After a new image is published, redeploy
-the Compose application in Dokploy. If you manage it directly from the VPS host
-shell instead, run these commands from a directory containing this Compose
-file. Dokploy's registry credentials do not configure Docker on the host, so
-the host Docker daemon needs its own GHCR login before the pull:
+the Compose application in Dokploy. The `web` service sets
+`pull_policy: always`, so that redeploy pulls the `latest` currently in GHCR
+instead of reusing a local image that still carries the same tag.
+
+Watch the timing. The GHCR image is built by the same push that may trigger
+Dokploy, and the `Publish image` action took about two minutes for commit
+`071c282`. An automatic deploy that starts before the action finishes pulls the
+previous `latest`, and `pull_policy` cannot change that. Until a webhook ties
+the two together, redeploy only after the action is green.
+
+If you manage it directly from the VPS host shell instead, run these commands
+from a directory containing this Compose file. Dokploy's registry credentials
+do not configure Docker on the host, so the host Docker daemon needs its own
+GHCR login before the pull:
 
 ```bash
 docker login ghcr.io -u YOUR_GITHUB_USERNAME
-docker compose pull
 docker compose up -d
 ```
 
 At the password prompt, enter a GitHub token with `read:packages`, never your
 GitHub account password.
+
+`docker compose up -d` checks the registry on its own because of
+`pull_policy: always`. Run `docker compose pull` before it only when you want
+the pull as a separate, visible step.
 
 From the repository root on the host, `npm run compose:up` runs
 `docker compose up -d --pull always`.

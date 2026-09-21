@@ -2,10 +2,13 @@
 # the bundles and the SQLite file, so a backup is `tar` over /data.
 #
 # Nothing is built here. The image is the one the publish workflow pushes from
-# main; `docker compose pull` picks up a newer `latest`.
+# main. The service sets `pull_policy: always`, so every `docker compose up`
+# asks the registry for the current `latest` instead of reusing whatever the
+# local daemon already has under that tag.
 services:
   web:
     image: ghcr.io/jakubszwajka/hosti:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       HOSTI_DATA_DIR: /data
