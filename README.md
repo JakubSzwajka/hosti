@@ -462,16 +462,26 @@ the bundles and the database.
 
 One service, one named volume. `hosti_data` mounts at `/data`, and the service
 pins `HOSTI_DATA_DIR=/data`, so the bundles and `hosti.db` both live in the
-volume and a backup is `tar` over `/data`. Put Caddy in front for TLS.
+volume and a backup is `tar` over `/data`.
 
-Compose reads `.env` from the directory it runs in and passes four of its
+The service publishes no host port. It only exposes container port 3000 on the
+Docker network, so nothing on the box has to keep port 3000 free and two
+containers can never fight over it. A reverse proxy does the routing: in
+Dokploy point the domain at service `web`, container port 3000. A hand-run
+Caddy or Traefik does the same thing on the same network. That means the
+catalog is reached through its domain, not through `localhost` on the host.
+
+To work on the source instead, use `npm run dev`. That is the only way to get a
+catalog on `localhost`; this compose file is for deployment.
+
+Compose reads `.env` from the directory it runs in and passes three of its
 values through:
 
 ```
 HOSTI_OWNER_PASSWORD   required; Compose refuses to start without it
 HOSTI_SECRET           required; `openssl rand -hex 32`
-HOSTI_PUBLIC_URL       the origin in push responses; http://localhost:3000
-HOSTI_PORT             the host port in front of the container's 3000; 3000
+HOSTI_PUBLIC_URL       the origin in push responses; set it to the real
+                       hostname the proxy serves
 ```
 
 The two required ones have no default on purpose: Compose stops with the
