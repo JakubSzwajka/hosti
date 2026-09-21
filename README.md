@@ -30,13 +30,16 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
    Wrap every secret value in single quotes. Two parsers read this text before
    the container does: Dokploy's environment editor, then Compose reading the
    `.env` it writes. Single quotes are the one form both pass through
-   unchanged. Unquoted, Dokploy drops everything from the first `#` onward, so
-   a password ending in `#` loses it and login fails. Compose reads `$name` in
-   an unquoted value as a variable and substitutes it, usually with nothing,
-   so `secr$tone` arrives as `secr`. Double quotes do not protect a `$`; `$$`
-   does, but single quotes cover both cases. After changing a variable,
-   redeploy so the container is recreated. A restart keeps the old
-   environment.
+   unchanged. A password ending in `#` failed login when it was set unquoted
+   in Dokploy and worked as soon as it was single-quoted. Compose reads
+   `$name` in an unquoted value as a variable and substitutes it, usually
+   with nothing, so `secr$tone` arrives as `secr`. Double quotes do not
+   protect a `$`; `$$` does, but single quotes cover both cases. After
+   changing a variable, redeploy so the container is recreated. A restart
+   keeps the old environment. To check what the running container actually
+   holds, open the `web` service's Terminal in Dokploy and run
+   `node scripts/env-check.mjs`, which prints lengths and digest prefixes
+   but never a secret.
 
    Compose refuses to start if `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is
    missing. `HOSTI_PUBLIC_URL` has a Compose default of
@@ -98,10 +101,15 @@ Run the source directly when you need Hosti on localhost:
 
 ```bash
 npm install
-export HOSTI_OWNER_PASSWORD=whatever-you-will-remember
+export HOSTI_OWNER_PASSWORD='whatever-you-will-remember'
 export HOSTI_SECRET=$(openssl rand -hex 32)
 npm run dev            # http://127.0.0.1:3000
 ```
+
+Single-quote the password. A shell mangles an unquoted value the same way
+Dokploy did. `!` starts history expansion in bash and zsh, and `#` starts a
+comment. The `HOSTI_SECRET` line stays unquoted on purpose, because the
+command substitution has to run and hex output is safe.
 
 Without both variables, the catalog names the missing value on `/login` and
 serves no admin page. Useful repository commands:
@@ -111,6 +119,7 @@ npm run build          # Next production build
 npm run test           # vitest
 npm run check          # Biome, then tsc across the workspaces
 npm run token:new -- --name laptop
+npm run env:check      # what the environment holds, no secret printed
 ```
 
 On npm 11, `npm install` asks before running dependency install scripts.

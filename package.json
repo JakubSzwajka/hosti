@@ -16,6 +16,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "token:new": "node apps/web/scripts/new-token.mjs",
+    "env:check": "node apps/web/scripts/env-check.mjs",
     "compose:up": "docker compose up -d --pull always",
     "compose:down": "docker compose down"
   },
