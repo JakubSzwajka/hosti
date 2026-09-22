@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["fail/apps/web/src/*"]
+    }
+  }
+}

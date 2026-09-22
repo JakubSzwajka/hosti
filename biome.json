@@ -3,11 +3,22 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true
+    "useIgnoreFile": false
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist", "!**/.next", "!**/data", "!fixtures", "!**/package-lock.json"]
+    "includes": [
+      "**",
+      "!.env",
+      "!.env.local",
+      "!.pi/specs",
+      "!apps/web/.next",
+      "!data",
+      "!fixtures",
+      "!tools/playbook-checks/tests/fixtures",
+      "!**/*.tsbuildinfo",
+      "!**/package-lock.json"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -23,9 +34,9 @@
         "noUnusedImports": "error"
       },
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "error",
         "noExcessiveLinesPerFile": {
-          "level": "error",
+          "level": "warn",
           "options": {
             "maxLines": 300,
             "skipBlankLines": false
