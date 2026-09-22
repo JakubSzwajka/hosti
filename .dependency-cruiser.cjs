@@ -6,6 +6,7 @@ const CLI_ROOT = "^apps/cli(?:/|$)";
 const CLI_SOURCE_ROOT = "^apps/cli/src(?:/|$)";
 const CLI_ENTRY = "^apps/cli/src/index[.][cm]?[jt]sx?$";
 const WEB_ROOT = "^apps/web(?:/|$)";
+const WEB_NEXT_ENV_DECLARATION = "^apps/web/next-env[.]d[.]ts$";
 const WEB_SOURCE_ROOT = "^apps/web/src(?:/|$)";
 const WEB_DELIVERY_ROOT = "^apps/web/src/app(?:/|$)";
 const WEB_SERVER_ROOT = "^apps/web/src/server(?:/|$)";
@@ -88,7 +89,7 @@ module.exports = {
     {
       name: "no-unresolved-imports",
       severity: "error",
-      from: {},
+      from: { pathNot: WEB_NEXT_ENV_DECLARATION },
       to: { couldNotResolve: true },
     },
   ],
