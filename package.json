@@ -11,9 +11,9 @@
   "scripts": {
     "dev": "npm run dev -w @hosti/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "node --test tools/playbook-checks/check-playbook.test.mjs && npm run test --workspaces --if-present",
-    "check": "biome ci . && npm run check --workspaces --if-present && npm run check:playbook",
-    "check:playbook": "depcruise --config .dependency-cruiser.cjs apps packages && node tools/playbook-checks/check-playbook.mjs",
+    "test": "npm run test --workspaces --if-present",
+    "check": "biome ci . && npm run check --workspaces --if-present && npm run check:deps",
+    "check:deps": "cd apps/web && depcruise --config ../../.dependency-cruiser.cjs apps packages",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "token:new": "node apps/web/scripts/new-token.mjs",

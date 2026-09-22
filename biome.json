@@ -15,7 +15,6 @@
       "!apps/web/.next",
       "!data",
       "!fixtures",
-      "!tools/playbook-checks/tests/fixtures",
       "!**/*.tsbuildinfo",
       "!**/package-lock.json"
     ]
@@ -33,6 +32,9 @@
       "correctness": {
         "noUnusedImports": "error"
       },
+      "performance": {
+        "noReExportAll": "error"
+      },
       "style": {
         "noNonNullAssertion": "error",
         "noExcessiveLinesPerFile": {
@@ -40,6 +42,12 @@
           "options": {
             "maxLines": 300,
             "skipBlankLines": false
+          }
+        },
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case", "export"]
           }
         }
       }
