@@ -10,6 +10,7 @@ FROM base AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
+COPY scripts/prepare-hooks.mjs scripts/prepare-hooks.mjs
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 # npm 11 reads the allowScripts field in the root package.json and refuses

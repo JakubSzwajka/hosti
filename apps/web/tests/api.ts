@@ -77,7 +77,7 @@ export function removeBundle(token: string, slug: string): Promise<Response> {
 }
 
 export function serve(urlPath: string, headers?: HeadersInit): Promise<Response> {
-  return SERVE(new Request(`${ORIGIN}${urlPath}`, { headers }));
+  return SERVE(new Request(`${ORIGIN}${urlPath}`, headers === undefined ? {} : { headers }));
 }
 
 export function navigate(urlPath: string, headers: HeadersInit = {}): Promise<Response> {

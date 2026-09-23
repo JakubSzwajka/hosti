@@ -81,10 +81,10 @@ export function Thumb({
 }: {
   seed: string;
   size: "card" | "detail";
-  href?: string;
-  live?: string;
-  openHref?: string;
-  label?: string;
+  href?: string | undefined;
+  live?: string | undefined;
+  openHref?: string | undefined;
+  label?: string | undefined;
   fileCount: number;
   byteSize: number;
 }) {

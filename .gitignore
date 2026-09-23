@@ -3,6 +3,9 @@ node_modules/
 .next/
 .env
 .env.local
+.env.*.local
 # Only the data root, not a bundle's own data/ directory under fixtures.
 /data/
 *.tsbuildinfo
+coverage/
+/.agent_sources/

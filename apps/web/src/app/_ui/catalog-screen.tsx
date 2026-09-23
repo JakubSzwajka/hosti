@@ -10,7 +10,7 @@ export function CatalogScreen(props: {
   chips: ChipCount[];
   active: string;
   token: string;
-  heading?: string;
+  heading?: string | undefined;
   emptyNote: React.ReactNode;
   allSlugs: string[];
   collection?: string;
@@ -105,7 +105,7 @@ function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
   );
 }
 
-function CatalogMeta({ heading }: { heading?: string }) {
+function CatalogMeta({ heading }: { heading?: string | undefined }) {
   return (
     <span className="mast-meta">
       {heading ? <span>{heading}</span> : null}
