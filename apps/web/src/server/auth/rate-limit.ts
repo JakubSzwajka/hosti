@@ -1,76 +1,43 @@
-export type LimiterOptions = {
-  maxAttempts: number;
+import {
+  DEFAULT_LIMITS,
+  PIN_LIMITS,
+  type EffectLoginLimiter,
+  type LimiterOptions,
+  type Verdict,
+} from "@hosti/identity";
+import { runIdentitySync } from "@/server/runtime";
 
-  windowMs: number;
-
-  lockMs: number;
-};
-
-export const DEFAULT_LIMITS: LimiterOptions = {
-  maxAttempts: 5,
-  windowMs: 15 * 60 * 1000,
-  lockMs: 10 * 60 * 1000,
-};
-
-export type Verdict = { allowed: true } | { allowed: false; retryAfterSeconds: number };
-
-type Entry = { failures: number[]; lockedUntil: number };
+export type { LimiterOptions, Verdict };
+export { DEFAULT_LIMITS, PIN_LIMITS };
 
 export type LoginLimiter = {
   check(key: string, now?: number): Verdict;
-
   fail(key: string, now?: number): Verdict;
-
   succeed(key: string): void;
 };
 
-export function createLoginLimiter(options: Partial<LimiterOptions> = {}): LoginLimiter {
-  const limits = { ...DEFAULT_LIMITS, ...options };
-  const seen = new Map<string, Entry>();
-
-  function entryFor(key: string, now: number): Entry {
-    const entry = seen.get(key) ?? { failures: [], lockedUntil: 0 };
-    entry.failures = entry.failures.filter((at) => now - at < limits.windowMs);
-    seen.set(key, entry);
-    return entry;
-  }
-
-  function verdict(entry: Entry, now: number): Verdict {
-    if (entry.lockedUntil > now) {
-      return { allowed: false, retryAfterSeconds: Math.ceil((entry.lockedUntil - now) / 1000) };
-    }
-    return { allowed: true };
-  }
-
+function adaptLimiter(limiter: EffectLoginLimiter): LoginLimiter {
   return {
-    check(key, now = Date.now()) {
-      return verdict(entryFor(key, now), now);
+    check(key, now) {
+      return runIdentitySync(() => limiter.check(key, now));
     },
-    fail(key, now = Date.now()) {
-      const entry = entryFor(key, now);
-      entry.failures.push(now);
-      if (entry.failures.length >= limits.maxAttempts) {
-        entry.lockedUntil = now + limits.lockMs;
-        entry.failures = [];
-      }
-      return verdict(entry, now);
+    fail(key, now) {
+      return runIdentitySync(() => limiter.fail(key, now));
     },
     succeed(key) {
-      seen.delete(key);
+      runIdentitySync(() => limiter.succeed(key));
     },
   };
 }
 
-export const PIN_LIMITS: LimiterOptions = {
-  maxAttempts: 10,
-  windowMs: 15 * 60 * 1000,
-  lockMs: 60 * 60 * 1000,
-};
+export function createLoginLimiter(options: Partial<LimiterOptions> = {}): LoginLimiter {
+  const limiter = runIdentitySync((identity) => identity.createLoginLimiter(options));
+  return adaptLimiter(limiter);
+}
 
 type LimiterHolder = { __hostiLoginLimiter?: LoginLimiter; __hostiPinLimiter?: LoginLimiter };
 
 export function loginLimiter(): LoginLimiter {
-  // Keep the budget through development reloads so reloads cannot reset guessing limits.
   const holder = globalThis as LimiterHolder;
   holder.__hostiLoginLimiter ??= createLoginLimiter();
   return holder.__hostiLoginLimiter;
