@@ -339,8 +339,8 @@ read one back. Digits the server refuses come back as its own message on the
 last line, exit code 1.
 
 The binary is `apps/cli`. It runs its TypeScript straight on Node, which strips
-the types itself from 22.18 onwards, so there is no build step and nothing
-to compile. It talks HTTP only: it never opens the SQLite file.
+the types itself on the version in `.nvmrc` (24.21.0), so there is no build
+step and nothing to compile. It talks HTTP only: it never opens the SQLite file.
 
 To get `hosti` on the PATH, from the repository root:
 

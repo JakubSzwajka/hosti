@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # Debian rather than Alpine: better-sqlite3 ships glibc prebuilds, and the
 # fallback node-gyp build needs a toolchain that Alpine would also need.
-FROM node:22-bookworm-slim AS base
+# Keep the tag in step with .nvmrc.
+FROM node:24.21.0-bookworm-slim AS base
 WORKDIR /app
 ENV npm_config_update_notifier=false
 
@@ -11,7 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm ci --allow-scripts=better-sqlite3
+# npm 11 reads the allowScripts field in the root package.json and refuses
+# --allow-scripts on a project install.
+RUN npm ci
 
 FROM deps AS build
 COPY tsconfig.base.json ./

@@ -23,11 +23,12 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v7
 
-      # 22 is the floor in package.json engines and the base of apps/web/Dockerfile.
+      # .nvmrc pins the Node line. package.json engines and the base image in
+      # apps/web/Dockerfile follow the same version.
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
