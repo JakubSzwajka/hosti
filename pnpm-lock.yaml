@@ -229,6 +229,9 @@ importers:
       '@hosti/shared':
         specifier: workspace:0.1.0
         version: link:../../packages/shared
+      '@hosti/storage':
+        specifier: workspace:0.1.0
+        version: link:../../packages/storage
       better-sqlite3:
         specifier: 12.11.1
         version: 12.11.1
@@ -306,6 +309,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.2.1)
+      '@hosti/shared':
+        specifier: workspace:0.1.0
+        version: link:../shared
       effect:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117

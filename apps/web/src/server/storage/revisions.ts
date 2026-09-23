@@ -1,15 +1,11 @@
-import { ENTRY_FILE } from "@hosti/shared";
-import { randomBytes } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { Effect } from "effect";
 import type { Readable } from "node:stream";
-import { PushError } from "@/server/errors";
-import { bundleDir, currentLink, revisionDir } from "@/server/storage/paths";
-import type { UnpackStats } from "@/server/storage/revision-sink";
-import { unpackTarball } from "@/server/storage/unpack";
-import { unpackZip } from "@/server/storage/unzip";
+import type { ArchiveFormat, UnpackStats } from "@hosti/storage";
+import { bundlesDir } from "@/server/config";
+import { runStoragePromise } from "@/server/runtime";
+import { effectReadable, toPushError } from "@/server/storage/compat";
 
-export type ArchiveFormat = "tar.gz" | "zip";
+export type { ArchiveFormat };
 
 export function archiveFormat(head: Buffer): ArchiveFormat | null {
   if (head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b) return "tar.gz";
@@ -20,58 +16,27 @@ export function archiveFormat(head: Buffer): ArchiveFormat | null {
   return null;
 }
 
-export async function writeRevision(input: {
+export function writeRevision(input: {
   bundleSlug: string;
   seq: number;
   body: Readable;
-
   format?: ArchiveFormat;
 }): Promise<UnpackStats> {
-  const dir = revisionDir(input.bundleSlug, input.seq);
-  const unpack = input.format === "zip" ? unpackZip : unpackTarball;
-  await fs.rm(dir, { recursive: true, force: true });
-  try {
-    const stats = await unpack(input.body, dir);
-    await ensureEntryFile(dir);
-    // Move `current` only after the complete revision has passed validation.
-    await flipCurrent(input.bundleSlug, input.seq);
-    return stats;
-  } catch (error) {
-    await fs.rm(dir, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-export async function ensureEntryFile(dir: string): Promise<void> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const files = entries.filter((entry) => entry.isFile());
-  if (files.some((file) => file.name === ENTRY_FILE)) return;
-
-  const htmlFiles = files.filter((file) => file.name.toLowerCase().endsWith(".html"));
-  const only = htmlFiles[0];
-  if (htmlFiles.length === 1 && only) {
-    await fs.rename(path.join(dir, only.name), path.join(dir, ENTRY_FILE));
-    return;
-  }
-
-  const found = entries.map((entry) => (entry.isDirectory() ? `${entry.name}/` : entry.name));
-  const listed = found.length ? found.slice(0, 20).join(", ") : "nothing";
-  throw new PushError(
-    "no_entry_file",
-    htmlFiles.length > 1
-      ? `No ${ENTRY_FILE} at the root and ${htmlFiles.length} HTML files to choose from: ${listed}`
-      : `No ${ENTRY_FILE} at the root of the pushed tree. Found: ${listed}`,
+  const source = effectReadable(input.body, "bad_tarball", "Cannot read the pushed archive");
+  const revision = {
+    bundlesRoot: bundlesDir(),
+    bundleSlug: input.bundleSlug,
+    seq: input.seq,
+    source,
+    ...(input.format === undefined ? {} : { format: input.format }),
+  };
+  return runStoragePromise((storage) =>
+    storage.writeRevision(revision).pipe(Effect.mapError(toPushError)),
   );
 }
 
-async function flipCurrent(bundleSlug: string, seq: number): Promise<void> {
-  const link = currentLink(bundleSlug);
-  const staging = path.join(bundleDir(bundleSlug), `.current-${randomBytes(6).toString("hex")}`);
-  await fs.symlink(`r${seq}`, staging);
-  try {
-    await fs.rename(staging, link);
-  } catch (error) {
-    await fs.rm(staging, { force: true });
-    throw error;
-  }
+export function ensureEntryFile(dir: string): Promise<void> {
+  return runStoragePromise((storage) =>
+    storage.ensureEntryFile(dir).pipe(Effect.mapError(toPushError)),
+  );
 }

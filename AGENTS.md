@@ -29,6 +29,7 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 - `apps/cli` is the private `@hosti/cli` workspace package.
 - `packages/shared` is `@hosti/shared`, the shared public package. Export through `src/index.ts`.
 - `packages/catalog` is `@hosti/catalog`, the Effect-backed SQLite catalog. Export through `src/index.ts`.
+- `packages/storage` is `@hosti/storage`, the Effect-backed bundle storage capability. Export through `src/index.ts`.
 - Declare workspace dependencies by package name and use `workspace:<exact version>`. Do not import another workspace through a relative path.
 - Do not change `.dependency-cruiser.cjs` rules as part of routine feature work.
 

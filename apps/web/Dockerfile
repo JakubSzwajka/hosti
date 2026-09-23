@@ -15,13 +15,13 @@ COPY apps/cli/package.json apps/cli/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/catalog/package.json packages/catalog/package.json
+COPY packages/storage/package.json packages/storage/package.json
 COPY scripts/prepare-hooks.mjs scripts/prepare-hooks.mjs
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.base.json ./
-COPY packages/shared packages/shared
-COPY packages/catalog packages/catalog
+COPY packages/ packages/
 COPY apps/web apps/web
 RUN pnpm --filter @hosti/web build
 
