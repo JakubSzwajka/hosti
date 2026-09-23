@@ -132,14 +132,14 @@ serves no admin page. Useful repository commands:
 
 ```bash
 npm run build          # Next production build
-npm run test           # vitest
-npm run check          # Biome, workspace tsc, then Dependency Cruiser
+npm run test           # ESLint config test, then vitest
+npm run check          # Biome, ESLint comment rule, workspace tsc, then Dependency Cruiser
 npm run token:new -- --name laptop   # or mint it at /tokens in the browser
 npm run env:check      # what the environment holds, no secret printed
 ```
 
 The architecture checks adapt the maintained-tool setup from
-[codebase-ai-rules](https://github.com/JakubSzwajka/codebase-ai-rules).
+[drunk-cat-stack](https://github.com/JakubSzwajka/drunk-cat-stack).
 
 On npm 11, `npm install` asks before running dependency install scripts.
 `better-sqlite3` needs its script, and `package.json` approves it in

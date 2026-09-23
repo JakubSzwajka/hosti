@@ -11,12 +11,11 @@
   "scripts": {
     "dev": "npm run dev -w @hosti/web",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "check": "biome ci . && npm run check --workspaces --if-present && npm run check:deps",
+    "test": "node --test tools/eslint/*.test.mjs && npm run test --workspaces --if-present",
+    "check": "biome ci . && npm run lint && npm run check --workspaces --if-present && npm run check:deps",
     "check:deps": "cd apps/web && depcruise --config ../../.dependency-cruiser.cjs apps packages",
     "lint:fix": "biome check --write .",
-    "lint:comments": "eslint --config eslint.comments.config.mjs",
-    "test:comments": "node --test tools/eslint/*.test.mjs",
+    "lint": "eslint .",
     "format": "biome format --write .",
     "token:new": "node apps/web/scripts/new-token.mjs",
     "env:check": "node apps/web/scripts/env-check.mjs",
@@ -25,9 +24,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@typescript-eslint/parser": "^8.70.1",
     "dependency-cruiser": "^18.4.0",
     "eslint": "^10.11.0",
+    "eslint-plugin-codebase-ai-rules": "github:JakubSzwajka/eslint-plugin-codebase-ai-rules#012daeb0d1809f0e026b9425dddc9a42a77c3328",
     "typescript": "^5.9.3"
   },
   "engines": {

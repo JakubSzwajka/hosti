@@ -3,7 +3,7 @@ import test from "node:test";
 import { ESLint } from "eslint";
 
 test("lints fixture and data paths while keeping generated output ignored", async () => {
-  const config = (await import("../../eslint.comments.config.mjs")).default;
+  const config = (await import("../../eslint.config.mjs")).default;
   const eslint = new ESLint({
     cwd: process.cwd(),
     overrideConfigFile: true,
@@ -28,7 +28,7 @@ test("lints fixture and data paths while keeping generated output ignored", asyn
     const [result] = await eslint.lintText("// Must be linted.\nconst value = 1;", { filePath });
     assert.deepEqual(
       result.messages.map((message) => message.ruleId),
-      ["hosti/comment-discipline"],
+      ["codebase-ai-rules/comment-discipline"],
       filePath,
     );
   }
