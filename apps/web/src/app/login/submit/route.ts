@@ -6,17 +6,11 @@ import { constantTimeEquals, signSession } from "@/server/auth/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Relative, so the browser stays on the host it typed. */
 function back(error?: string): Response {
   const location = error ? `/login?error=${error}` : "/login";
   return new Response(null, { status: 303, headers: { Location: location } });
 }
 
-/**
- * Take the owner password and hand back an admin session. The form is the only
- * place a password is accepted, so the rate limit lives here: a handful of
- * wrong guesses per caller, then a short lock.
- */
 export async function POST(request: Request): Promise<Response> {
   const secrets = adminSecrets();
   if (!secrets) return back();

@@ -22,12 +22,6 @@ const SHARE_REFUSALS: Record<string, string> = {
   not_configured: "set HOSTI_SECRET before a bundle can carry a pin.",
 };
 
-/**
- * What the meta line says about how a revision arrived, or null when nobody
- * knows. A revision written before Hosti kept this has no name on it, and the
- * page then says nothing rather than claiming the owner uploaded it. The
- * reserved marker never reaches the page as itself.
- */
 function arrivalNote(pushedBy: string | null): string | null {
   if (pushedBy === null) return null;
   if (pushedBy === CATALOG_UPLOAD) return "uploaded in the catalog";

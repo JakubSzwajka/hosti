@@ -21,8 +21,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.bunny.net" />
-        {/* Display type and body type. The stack falls back to system faces, so
-            a box with no outbound network still renders the right shapes. */}
         <link rel="stylesheet" href={FONTS} />
       </head>
       <body>{children}</body>

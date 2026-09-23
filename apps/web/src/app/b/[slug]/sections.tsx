@@ -2,15 +2,6 @@ import type { SharingState } from "@hosti/shared";
 import { COLLECTION_RULE } from "@hosti/shared";
 import { CopyButton } from "@/app/_ui/copy-button";
 
-/**
- * The two sections on the bundle page that change who can reach a bundle: the
- * one sharing state it is in, and the collection it sits in. Split out of
- * `page.tsx` so neither file fights the line cap.
- *
- * The collection section hides nothing. The sharing section is three radios
- * and two buttons, posted as forms, so both work with no JavaScript.
- */
-
 const SHARE_REFUSALS: Record<string, string> = {
   bad_mode: "Pick private, link or pin.",
   bad_pin: "A pin is four to eight digits and nothing else.",
@@ -25,12 +16,6 @@ const MODE_NOTES: Record<SharingState["mode"], string> = {
   pin: "the URL asks for the pin, then opens the bundle",
 };
 
-/**
- * One bundle, one sharing state, at most one link. Picking a state is one
- * post; rotating the slug is another. Rotate is the only way to cut off
- * somebody who already has the address, so it says so rather than sitting
- * there as a bare verb.
- */
 export function SharingSection({
   slug,
   sharing,
@@ -40,7 +25,6 @@ export function SharingSection({
 }: {
   slug: string;
   sharing: SharingState;
-  /** The absolute share URL, or null while the bundle is private. */
   url: string | null;
   token: string;
   refused?: string;
@@ -119,12 +103,6 @@ export function SharingSection({
   );
 }
 
-/**
- * Set, change or clear the bundle's collection. A collection is a flat label,
- * so this is one text field and one rule: what you type is saved, and an empty
- * field takes the bundle out of every collection. A form whose only field is
- * text submits on Enter with no script and no button.
- */
 export function CollectionSection({
   slug,
   collection,

@@ -11,18 +11,6 @@ import { listPushTokens, type PushTokenRecord } from "@/server/push-tokens";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Push tokens: the onboarding panel the empty catalog shows, plus every token
- * that already exists and a revoke on each.
- *
- * It needs the admin session, like every other catalog page. A push token
- * opens `/api/v1/` and cannot reach here, which is the point: a token that
- * could mint another token would never be revocable.
- *
- * `?shown=<id>` is a mint redirect coming back. The secret is read out of the
- * one-time store and the store forgets it, so a reload shows the page with
- * nothing to copy. That is the correct failure.
- */
 export default async function PushTokens({
   searchParams,
 }: {

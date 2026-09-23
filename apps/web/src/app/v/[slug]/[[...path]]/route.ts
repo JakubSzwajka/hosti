@@ -11,7 +11,6 @@ export async function HEAD(request: Request): Promise<Response> {
   return serveBundleRequest(request);
 }
 
-/** The PIN gate posts here. Nothing else under `/v/` accepts a POST. */
 export async function POST(request: Request): Promise<Response> {
   return unlockBundleRequest(request);
 }

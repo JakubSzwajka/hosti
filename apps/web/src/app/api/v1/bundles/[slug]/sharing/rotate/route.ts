@@ -9,12 +9,6 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-/**
- * Mint a fresh share slug. The old URL stops answering at once, which is the
- * only way to cut off somebody who already has the address. The sharing state
- * and the pin are left exactly as they were, so a rotate on a private bundle
- * changes the address it will use and nothing else.
- */
 export async function POST(request: Request, context: Context): Promise<Response> {
   if (!authenticatePush(request)) return unauthorized();
   const { slug } = await context.params;

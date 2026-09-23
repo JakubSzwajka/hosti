@@ -20,18 +20,6 @@ async function kindOf(absolutePath: string): Promise<Kind> {
   }
 }
 
-/**
- * Turn a request under /v/<share-slug> into a file, a redirect or a miss.
- *
- *   /v/x                  308 /v/x/
- *   /v/x/                 index.html
- *   /v/x/athletes/        athletes/index.html
- *   /v/x/athletes         308 /v/x/athletes/        (it is a directory)
- *   /v/x/reports/2026-q3  reports/2026-q3.html      (retry with .html)
- *   /v/x/assets/chart.js  the file
- *
- * `requestPath` is everything after the share slug, so "" or "/" or "/a/b".
- */
 export async function resolveBundleRequest(
   root: string,
   sharePrefix: string,
@@ -69,7 +57,6 @@ export async function resolveBundleRequest(
   return { kind: "not-found" };
 }
 
-/** The bundle's own 404.html, when it has one. */
 export async function bundleNotFoundFile(root: string): Promise<string | null> {
   const candidate = resolveInside(root, "404.html");
   if (candidate && (await kindOf(candidate)) === "file") return candidate;
