@@ -3,18 +3,18 @@ const path = require("node:path");
 const CLI_ROOT = "^apps/cli(?:/|$)";
 const CLI_SOURCE_ROOT = "^apps/cli/src(?:/|$)";
 const CLI_ENTRY = "^apps/cli/src/index[.][cm]?[jt]sx?$";
-const WEB_ROOT = "^apps/web(?:/|$)";
 const WEB_NEXT_ENV_DECLARATION = "^apps/web/next-env[.]d[.]ts$";
-const WEB_SOURCE_ROOT = "^apps/web/src(?:/|$)";
 const WEB_DELIVERY_ROOT = "^apps/web/src/app(?:/|$)";
 const WEB_SERVER_ROOT = "^apps/web/src/server(?:/|$)";
-const SHARED_ROOT = "^packages/shared(?:/|$)";
-const SHARED_SOURCE_ROOT = "^packages/shared/src(?:/|$)";
-const SHARED_ENTRY = "^packages/shared/src/index[.][cm]?[jt]sx?$";
+const APPS_ROOT = "^apps/";
+const APP_ROOT = "^(apps/[^/]+)/";
+const WORKSPACE_ROOT = "^((?:apps|packages)/[^/]+)/";
+const PACKAGES_ROOT = "^packages/";
+const PACKAGE_ENTRY = "src/index[.]ts$";
 const TEST_PATH = "(?:^|/)(?:tests|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$";
 const PACKAGE_NAMESPACE = "^@hosti/";
 
-const EXCLUDED_PATH = "^apps/web/[.]next(?:/|$)";
+const EXCLUDED_PATH = "(?:^|/)(?:node_modules|[.]next|[.]agent_sources)(?:/|$)";
 
 module.exports = {
   forbidden: [
@@ -23,6 +23,30 @@ module.exports = {
       severity: "error",
       from: {},
       to: { circular: true },
+    },
+    {
+      name: "packages-do-not-import-apps",
+      severity: "error",
+      from: { path: PACKAGES_ROOT },
+      to: { path: APPS_ROOT },
+    },
+    {
+      name: "apps-do-not-import-other-apps",
+      severity: "error",
+      from: { path: APP_ROOT },
+      to: { path: APPS_ROOT, pathNot: "^$1/" },
+    },
+    {
+      name: "packages-imported-by-name",
+      severity: "error",
+      from: { path: WORKSPACE_ROOT },
+      to: { path: PACKAGES_ROOT, pathNot: "^$1/", dependencyTypes: ["local"] },
+    },
+    {
+      name: "packages-public-entry-only",
+      severity: "error",
+      from: { path: WORKSPACE_ROOT },
+      to: { path: `${PACKAGES_ROOT}[^/]+/(?!${PACKAGE_ENTRY})`, pathNot: "^$1/" },
     },
     {
       name: "web-server-does-not-import-next-delivery",
@@ -60,23 +84,6 @@ module.exports = {
         path: CLI_ENTRY,
         dependencyTypesNot: ["local"],
       },
-    },
-    {
-      name: "shared-public-entry-only",
-      severity: "error",
-      comment: "Code outside @hosti/shared must import its public entry, not its implementation.",
-      from: { pathNot: SHARED_ROOT },
-      to: {
-        path: SHARED_SOURCE_ROOT,
-        pathNot: SHARED_ENTRY,
-      },
-    },
-    {
-      name: "web-source-is-workspace-private",
-      severity: "error",
-      comment: "@hosti/web has no package export; only its own code may import its source.",
-      from: { pathNot: WEB_ROOT },
-      to: { path: WEB_SOURCE_ROOT },
     },
     {
       name: "production-does-not-import-tests",

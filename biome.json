@@ -13,6 +13,7 @@
       "!.env.local",
       "!.pi/specs",
       "!apps/web/.next",
+      "!.agent_sources",
       "!data",
       "!fixtures",
       "!**/*.tsbuildinfo",
