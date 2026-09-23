@@ -6,12 +6,12 @@
     "dev": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next dev -p ${PORT:-3000}",
     "build": "next build",
     "start": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next start -p ${PORT:-3000}",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "token:new": "node scripts/new-token.mjs"
   },
   "dependencies": {
-    "@hosti/shared": "0.1.0",
+    "@hosti/shared": "workspace:0.1.0",
     "better-sqlite3": "12.11.1",
     "next": "15.5.25",
     "react": "19.3.0",

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clone committed HEAD and prove install, hooks, checks, tests, and build work.
+# Clone committed HEAD and prove install, hooks, checks, tests, build, and Docker work.
 # Uncommitted changes are not tested. KEEP=1 retains the temporary clone.
 set -euo pipefail
 
@@ -33,9 +33,11 @@ printf 'source: %s\n' "$source_url"
 run_step "clone" git clone --quiet --depth 1 "$source_url" "$tmp"
 cd "$tmp"
 printf 'commit: %s\n' "$(git rev-parse HEAD)"
-run_step "npm ci" npm ci
-[[ -f .git/hooks/pre-commit ]] || fail "npm ci did not install .git/hooks/pre-commit"
-run_step "npm run check" npm run check
-run_step "npm run test" npm run test
-run_step "npm run build" npm run build
+run_step "enable Corepack" corepack enable
+run_step "pnpm install" pnpm install --frozen-lockfile
+[[ -f .git/hooks/pre-commit ]] || fail "pnpm install did not install .git/hooks/pre-commit"
+run_step "pnpm check" pnpm check
+run_step "pnpm test" pnpm test
+run_step "pnpm build" pnpm build
+run_step "Docker build" docker build -f apps/web/Dockerfile -t hosti:acceptance .
 printf 'cold-clone acceptance passed\n'

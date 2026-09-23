@@ -1,0 +1,17 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+engineStrict: true
+saveExact: true
+saveWorkspaceProtocol: true
+minimumReleaseAge: 1440
+
+# better-sqlite3 builds the native binding used by the web app and runtime image.
+# esbuild's postinstall selects its platform binary, which Vitest uses.
+# lefthook installs explicitly in prepare-hooks.mjs, so its postinstall is off.
+# sharp has no install script, and unrs-resolver/@swc/core are not dependencies here.
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  lefthook: false

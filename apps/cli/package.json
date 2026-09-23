@@ -7,7 +7,7 @@
     "hosti": "./src/index.ts"
   },
   "scripts": {
-    "check": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "files": [
@@ -17,7 +17,7 @@
     "tar": "7.5.22"
   },
   "devDependencies": {
-    "@hosti/shared": "0.1.0",
+    "@hosti/shared": "workspace:0.1.0",
     "@types/node": "22.20.3",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

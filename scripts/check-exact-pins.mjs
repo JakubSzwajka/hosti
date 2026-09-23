@@ -3,6 +3,7 @@ import { globSync, readFileSync } from "node:fs";
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies"];
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 const COMMIT_PINNED_GIT = /^(?:github:|git\+https:\/\/|git\+ssh:\/\/)[^#]+#[0-9a-f]{40}$/u;
+const WORKSPACE_LIST_ITEM = /^\s+-\s+["']?([^"'#\s]+)["']?\s*$/u;
 
 const isExact = (spec) => {
   if (typeof spec !== "string") return false;
@@ -12,13 +13,19 @@ const isExact = (spec) => {
 };
 
 const workspaceManifests = () => {
-  const root = JSON.parse(readFileSync("package.json", "utf8"));
-  const patterns = root.workspaces;
-  if (!Array.isArray(patterns) || patterns.length === 0) {
-    console.error("pins: no `workspaces` list found in package.json");
+  const lines = readFileSync("pnpm-workspace.yaml", "utf8").split("\n");
+  const start = lines.findIndex((line) => line.trimEnd() === "packages:");
+  const patterns = [];
+  for (const line of lines.slice(start + 1)) {
+    const item = WORKSPACE_LIST_ITEM.exec(line);
+    if (item === null) break;
+    patterns.push(`${item[1]}/package.json`);
+  }
+  if (start === -1 || patterns.length === 0) {
+    console.error("pins: no `packages:` list found in pnpm-workspace.yaml");
     process.exit(1);
   }
-  return ["package.json", ...globSync(patterns.map((pattern) => `${pattern}/package.json`)).sort()];
+  return ["package.json", ...globSync(patterns).sort()];
 };
 
 const looseSpecs = (manifestPath) => {

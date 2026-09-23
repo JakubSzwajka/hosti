@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shallow-clone the pinned Next.js source for agent reference. Not part of check.
-# Usage: npm run vendor:agent-sources [-- --refresh]
+# Usage: pnpm vendor:agent-sources [-- --refresh]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -32,9 +32,9 @@ Read `CONTEXT.md` before changing behavior. Hosti's terms and product rules appl
 From the repository root:
 
 ```sh
-npm run check
-npm run test
-npm run build
+pnpm check
+pnpm test
+pnpm build
 ```
 
-`npm run check` includes exact pins, environment schema validation, Biome, ESLint, workspace TypeScript checks, and Dependency Cruiser. Run all three commands after a route change.
+`pnpm check` includes exact pins, environment schema validation, Biome, ESLint, workspace typechecks, and Dependency Cruiser. Run all three commands after a route change.
