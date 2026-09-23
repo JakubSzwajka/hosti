@@ -6,14 +6,12 @@ import { create } from "tar";
 
 export const FIXTURES = path.resolve(import.meta.dirname, "../../../fixtures");
 
-/** Point Hosti at a throwaway data directory for one test file. */
 export async function useTempDataDir(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-test-"));
   process.env.HOSTI_DATA_DIR = dir;
   return dir;
 }
 
-/** Pack a fixture directory the way the CLI will: gzipped tar, paths relative. */
 export async function tarFixture(name: string): Promise<Buffer> {
   const chunks: Buffer[] = [];
   const stream = create({ gzip: true, cwd: path.join(FIXTURES, name), portable: true }, ["."]);
@@ -24,7 +22,6 @@ export async function tarFixture(name: string): Promise<Buffer> {
 export type TarEntry = {
   name: string;
   content?: string;
-  /** Declared size, when it should lie about the content that follows. */
   declaredSize?: number;
   type?: "file" | "symlink" | "directory" | "character-device";
   linkname?: string;
@@ -37,7 +34,6 @@ const TYPE_FLAGS: Record<NonNullable<TarEntry["type"]>, string> = {
   "character-device": "3",
 };
 
-/** Build a gzipped tar by hand, so a test can post paths node-tar would refuse to write. */
 export function makeTar(entries: TarEntry[]): Buffer {
   const blocks: Buffer[] = [];
   for (const entry of entries) {
@@ -78,17 +74,12 @@ function writeOctal(buffer: Buffer, value: number, offset: number, length: numbe
   buffer.write(`${value.toString(8).padStart(length - 1, "0")}\0`, offset, length, "utf8");
 }
 
-/* zips --------------------------------------------------------------- */
-
 export type ZipEntry = {
   name: string;
   content?: string;
-  /** Deflate the bytes instead of storing them raw. */
   deflate?: boolean;
-  /** A unix symlink, whose content is the path it points at. */
   symlink?: boolean;
   directory?: boolean;
-  /** Uncompressed size to declare, when the header should lie about it. */
   declaredSize?: number;
 };
 
@@ -110,17 +101,12 @@ function crc32(bytes: Buffer): number {
   return (value ^ 0xffffffff) >>> 0;
 }
 
-/** Unix mode in the high half of the external attributes, which is where zip keeps it. */
 function externalAttributes(entry: ZipEntry): number {
   if (entry.symlink) return (0o120777 << 16) >>> 0;
   if (entry.directory) return ((0o040755 << 16) >>> 0) | 0x10;
   return (0o100644 << 16) >>> 0;
 }
 
-/**
- * Build a zip by hand, so a test can post entries a zip tool would not make:
- * a path that climbs out, a symlink, a header that understates a file.
- */
 export function makeZip(entries: ZipEntry[]): Buffer {
   const locals: Buffer[] = [];
   const central: Buffer[] = [];
@@ -181,7 +167,6 @@ export function makeZip(entries: ZipEntry[]): Buffer {
   return Buffer.concat([...locals, directory, end]);
 }
 
-/** Zip a fixture directory the way a person's archive tool would. */
 export async function zipFixture(name: string): Promise<Buffer> {
   const root = path.join(FIXTURES, name);
   const entries: ZipEntry[] = [];

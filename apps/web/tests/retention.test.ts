@@ -3,12 +3,6 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
-/**
- * Retention: a push keeps the newest few revisions of its bundle and deletes
- * the rest. This is the only code in Hosti that removes files inside a live
- * bundle, so the tests pin both halves, the rows and the directories.
- */
-
 const { prune, push } = await import("./api");
 const { createPushToken } = await import("@/server/push-tokens");
 const { findBundle, listRevisions } = await import("@/server/catalog");
@@ -32,7 +26,6 @@ afterAll(async () => {
   await fs.rm(dataDir, { recursive: true, force: true });
 });
 
-/** Push the same slug `times` over, which is what makes old revisions. */
 async function pushTimes(slug: string, times: number): Promise<void> {
   const body = await tarFixture("single-file");
   for (let n = 0; n < times; n += 1) {

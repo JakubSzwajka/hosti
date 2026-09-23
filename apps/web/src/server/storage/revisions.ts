@@ -9,34 +9,22 @@ import type { UnpackStats } from "@/server/storage/revision-sink";
 import { unpackTarball } from "@/server/storage/unpack";
 import { unpackZip } from "@/server/storage/unzip";
 
-/** The two containers a bundle arrives in. Both end up in the same sink. */
 export type ArchiveFormat = "tar.gz" | "zip";
 
-/**
- * Which container these bytes are, read from the bytes rather than the name.
- * A file called `.zip` that is really a tarball still unpacks, and a renamed
- * anything-else is refused before a directory is made.
- */
 export function archiveFormat(head: Buffer): ArchiveFormat | null {
   if (head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b) return "tar.gz";
   if (head.length >= 4 && head[0] === 0x50 && head[1] === 0x4b) {
-    // Local file header, empty archive, or the spanning marker.
     const mark = (head[2] as number) * 256 + (head[3] as number);
     if (mark === 0x0304 || mark === 0x0506 || mark === 0x0708) return "zip";
   }
   return null;
 }
 
-/**
- * Unpack one push into a fresh `r<seq>` directory, prove it has an entry file,
- * then flip `current` onto it. A push that fails at any step leaves no
- * directory behind and leaves `current` where it was.
- */
 export async function writeRevision(input: {
   bundleSlug: string;
   seq: number;
   body: Readable;
-  /** How the bytes are wrapped. The push API speaks gzipped tar only. */
+
   format?: ArchiveFormat;
 }): Promise<UnpackStats> {
   const dir = revisionDir(input.bundleSlug, input.seq);
@@ -45,6 +33,7 @@ export async function writeRevision(input: {
   try {
     const stats = await unpack(input.body, dir);
     await ensureEntryFile(dir);
+    // Move `current` only after the complete revision has passed validation.
     await flipCurrent(input.bundleSlug, input.seq);
     return stats;
   } catch (error) {
@@ -53,11 +42,6 @@ export async function writeRevision(input: {
   }
 }
 
-/**
- * Entry file rule: `index.html` at the root wins. Failing that, a lone root
- * `.html` file is stored as `index.html`, which is how a single-file bundle
- * arrives. Anything else is a push Hosti cannot serve.
- */
 export async function ensureEntryFile(dir: string): Promise<void> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files = entries.filter((entry) => entry.isFile());
@@ -80,7 +64,6 @@ export async function ensureEntryFile(dir: string): Promise<void> {
   );
 }
 
-/** Atomic swap: build the new symlink beside `current`, then rename over it. */
 async function flipCurrent(bundleSlug: string, seq: number): Promise<void> {
   const link = currentLink(bundleSlug);
   const staging = path.join(bundleDir(bundleSlug), `.current-${randomBytes(6).toString("hex")}`);

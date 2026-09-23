@@ -11,7 +11,6 @@ let configHome: string;
 
 type Run = { code: number; stdout: string; stderr: string };
 
-/** Run the CLI the way a shell does, and report the exit code an agent reads. */
 async function hosti(args: string[], env: NodeJS.ProcessEnv = {}): Promise<Run> {
   try {
     const { stdout, stderr } = await run(process.execPath, [BIN, ...args], {

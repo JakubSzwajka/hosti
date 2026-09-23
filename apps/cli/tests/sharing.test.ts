@@ -1,12 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeStub, ROTATED_SLUG } from "./stub-server.ts";
 
-/**
- * `share` and `rotate` against a stand-in server. What matters here is the
- * body the CLI sends, the exit code it returns, and that no pin ever comes
- * back out on either stream.
- */
-
 const stub = makeStub();
 const hosti = stub.hosti;
 let origin: string;

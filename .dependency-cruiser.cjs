@@ -1,5 +1,3 @@
-/** @type {import("dependency-cruiser").IConfiguration} */
-
 const path = require("node:path");
 
 const CLI_ROOT = "^apps/cli(?:/|$)";
@@ -103,7 +101,6 @@ module.exports = {
     skipAnalysisNotInRules: true,
     baseDir: __dirname,
     tsPreCompilationDeps: "specify",
-    // check:deps runs from apps/web so Dependency Cruiser resolves @/* from this tsconfig.
     tsConfig: {
       fileName: path.join(__dirname, "apps/web/tsconfig.json"),
     },

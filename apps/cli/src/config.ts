@@ -9,7 +9,6 @@ export type Config = { url: string; token: string };
 
 type FileConfig = { url?: string; token?: string };
 
-/** `~/.config/hosti.json`, or XDG_CONFIG_HOME when the shell sets one. */
 export function configFilePath(env: NodeJS.ProcessEnv = process.env): string {
   const base = env.XDG_CONFIG_HOME?.trim() || path.join(os.homedir(), ".config");
   return path.join(base, "hosti.json");
@@ -38,10 +37,6 @@ function pick(...candidates: (string | undefined)[]): string | undefined {
   return undefined;
 }
 
-/**
- * Flags win, then the environment, then the config file. Anything missing is
- * one sentence naming the three places it could come from.
- */
 export function resolveConfig(flags: Flags, env: NodeJS.ProcessEnv = process.env): Config {
   const file = configFilePath(env);
   const fromFile = readConfigFile(file);

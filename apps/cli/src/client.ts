@@ -10,7 +10,6 @@ import type {
 } from "@hosti/shared";
 import type { Config } from "./config.ts";
 
-/** A refusal from the server, or a server that never answered. */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;

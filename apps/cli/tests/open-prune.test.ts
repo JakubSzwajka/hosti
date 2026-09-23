@@ -1,11 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeStub } from "./stub-server.ts";
 
-/**
- * `open`, `ls` and `prune` against a stand-in server, because all three are
- * about what a pipe and an exit code see.
- */
-
 const stub = makeStub();
 const hosti = stub.hosti;
 let origin: string;

@@ -3,24 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { useTempDataDir } from "./helpers";
 
-/**
- * How the bundle page talks about the way a revision arrived. There are three
- * states and the page must not blur them:
- *
- *   a push token's name   the meta line names the token
- *   the reserved marker   the meta line says the owner uploaded it
- *   nothing on the row    the meta line says nothing at all
- *
- * The third is a revision written before Hosti recorded this, which the
- * migration leaves blank on purpose. The owner's own database holds those, and
- * claiming they were uploaded in the catalog would be a guess dressed as a
- * fact.
- *
- * The page is a server component, so these tests call it the way Next does and
- * read the markup back. `next/headers` only exists inside a request, so it is
- * mocked with the one cookie and the one host the page reads.
- */
-
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
 process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
@@ -51,12 +33,6 @@ const BundleDetail = (await import("@/app/b/[slug]/page")).default;
 
 let dataDir: string;
 
-/**
- * One bundle whose current revision arrived the given way. Returns its HTML.
- * `recordRevision` will not write NULL, so a pre-schema-3 row is made the only
- * way one can exist now: the column is blanked afterwards, which is the state
- * the migration leaves behind.
- */
 async function pageFor(slug: string, pushedBy: string | null): Promise<string> {
   const bundle = createBundle({ slug, title: slug });
   recordRevision({
@@ -77,7 +53,6 @@ async function pageFor(slug: string, pushedBy: string | null): Promise<string> {
   );
 }
 
-/** The meta line, which is where the arrival clause sits. */
 function metaLine(html: string): string {
   return (
     html.match(/<div class="detail-facts">([\s\S]*?)<\/div>\s*<(?:a|span) class="btn"/)?.[1] ?? ""

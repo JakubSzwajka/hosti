@@ -1,11 +1,3 @@
-/**
- * Two ways a sharing write could say yes and mean something else.
- *
- * A pin field that is empty or malformed used to be dropped in silence, so the
- * caller got a 200 for a request Hosti had not carried out. And hashing a pin
- * takes scrypt time, so a slow `pin` request could finish after a later
- * `private` one and put the pin back on a bundle the owner had just shut.
- */
 import fs from "node:fs/promises";
 import type { SharingResponse } from "@hosti/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -25,7 +17,6 @@ async function pushed(slug: string): Promise<void> {
   if (response.status !== 201) throw new Error(`push failed: ${await response.text()}`);
 }
 
-/** The stored hash, read straight off the row. No endpoint reports it. */
 function storedPinHash(slug: string): string | null {
   return findBundle(slug)?.pin_hash ?? null;
 }
@@ -70,8 +61,6 @@ describe("two sharing writes at once", () => {
     await pushed("racer");
     await setSharing(token, "racer", { mode: "pin", pin: "4821" });
 
-    // The pin call hashes with scrypt and the private call does no work at all,
-    // so without a queue the slow one would finish last and win.
     const slow = setSharing(token, "racer", { mode: "pin", pin: "5555" });
     const fast = setSharing(token, "racer", { mode: "private" });
     const [first, second] = await Promise.all([slow, fast]);

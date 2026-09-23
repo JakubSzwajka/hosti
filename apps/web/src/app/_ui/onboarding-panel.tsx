@@ -1,34 +1,10 @@
 import { CopyButton } from "@/app/_ui/copy-button";
 import { TOKEN_NAME_MAX_LENGTH, TOKEN_NAME_RULE } from "@/server/push-tokens";
 
-/**
- * The one panel that gets an agent pushing to this box. It is the whole of the
- * empty catalog, and it sits at the top of `/tokens` so the owner can come
- * back to it once the catalog has bundles in it.
- *
- * Everything the owner has to carry elsewhere is monospace with a copy button
- * beside it. Nothing here asks them to open a shell on the server.
- */
-
-/** Stands in for the secret until one is minted, so the prompt copies whole. */
 export const TOKEN_MARKER = "paste-your-push-token";
 
-/**
- * The command that installs the skill into an agent on another machine.
- *
- * It names the public repository, not this instance. The skill is a file at
- * `skills/hosti-publish/SKILL.md` in the Hosti source, so it is the same text
- * for every instance and Hosti serves nothing to install it. The
- * instance-specific values live in the prompt below, where the real URL and
- * the minted token belong.
- */
 export const SKILL_INSTALL_COMMAND = "npx skills add JakubSzwajka/hosti";
 
-/**
- * The prompt the owner hands their agent. The wording is fixed; only the
- * instance URL and the token change. It names the skill install first,
- * because that is what teaches the agent the API this prompt does not.
- */
 export function agentPrompt(baseUrl: string, token: string | null): string {
   const url = baseUrl.replace(/\/+$/, "");
   return `Publish a static site to my Hosti catalog.
@@ -56,9 +32,7 @@ export function OnboardingPanel({
   heading,
 }: {
   baseUrl: string;
-  /** The mutation token, which every catalog write carries. */
   token: string;
-  /** A freshly minted secret, readable this once, or null. */
   secret: string | null;
   nameRefused: boolean;
   heading: string;
@@ -130,10 +104,6 @@ export function OnboardingPanel({
   );
 }
 
-/**
- * The one moment a secret is readable. It is held in memory by the mint and
- * taken away by this read, so a reload shows the panel with nothing here.
- */
 function MintedSecret({ secret }: { secret: string }) {
   return (
     <div className="minted">

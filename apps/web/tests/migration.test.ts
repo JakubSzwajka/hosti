@@ -1,16 +1,3 @@
-/**
- * Schema 1 to 2: sharing moves onto the bundle and `share_links` goes.
- * Schema 2 to 3: a revision records which push token wrote it.
- *
- * The test builds a version 1 database by hand, then opens it the way the app
- * does and checks what survived. Bundles, revisions and push tokens keep every
- * row. Every bundle lands private, because the old rows held slugs and pins
- * nobody can map onto a single link.
- *
- * The old `share_links` also carried two columns this fixture leaves out. They
- * held no behaviour, and the migration drops the whole table, so no assertion
- * here depends on them.
- */
 import Database from "better-sqlite3";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -58,10 +45,6 @@ CREATE TABLE push_tokens (
 INSERT INTO meta (key, value) VALUES ('schema_version', '1');
 `;
 
-/**
- * Version 2, which is version 1 with sharing on the bundle row and no
- * `share_links`. `revisions` has no `pushed_by` yet: version 3 adds it.
- */
 const VERSION_2_SCHEMA = `
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE bundles (
@@ -101,7 +84,6 @@ const NOW = "2026-09-17T10:00:00.000Z";
 
 let dataDir: string | null = null;
 
-/** A version 1 file with two bundles, three revisions, three links, one token. */
 async function makeVersion1(): Promise<string> {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-migration-"));
   const file = path.join(dataDir, "hosti.db");
@@ -145,7 +127,6 @@ async function makeVersion1(): Promise<string> {
   return file;
 }
 
-/** A version 2 file with two bundles, three revisions, two tokens, one pin. */
 async function makeVersion2(): Promise<string> {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-migration-2-"));
   const file = path.join(dataDir, "hosti.db");
@@ -359,9 +340,6 @@ describe("a database made from scratch", () => {
     dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-partial-"));
     const file = path.join(dataDir, "hosti.db");
 
-    // A file with `revisions` already in it and no `meta`. The open reads that
-    // as empty and runs the whole schema, which trips on the table that is
-    // already there. Everything the run had written up to then must go with it.
     const seeded = new Database(file);
     seeded.exec("CREATE TABLE revisions (id INTEGER PRIMARY KEY);");
     seeded.close();

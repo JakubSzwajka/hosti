@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Report what the environment actually holds, without printing a secret.
-//   npm run env:check          (in the container: node scripts/env-check.mjs)
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
@@ -18,12 +16,10 @@ const WHITESPACE_NAMES = {
   "\ufeff": "a byte order mark (U+FEFF)",
 };
 
-/** First 8 hex characters of the SHA-256 digest. Never the value itself. */
 export function digestPrefix(value) {
   return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 8);
 }
 
-/** Name each whitespace character in order, so `\r` is not mistaken for a space. */
 function nameWhitespace(run) {
   return [...run]
     .map(
@@ -44,11 +40,6 @@ function controlCharacterNames(value) {
   return found;
 }
 
-/**
- * Everything worth knowing about one secret, none of it revealing. A value
- * that survived two parsers can still be wrong in ways nobody can see, so the
- * shapes that have already broken a deployment are called out by name.
- */
 export function inspectSecret(name, raw) {
   if (raw === undefined || raw === "") {
     return { name, set: false, warnings: [], problem: true };
@@ -117,7 +108,6 @@ const HOW_TO_COMPARE = [
   "both mangle a ! or a # before anything downstream sees the value.",
 ];
 
-/** The whole report as lines, plus the exit code it implies. */
 export function checkEnvironment(env) {
   const reports = SECRET_VARS.map((name) => inspectSecret(name, env[name]));
   const lines = ["hosti env check", ""];

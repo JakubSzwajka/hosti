@@ -1,8 +1,3 @@
-/**
- * A stand-in Hosti for the CLI tests. It answers the endpoints the CLI calls
- * and nothing else, so a test can say what the server hands back and then
- * check what a pipe and an exit code see.
- */
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server } from "node:http";
@@ -17,16 +12,12 @@ export type Run = { code: number; stdout: string; stderr: string };
 export type Mode = "private" | "link" | "pin";
 export type Entry = { slug: string; mode: Mode; shareSlug?: string };
 
-/** The slug a rotate hands back, fixed so a test can name it. */
 export const ROTATED_SLUG = "k7f3n9qpbcdf";
 
 export type Stub = {
   origin: () => string;
-  /** The bundles the server knows about. Rewrite it between cases. */
   setCatalog: (entries: Entry[]) => void;
-  /** What `POST .../prune` answers with, or a refusal when the status is not 200. */
   setPruneAnswer: (answer: { status: number; body: unknown }) => void;
-  /** The last `PUT .../sharing` body the server saw. */
   lastSharingBody: () => string;
   hosti: (args: string[], env?: NodeJS.ProcessEnv) => Promise<Run>;
   start: () => Promise<void>;
@@ -127,8 +118,6 @@ export function makeStub(): Stub {
           else {
             lastSharingBody = await bodyOf(request);
             const asked = JSON.parse(lastSharingBody) as { mode: Mode; pin?: string };
-            // An entry already on pin is one that holds a hash, so a bare
-            // retry keeps it. Anything else is refused, like the real server.
             if (asked.mode === "pin" && !asked.pin && entry.mode !== "pin") {
               return json(400, { error: "pin_required", message: 'Mode "pin" needs a pin' });
             }

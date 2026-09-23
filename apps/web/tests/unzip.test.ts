@@ -4,12 +4,6 @@ import { Readable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeZip, useTempDataDir } from "./helpers";
 
-/**
- * The zip reader on its own. It decides what zip means by an entry; the
- * limits and the path rules it enforces are RevisionSink's, shared with the
- * tar reader, so what is tested here is the reading and the cut-offs.
- */
-
 const { slugFromFileName } = await import("@hosti/shared");
 const { unpackZip } = await import("@/server/storage/unzip");
 

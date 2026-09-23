@@ -5,21 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { formatBytes } from "@/app/_ui/format";
 
-/**
- * Putting a bundle in from the browser: drop a `.zip` or a `.tar.gz` anywhere
- * on the catalog, or pick one with `add a bundle`.
- *
- * At rest this is one control beside the collection chips. The form only
- * exists once there is a file to talk about, and the label opens the file
- * picker with no script, so the way in for someone who does not drag is a
- * plain `<label for>` rather than a click handler.
- *
- * It posts to `/upload` with XHR rather than submitting the form, for two
- * reasons the owner can see. A big archive takes a while, and XHR is the only
- * thing that reports how far the bytes have got. And when the server refuses,
- * its own sentence appears here, instead of a redirect that would swallow it.
- */
-
 type Stage =
   | { name: "idle" }
   | { name: "sending"; percent: number }
@@ -34,9 +19,7 @@ export function UploadDrop({
   defaultCollection,
 }: {
   token: string;
-  /** Slugs already in the catalog, so the owner is told before a revision lands. */
   slugs: string[];
-  /** The collection this page lists, prefilled so a drop stays where it landed. */
   defaultCollection?: string;
 }) {
   const router = useRouter();
@@ -49,8 +32,6 @@ export function UploadDrop({
   const [overWindow, setOverWindow] = useState(false);
   const [stage, setStage] = useState<Stage>({ name: "idle" });
 
-  // Stable, so the window listeners below are registered once: everything it
-  // touches is a setter React keeps for the life of the component.
   const take = useCallback((picked: File): void => {
     if (!isArchiveName(picked.name)) {
       setStage({
@@ -65,8 +46,6 @@ export function UploadDrop({
     setStage({ name: "idle" });
   }, []);
 
-  // A file dropped anywhere on the page counts. Without these the browser
-  // would leave the catalog and open the archive instead.
   useEffect(() => {
     let depth = 0;
     const carriesFile = (event: DragEvent) =>
@@ -140,8 +119,6 @@ export function UploadDrop({
       if (request.status === 201 && "revision" in answer) {
         clearFile();
         setStage({ name: "done", slug: answer.bundle, revision: answer.revision });
-        // The card and its live preview are drawn on the server, so the grid
-        // has to come back from there before the new bundle shows up.
         router.refresh();
         return;
       }

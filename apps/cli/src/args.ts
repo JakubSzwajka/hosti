@@ -1,11 +1,8 @@
-/** Turning `process.argv` into one command with its flags. */
-
 export class UsageError extends Error {}
 
 export const COMMANDS = ["push", "ls", "share", "rotate", "rm", "open", "prune"] as const;
 export type Command = (typeof COMMANDS)[number];
 
-/** Flags that stand alone. Everything else swallows the next word. */
 const SWITCHES = new Set(["allow-absolute", "yes", "open", "help", "version"]);
 const VALUE_FLAGS = new Set(["slug", "title", "collection", "mode", "pin", "url", "token"]);
 
@@ -13,15 +10,12 @@ export type Flags = {
   slug?: string;
   title?: string;
   collection?: string;
-  /** The sharing state `share` asks for: private, link or pin. */
   mode?: string;
-  /** The pin to store. Four to eight digits, the owner's choice, never Hosti's. */
   pin?: string;
   url?: string;
   token?: string;
   allowAbsolute?: boolean;
   yes?: boolean;
-  /** Hand the URL `open` prints to the platform's browser as well as printing it. */
   open?: boolean;
   help?: boolean;
   version?: boolean;
@@ -40,7 +34,6 @@ function assign(flags: Flags, name: string, value: string | boolean): void {
   (flags as Record<string, string | boolean>)[key] = value;
 }
 
-/** One pass over the words: `--name value`, `--name=value`, or a switch. */
 export function parseFlags(argv: string[]): { positionals: string[]; flags: Flags } {
   const positionals: string[] = [];
   const flags: Flags = {};
@@ -78,7 +71,6 @@ export function parseFlags(argv: string[]): { positionals: string[]; flags: Flag
   return { positionals, flags };
 }
 
-/** What the words mean: which command, its one argument, and the flags. */
 export function parseInvocation(argv: string[]): Invocation {
   const { positionals, flags } = parseFlags(argv);
   const [name, ...rest] = positionals;
@@ -104,8 +96,6 @@ export function parseInvocation(argv: string[]): Invocation {
     if (!(MODES as readonly string[]).includes(flags.mode)) {
       throw new UsageError(`--mode is one of ${MODES.join(", ")}`);
     }
-    // A pin under any other mode would be stored and then cleared, or stored
-    // and ignored. Both read as "it worked", so refuse instead.
     if (flags.pin && flags.mode !== "pin") {
       throw new UsageError("--pin only goes with --mode pin");
     }
@@ -120,7 +110,6 @@ export function parseInvocation(argv: string[]): Invocation {
   return { kind: "run", command, target, flags };
 }
 
-/** The three sharing states, the same three words the server and catalog use. */
 const MODES = ["private", "link", "pin"] as const;
 
 export const HELP = `hosti - push static bundles to a Hosti server

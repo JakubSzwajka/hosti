@@ -3,12 +3,6 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeZip, tarFixture, useTempDataDir, zipFixture } from "./helpers";
 
-/**
- * The catalog's own way in. The owner drops an archive on the grid and it
- * lands as a bundle, under the admin session and the mutation token every
- * other change the catalog makes carries. No push token, no public endpoint.
- */
-
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
 process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
@@ -80,10 +74,6 @@ describe("who may upload", () => {
   });
 
   it("refuses an anonymous caller before it reads the body", async () => {
-    // The refusal has to come off the headers alone. Parsing the form first
-    // would let a stranger make the server buffer up to the 50 MB limit and
-    // only then be told no, so the test watches every way in to the body and
-    // asserts the route took none of them.
     const body = new FormData();
     body.set("token", token);
     body.set("slug", "never-read");
@@ -135,8 +125,6 @@ describe("a zip becoming a bundle", () => {
       file: { name: "Dropped In.zip", bytes: await zipFixture("multi-page") },
     });
     expect(response.status).toBe(201);
-    // The catalog's own upload mints nothing: a bundle is private however it
-    // arrived.
     expect(await response.json()).toMatchObject({
       bundle: "dropped",
       revision: 1,
@@ -167,9 +155,6 @@ describe("a zip becoming a bundle", () => {
   });
 
   it("marks it as the catalog's own upload, never leaving the row blank", async () => {
-    // The owner's own hand is no push token, but it is still a known way in.
-    // A blank row is what a revision from before Hosti kept this looks like,
-    // so an upload writes the reserved marker instead.
     const revisions = listRevisions(findBundle("dropped")?.id ?? 0);
     expect(revisions).not.toHaveLength(0);
     expect(revisions.map((revision) => revision.pushedBy)).toEqual([

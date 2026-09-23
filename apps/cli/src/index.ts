@@ -8,11 +8,9 @@ import { COMMAND_TABLE, CommandError } from "./commands.ts";
 import { PackError } from "./pack.ts";
 import { stderr, stdout } from "./output.ts";
 
-/** 0 fine, 1 the server or the files said no, 2 the command line was wrong. */
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 
-/** Ask the terminal. With no terminal there is nobody to ask, so refuse. */
 async function confirm(question: string): Promise<boolean> {
   if (!process.stdin.isTTY) {
     throw new CommandError("Nothing is attached to ask; pass --yes to go ahead");
