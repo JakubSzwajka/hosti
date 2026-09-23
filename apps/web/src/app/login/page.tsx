@@ -31,7 +31,7 @@ export default async function Login({
   );
 }
 
-function Form({ error }: { error?: string }) {
+function Form({ error }: { error?: string | undefined }) {
   return (
     <form method="post" action="/login/submit">
       <label htmlFor="password">Owner password</label>

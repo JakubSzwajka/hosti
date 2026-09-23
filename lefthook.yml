@@ -1,0 +1,10 @@
+# Agent hooks block --no-verify; see AGENTS.md.
+pre-commit:
+  piped: true
+  commands:
+    check:
+      priority: 1
+      run: npm run check
+    test:
+      priority: 2
+      run: npm run test

@@ -22,10 +22,10 @@ export function Shot({
 }: {
   className: string;
   width: keyof typeof PREVIEW_WIDTH;
-  src?: string;
-  expiresAt?: number | null;
-  href?: string;
-  openHref?: string;
+  src?: string | undefined;
+  expiresAt?: number | null | undefined;
+  href?: string | undefined;
+  openHref?: string | undefined;
   label: string;
   facts: ReactNode;
   children: ReactNode;
