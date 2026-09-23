@@ -16,25 +16,11 @@ import { archiveFormat } from "@/server/storage/revisions";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * The catalog's own way in: the owner drops a `.zip` or a `.tar.gz` on the
- * grid and it lands as a bundle, or as the next revision of one that exists.
- *
- * Owner only. It takes the admin session and the same mutation token every
- * other change the catalog makes carries, and no push token is involved: this
- * is not a second public endpoint, it is the upload half of the catalog.
- *
- * It answers JSON rather than a redirect, because the browser posts it with
- * XHR to draw a progress bar and to print the server's own refusal.
- *
- * The session is checked on the headers alone, before the body is touched.
- * Reading the form first would have this route buffer 50 MB from a stranger
- * and only then refuse them.
- */
 export async function POST(request: Request): Promise<Response> {
   const signedIn = guardSession(request);
   if (!signedIn.ok) return asJson(signedIn.response);
 
+  // Authenticate before parsing the archive body to reject strangers without buffering uploads.
   let form: FormData;
   try {
     form = await request.formData();
@@ -74,9 +60,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    // The owner's own hand, so there is no push token to name. It records the
-    // reserved marker rather than nothing, because nothing is what a revision
-    // from before Hosti kept this looks like.
     const stored = await storeRevision({
       slug,
       body: Readable.from([bytes]),
@@ -96,7 +79,6 @@ function text(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-/** The shared mutation gate answers in plain text; the drop zone reads JSON. */
 const CODE_BY_STATUS: Record<number, string> = {
   401: "not_signed_in",
   403: "stale_form",

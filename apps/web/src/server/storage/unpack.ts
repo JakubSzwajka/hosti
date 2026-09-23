@@ -5,12 +5,6 @@ import { Parser, type ReadEntry } from "tar";
 import { PushError } from "@/server/errors";
 import { RevisionSink, type UnpackLimits, type UnpackStats } from "@/server/storage/revision-sink";
 
-/**
- * The gzipped-tar reader. It decides only what tar means by an entry; every
- * limit, path rule and refusal lives in RevisionSink, which the zip reader
- * feeds too.
- */
-
 export type { UnpackLimits, UnpackStats };
 
 const FILE_TYPES = new Set(["File", "OldFile", "ContiguousFile"]);
@@ -36,10 +30,6 @@ export function countingStream(maxBytes: number): Transform {
   });
 }
 
-/**
- * Unpack a gzipped tar into `destDir`, enforcing every limit while it writes
- * rather than after. The caller removes `destDir` when this throws.
- */
 export async function unpackTarball(
   source: Readable,
   destDir: string,
@@ -103,7 +93,6 @@ export function normalizeStreamError(error: unknown): Error {
   return new PushError("bad_tarball", `Cannot read the pushed tarball: ${message}`);
 }
 
-/** What tar calls this entry, turned into one of the sink's three answers. */
 function takeEntry(entry: ReadEntry, sink: RevisionSink): Promise<void> | null {
   const type = String(entry.type);
   if (DIRECTORY_TYPES.has(type)) {
@@ -111,7 +100,6 @@ function takeEntry(entry: ReadEntry, sink: RevisionSink): Promise<void> | null {
     return null;
   }
   if (!FILE_TYPES.has(type)) sink.refuse(entry.path, type);
-  // A tar entry is a minipass stream, not a node one. It reads as bytes all
-  // the same, so it is wrapped rather than cast.
+  // Tar exposes a minipass stream; wrap it instead of casting to Node's stream type.
   return sink.file(entry.path, entry.size ?? 0, () => Readable.from(entry, { objectMode: false }));
 }

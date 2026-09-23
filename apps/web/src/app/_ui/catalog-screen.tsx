@@ -105,11 +105,6 @@ function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
   );
 }
 
-/**
- * The masthead's right-hand slot. `/tokens` is reachable from here because
- * the onboarding panel stops being the page the moment a bundle lands, and
- * the owner still has to get back to it to mint or revoke.
- */
 function CatalogMeta({ heading }: { heading?: string }) {
   return (
     <span className="mast-meta">
@@ -127,17 +122,9 @@ function EmptyFooter() {
   );
 }
 
-/**
- * The empty catalog is the onboarding panel and nothing else. It used to be
- * three steps that sent the owner to a shell on the server for
- * `npm run token:new`, which nobody on a Dokploy box can reach without
- * opening a container terminal.
- */
 export function EmptyCatalog({ baseUrl, token }: { baseUrl: string; token: string }) {
   return (
     <div className="empty onboard-shell">
-      {/* A refused name lands on /tokens, never here: the mint route sends
-          every answer there, so this panel has no refusal to show. */}
       <OnboardingPanel
         baseUrl={baseUrl}
         token={token}

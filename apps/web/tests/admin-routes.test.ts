@@ -23,7 +23,6 @@ const { POST: ROTATE } = await import("@/app/b/[slug]/sharing/rotate/route");
 const { POST: DELETE_BUNDLE } = await import("@/app/b/[slug]/delete/route");
 const { GET: LIST_BUNDLES } = await import("@/app/api/v1/bundles/route");
 
-/** The sharing state straight off the row, which is what the form writes. */
 function sharingOf(slug: string) {
   const bundle = findBundle(slug);
   if (!bundle) throw new Error(`no bundle ${slug}`);

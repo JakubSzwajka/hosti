@@ -2,18 +2,6 @@ import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
-/**
- * Minting and revoking push tokens from the catalog.
- *
- * Both are catalog writes, so both take the admin session cookie and the
- * mutation token, exactly like setting a sharing state from the bundle page.
- * A push token opens `/api/v1/` and nothing else, so it can never reach here.
- *
- * The one thing these routes must never leak is a secret. Hosti stores only a
- * SHA-256 digest, and the single moment the owner can read a secret is the
- * one-time display that follows a mint.
- */
-
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
 process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
@@ -46,13 +34,11 @@ function post(path: string, fields: Record<string, string>, withCookie = true): 
   });
 }
 
-/** The `shown` id out of a mint redirect, or null when it carried none. */
 function shownId(response: Response): string | null {
   const location = response.headers.get("location") ?? "";
   return new URL(location, ORIGIN).searchParams.get("shown");
 }
 
-/** Mint through the route and read the secret back out of the one-time store. */
 async function mint(name: string): Promise<{ response: Response; secret: string }> {
   const response = await MINT(post("/tokens/mint", { token, name }));
   const id = shownId(response);

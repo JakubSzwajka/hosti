@@ -1,22 +1,14 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
-/**
- * The admin session: a signed cookie, nothing else. There are no users, so the
- * cookie carries only when it was minted, when it dies and a nonce. The nonce
- * is what the per-session mutation token is derived from, so a stolen mutation
- * token is useless once the owner logs in again.
- */
-
 export const SESSION_COOKIE = "hosti_admin";
-/** Thirty days. Long enough that the owner types the password rarely. */
+
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export type AdminSession = {
-  /** Issued at, epoch milliseconds. */
   iat: number;
-  /** Expires at, epoch milliseconds. */
+
   exp: number;
-  /** Random per-session value. The mutation token hangs off this. */
+
   nonce: string;
 };
 
@@ -28,18 +20,12 @@ function hmac(secret: string, message: string): Buffer {
   return createHmac("sha256", secret).update(message).digest();
 }
 
-/**
- * Compare two strings without leaking where they first differ, or how long
- * either one is. `timingSafeEqual` throws on a length mismatch, so both sides
- * are hashed first: the digests are always 32 bytes.
- */
 export function constantTimeEquals(a: string, b: string): boolean {
   const leftDigest = createHmac("sha256", "hosti-compare").update(a, "utf8").digest();
   const rightDigest = createHmac("sha256", "hosti-compare").update(b, "utf8").digest();
   return timingSafeEqual(leftDigest, rightDigest);
 }
 
-/** Mint a cookie value: `<payload>.<signature>`, both base64url. */
 export function signSession(
   secret: string,
   options: { now?: number; maxAgeSeconds?: number } = {},
@@ -55,11 +41,6 @@ export function signSession(
   return `${payload}.${base64url(hmac(secret, payload))}`;
 }
 
-/**
- * Read a cookie value back. Returns null for anything that is not a live
- * session: a wrong shape, a tampered payload, a foreign signature, an expired
- * stamp. The caller never learns which.
- */
 export function verifySession(
   secret: string,
   value: string | undefined | null,
@@ -83,10 +64,6 @@ export function verifySession(
   return session;
 }
 
-/**
- * The value every mutation form carries. A script running inside a bundle
- * cannot read it out of the HttpOnly cookie, so a blind cross-page POST fails.
- */
 export function mutationToken(secret: string, session: AdminSession): string {
   return base64url(hmac(secret, `hosti-mutation:${session.nonce}`));
 }

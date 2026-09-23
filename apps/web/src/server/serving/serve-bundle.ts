@@ -8,7 +8,6 @@ const PREFIX = "/v/";
 
 type ParsedRequest = { shareSlug: string; requestPath: string; sharePrefix: string };
 
-/** Split `/v/<share-slug>/<path>` without losing the trailing slash. */
 export function parseBundleUrl(url: string): ParsedRequest | null {
   const pathname = new URL(url).pathname;
   if (!pathname.startsWith(PREFIX)) return null;
@@ -29,21 +28,11 @@ export function parseBundleUrl(url: string): ParsedRequest | null {
   };
 }
 
-/**
- * Serve one file out of the bundle's current revision. An unknown share slug,
- * a private bundle and a bundle without a revision answer the same 404, so a
- * guess tells the guesser nothing.
- *
- * A pin is checked before the revision is even looked up, so a locked link
- * gives away nothing about the state of what sits behind it. That is also why
- * the bundle's own `404.html` cannot reach a guest here: a locked or a private
- * bundle never gets past this point, so its 404 page answers only on a link
- * the bundle would have answered on anyway.
- */
 export async function serveBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed) return hostiNotFound();
 
+  // Resolve sharing before disk access so unknown and private links share one 404.
   const link = resolveShare(parsed.shareSlug);
   if (!link) return hostiNotFound();
 
@@ -61,11 +50,6 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
   });
 }
 
-/**
- * `POST /v/<share-slug>/unlock` and nothing else. Every other POST under `/v/`
- * gets the plain 404, because a bundle is static files and has nothing to take.
- * A bundle file named `unlock` is still served on GET; only POST is claimed.
- */
 export async function unlockBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed || parsed.requestPath !== UNLOCK_PATH) return hostiNotFound();

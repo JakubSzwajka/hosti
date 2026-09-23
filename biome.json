@@ -3,11 +3,21 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true
+    "useIgnoreFile": false
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/dist", "!**/.next", "!**/data", "!fixtures", "!**/package-lock.json"]
+    "includes": [
+      "**",
+      "!.env",
+      "!.env.local",
+      "!.pi/specs",
+      "!apps/web/.next",
+      "!data",
+      "!fixtures",
+      "!**/*.tsbuildinfo",
+      "!**/package-lock.json"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -22,13 +32,22 @@
       "correctness": {
         "noUnusedImports": "error"
       },
+      "performance": {
+        "noReExportAll": "error"
+      },
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "error",
         "noExcessiveLinesPerFile": {
-          "level": "error",
+          "level": "warn",
           "options": {
             "maxLines": 300,
             "skipBlankLines": false
+          }
+        },
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case", "export"]
           }
         }
       }

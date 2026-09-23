@@ -8,11 +8,6 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Hosti" };
 
-/**
- * The page that guards the catalog. It shows one field, one button and one error
- * line, and it says nothing about what is stored here, because a stranger who
- * lands on it should learn nothing at all.
- */
 export default async function Login({
   searchParams,
 }: {
@@ -56,7 +51,6 @@ function Form({ error }: { error?: string }) {
   );
 }
 
-/** An install with no secrets set refuses rather than letting anyone in. */
 function Setup({ missing }: { missing: string[] }) {
   return (
     <>

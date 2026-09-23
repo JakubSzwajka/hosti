@@ -5,10 +5,6 @@ import { rotateShareSlug } from "@/server/sharing";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Mint a fresh share slug from the bundle page. The old URL stops answering at
- * once. The sharing state and the pin stay as they were.
- */
 export async function POST(
   request: Request,
   context: { params: Promise<{ slug: string }> },

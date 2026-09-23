@@ -6,13 +6,6 @@ import {
   type ServeOptions,
 } from "@/server/serving/respond";
 
-/**
- * Serve one file out of a revision directory. Two routes arrive here and both
- * must hand back the same bytes: `/v/<share-slug>/` for a guest holding a
- * link, and `/b/<slug>/preview/` for the logged-in owner. They differ only in
- * who is let through and whether the catalog may frame the answer, so the
- * resolution rules live in one place rather than two.
- */
 export async function serveFromRevision(
   request: Request,
   root: string,

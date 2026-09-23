@@ -11,18 +11,6 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-/**
- * Put a bundle into one of the three sharing states.
- *
- *   { "mode": "private" }              nothing answers at the share URL
- *   { "mode": "link" }                 anyone holding the URL opens it
- *   { "mode": "pin", "pin": "4821" }   the URL asks for the digits first
- *
- * Going private or going to a plain link clears the stored pin hash. Asking
- * for `pin` with no pin stored and none in the body is a refusal, not a quiet
- * downgrade to an open link. A pin sent with any other mode is a refusal too,
- * and so is a `pin` key that is empty or not four to eight digits.
- */
 export async function PUT(request: Request, context: Context): Promise<Response> {
   if (!authenticatePush(request)) return unauthorized();
   const { slug } = await context.params;
@@ -39,9 +27,7 @@ export async function PUT(request: Request, context: Context): Promise<Response>
     }
     if (pin) requireSigningSecret();
 
-    // Hash and write as one turn, so a slow pin cannot land after a later
-    // private and put the pin back. Read the row back inside the same turn, so
-    // the body is the state on disk and not what the caller asked for.
+    // Serialize writes so a slow pin hash cannot overwrite a later private write.
     const fresh = await queueSharingWrite(bundle.id, async () => {
       const pinHash = pin ? await hashPin(pin) : undefined;
       setSharing(bundle.id, { mode, ...(pinHash ? { pinHash } : {}) });

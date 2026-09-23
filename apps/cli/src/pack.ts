@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { create } from "tar";
 
-/** Directory names a bundle never wants, and file noise from macOS. */
 const EXCLUDED_DIRS = new Set([".git", "node_modules"]);
 const EXCLUDED_FILES = new Set([".DS_Store"]);
 
@@ -11,17 +10,13 @@ export function isExcluded(name: string): boolean {
 }
 
 export type PackedBundle = {
-  /** The gzipped tar to POST. */
   body: Buffer;
-  /** Where the files were read from, so a scanner can open them again. */
   root: string;
-  /** Paths inside the tarball, relative to `root`, in walk order. */
   files: string[];
 };
 
 export class PackError extends Error {}
 
-/** Every file under `root`, excluded names dropped at any depth. */
 export async function collectFiles(root: string, prefix = ""): Promise<string[]> {
   const entries = await fs.readdir(path.join(root, prefix), { withFileTypes: true });
   const files: string[] = [];
@@ -44,10 +39,6 @@ async function pack(root: string, files: string[]): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/**
- * Pack a directory, or a single `.html` file. The server stores a lone HTML
- * file as `index.html`, which is how a one-file bundle arrives.
- */
 export async function packBundle(target: string): Promise<PackedBundle> {
   const absolute = path.resolve(target);
   const stats = await fs.stat(absolute).catch(() => null);

@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-/** One bundle, its current revision and its sharing state. */
 export async function GET(request: Request, context: Context): Promise<Response> {
   if (!authenticatePush(request)) return unauthorized();
   const { slug } = await context.params;
@@ -28,7 +27,6 @@ export async function GET(request: Request, context: Context): Promise<Response>
   }
 }
 
-/** Delete a bundle with every revision it holds, and the share link it had. */
 export async function DELETE(request: Request, context: Context): Promise<Response> {
   if (!authenticatePush(request)) return unauthorized();
   const { slug } = await context.params;

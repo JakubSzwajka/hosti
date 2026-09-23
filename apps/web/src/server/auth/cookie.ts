@@ -1,11 +1,5 @@
 import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/server/auth/session";
 
-/**
- * Cookie strings built by hand so a route handler can answer with one on a
- * plain `Response`, and a test can call that handler with no request scope.
- */
-
-/** Was this request carrying TLS, directly or through the proxy in front? */
 export function isSecureRequest(request: Request): boolean {
   if (request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https") return true;
   try {
@@ -27,17 +21,14 @@ function cookieString(value: string, maxAgeSeconds: number, secure: boolean): st
   return parts.join("; ");
 }
 
-/** The `Set-Cookie` value that starts an admin session. */
 export function sessionCookie(value: string, options: { secure: boolean }): string {
   return cookieString(value, SESSION_MAX_AGE_SECONDS, options.secure);
 }
 
-/** The `Set-Cookie` value that ends one. */
 export function expiredSessionCookie(options: { secure: boolean }): string {
   return cookieString("", 0, options.secure);
 }
 
-/** Pull one cookie out of a request's headers. */
 export function readCookie(headers: Headers, name: string): string | null {
   const header = headers.get("cookie");
   if (!header) return null;

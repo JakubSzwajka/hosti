@@ -1,6 +1,5 @@
 import type { AbsoluteRef } from "./absolute-refs.ts";
 
-/** How wide the label column is, so every line starts at the same place. */
 const LABEL = 9;
 
 export type Writer = (line: string) => void;
@@ -8,12 +7,10 @@ export type Writer = (line: string) => void;
 export const stdout: Writer = (line) => process.stdout.write(`${line}\n`);
 export const stderr: Writer = (line) => process.stderr.write(`${line}\n`);
 
-/** `label   rest`, the shape of every result line. */
 export function say(write: Writer, label: string, rest = ""): void {
   write(rest ? `${label.padEnd(LABEL)}${rest}` : label);
 }
 
-/** Pad the columns of a table to their widest cell. The last column is free. */
 export function table(write: Writer, rows: string[][]): void {
   if (rows.length === 0) return;
   const widths: number[] = [];
@@ -31,10 +28,6 @@ export function table(write: Writer, rows: string[][]): void {
   }
 }
 
-/**
- * The warning an agent reads in its own output. It never stops the push: the
- * point is that the generator gets fixed, not that the bundle goes unpublished.
- */
 export function warnAbsoluteRefs(write: Writer, refs: AbsoluteRef[], slug: string): void {
   if (refs.length === 0) return;
   const count =

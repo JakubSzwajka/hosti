@@ -4,22 +4,6 @@ import { createInflateRaw } from "node:zlib";
 import { PushError } from "@/server/errors";
 import { RevisionSink, type UnpackLimits, type UnpackStats } from "@/server/storage/revision-sink";
 
-/**
- * The zip reader, for archives dropped on the catalog.
- *
- * It decides only what zip means by an entry and hands each one to
- * RevisionSink, the same sink the tar reader feeds, so the limits and the path
- * rules are literally the same code. Nothing here writes a file itself.
- *
- * A zip is read back to front: the central directory at the end is the only
- * listing that carries the sizes and the unix mode bits, so the whole archive
- * is held in memory first. That costs at most `maxCompressedBytes`, which the
- * body is capped at anyway.
- *
- * No dependency: `zlib.inflateRaw` is the whole of deflate, and the directory
- * format below is a hundred lines of fixed-offset reads.
- */
-
 const EOCD_SIGNATURE = 0x06054b50;
 const EOCD_MIN_SIZE = 22;
 const ZIP64_LOCATOR_SIGNATURE = 0x07064b50;
@@ -29,19 +13,17 @@ const CENTRAL_FIXED_SIZE = 46;
 const LOCAL_SIGNATURE = 0x04034b50;
 const LOCAL_FIXED_SIZE = 30;
 
-/** A zip comment is a 16-bit length, so the record cannot start further back. */
 const MAX_COMMENT = 0xffff;
 
 const STORED = 0;
 const DEFLATED = 8;
 
-/** Set when the entry is encrypted, which Hosti has no password for. */
 const FLAG_ENCRYPTED = 0x1;
-/** Version-made-by high byte 3 means unix, which is when the mode bits mean anything. */
+
 const HOST_UNIX = 3;
 const S_IFMT = 0xf000;
 const S_IFLNK = 0xa000;
-/** The MS-DOS directory bit, for a zip that names a directory without a trailing slash. */
+
 const DOS_DIRECTORY = 0x10;
 
 type CentralEntry = {
@@ -55,10 +37,6 @@ type CentralEntry = {
   encrypted: boolean;
 };
 
-/**
- * Unpack a zip into `destDir` under the same limits a pushed tarball gets.
- * The caller removes `destDir` when this throws.
- */
 export async function unpackZip(
   source: Readable,
   destDir: string,
@@ -75,9 +53,7 @@ export async function unpackZip(
       sink.directory(entry.name);
       continue;
     }
-    // The stream is built only after the sink has passed the path and the
-    // size, so a path that climbs out of the bundle is refused as a path
-    // rather than as a broken offset.
+
     const write = sink.file(entry.name, entry.uncompressedSize, () =>
       contentStream(archive, entry, sink),
     );
@@ -86,7 +62,6 @@ export async function unpackZip(
   return sink.finish();
 }
 
-/** Hold the body, refusing anything past the compressed limit as it arrives. */
 async function readAll(source: Readable, maxBytes: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let total = 0;
@@ -105,7 +80,6 @@ async function readAll(source: Readable, maxBytes: number): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/** The entry's bytes, inflated when they need it and cut off at the file limit. */
 function contentStream(archive: Buffer, entry: CentralEntry, sink: RevisionSink): Readable {
   const start = dataStart(archive, entry);
   const end = start + entry.compressedSize;
@@ -120,9 +94,8 @@ function contentStream(archive: Buffer, entry: CentralEntry, sink: RevisionSink)
       `${entry.name} uses compression method ${entry.method}; Hosti reads stored and deflated entries`,
     );
   }
-  // A zip may understate a file's size, so the inflated stream is cut off at
-  // the limit rather than trusted to stop. Without this a small archive could
-  // expand onto the disk without bound before the written size was checked.
+
+  // Cap inflated bytes before they reach disk; archive headers can understate size.
   return raw
     .pipe(createInflateRaw())
     .pipe(capped(sink.maxFileBytes, () => sink.tooLarge(entry.name)));
@@ -142,7 +115,6 @@ function capped(maxBytes: number, error: () => Error): Transform {
   });
 }
 
-/** Where this entry's bytes begin, which only its local header knows. */
 function dataStart(archive: Buffer, entry: CentralEntry): number {
   const at = entry.localOffset;
   if (at + LOCAL_FIXED_SIZE > archive.length || archive.readUInt32LE(at) !== LOCAL_SIGNATURE) {
@@ -151,7 +123,6 @@ function dataStart(archive: Buffer, entry: CentralEntry): number {
   return at + LOCAL_FIXED_SIZE + archive.readUInt16LE(at + 26) + archive.readUInt16LE(at + 28);
 }
 
-/** Every entry the archive lists, in the order the directory names them. */
 function readCentralDirectory(archive: Buffer): CentralEntry[] {
   const end = findEndRecord(archive);
   const entries: CentralEntry[] = [];
@@ -204,10 +175,6 @@ function readCentralDirectory(archive: Buffer): CentralEntry[] {
 
 type Sizes = { uncompressedSize: number; compressedSize: number; localOffset: number };
 
-/**
- * A field of all ones means the real number moved into the zip64 extra field,
- * which lists only the fields that overflowed, in this order.
- */
 function widen(sizes: Sizes, extra: Buffer): Sizes {
   const overflowed =
     sizes.uncompressedSize === 0xffffffff ||
@@ -245,7 +212,6 @@ function readSafeUInt64(buffer: Buffer, at: number): number {
 
 type EndRecord = { entryCount: number; centralOffset: number };
 
-/** The end-of-central-directory record, which is the only fixed landmark a zip has. */
 function findEndRecord(archive: Buffer): EndRecord {
   const earliest = Math.max(0, archive.length - EOCD_MIN_SIZE - MAX_COMMENT);
   for (let at = archive.length - EOCD_MIN_SIZE; at >= earliest; at -= 1) {

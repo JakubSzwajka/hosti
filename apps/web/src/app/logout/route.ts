@@ -4,7 +4,6 @@ import { expiredSessionCookie, isSecureRequest } from "@/server/auth/cookie";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Drop the admin session. A POST like every other mutation, token and all. */
 export async function POST(request: Request): Promise<Response> {
   const form = await request.formData();
   const guard = guardMutation(request, form);

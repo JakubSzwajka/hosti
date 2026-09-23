@@ -1,6 +1,5 @@
 import type { Bundle, Revision } from "@hosti/shared";
 import { db, nowIso } from "@/server/db";
-import type { CATALOG_UPLOAD } from "@/server/push-tokens";
 import { describeSharing, initialShareSlug } from "@/server/sharing";
 
 type BundleRow = {
@@ -42,12 +41,6 @@ export function findBundle(slug: string): BundleRecord | null {
   return (db().prepare("SELECT * FROM bundles WHERE slug = ?").get(slug) as BundleRow) ?? null;
 }
 
-/**
- * Create the bundle. A push to an unknown slug lands here: the spec chose
- * create-on-push. It lands private, because a bundle is private until the
- * owner says otherwise. Its share slug is its own slug, so turning sharing on
- * puts `sleep-brief` at `/v/sleep-brief/` with nothing else to decide.
- */
 export function createBundle(input: {
   slug: string;
   title?: string | null;
@@ -72,12 +65,6 @@ export function createBundle(input: {
     .get(result.lastInsertRowid as number) as BundleRow;
 }
 
-/**
- * Forget a bundle: its revisions and its sharing state go with it, because
- * both live on rows this takes away. The caller removes the files.
- * `current_revision_id` is cleared first, because that column points back at a
- * row the delete is about to take away.
- */
 export function deleteBundle(bundleId: number): void {
   const forget = db().transaction(() => {
     db().prepare("UPDATE bundles SET current_revision_id = NULL WHERE id = ?").run(bundleId);
@@ -87,7 +74,6 @@ export function deleteBundle(bundleId: number): void {
   forget();
 }
 
-/** Push headers may rename a bundle or move it between collections. */
 export function updateBundleMeta(
   bundleId: number,
   input: { title?: string | null; collection?: string | null },
@@ -102,19 +88,12 @@ export function updateBundleMeta(
   }
 }
 
-/**
- * Move a bundle between collections, or out of every one. Unlike the push
- * headers above, `null` here means what it says: clear it. The catalog is the
- * only place a collection can be taken away, because a push that sets nothing
- * must leave the label the owner chose alone.
- */
 export function setBundleCollection(bundleId: number, collection: string | null): void {
   db()
     .prepare("UPDATE bundles SET collection = ? WHERE id = ?")
     .run(collection ?? null, bundleId);
 }
 
-/** Every collection in use, sorted, for offering the ones that already exist. */
 export function listCollections(): string[] {
   const rows = db()
     .prepare(
@@ -131,18 +110,12 @@ export function nextRevisionSeq(bundleId: number): number {
   return row.max_seq + 1;
 }
 
-/** Record the revision and make it the current one. Called after the disk flip. */
 export function recordRevision(input: {
   bundleId: number;
   seq: number;
   byteSize: number;
   fileCount: number;
-  /**
-   * How this revision arrived: a push token's name when it came through the
-   * push API, or {@link CATALOG_UPLOAD} when the owner uploaded the archive in
-   * the catalog. Required, because the column's third state, NULL, means
-   * "written before schema 3, nobody knows" and only the migration writes it.
-   */
+
   pushedBy: string;
 }): Revision {
   const now = nowIso();
@@ -162,10 +135,8 @@ export function recordRevision(input: {
   return toRevision(db().prepare("SELECT * FROM revisions WHERE id = ?").get(id) as RevisionRow);
 }
 
-/** A revision as retention sees it: which row, which directory, and is it live. */
 export type StoredRevision = { id: number; seq: number; current: boolean };
 
-/** Every revision of one bundle, newest first, for deciding what to prune. */
 export function revisionRecords(bundleId: number): StoredRevision[] {
   const bundle = db()
     .prepare("SELECT current_revision_id FROM bundles WHERE id = ?")
@@ -180,12 +151,6 @@ export function revisionRecords(bundleId: number): StoredRevision[] {
   }));
 }
 
-/**
- * Drop revision rows. The caller removes the directories afterwards, so a
- * crash in between leaves files nobody can reach rather than rows pointing at
- * files that are gone. The current revision is refused outright: retention
- * decides how many to keep, never whether the live one survives.
- */
 export function deleteRevisionRows(bundleId: number, ids: number[]): void {
   if (ids.length === 0) return;
   const drop = db().transaction(() => {
@@ -199,7 +164,6 @@ export function deleteRevisionRows(bundleId: number, ids: number[]): void {
   drop();
 }
 
-/** Every push of one bundle, newest first, with the current one marked. */
 export function listRevisions(bundleId: number): (Revision & { current: boolean })[] {
   const bundle = db()
     .prepare("SELECT current_revision_id FROM bundles WHERE id = ?")
@@ -216,22 +180,13 @@ export function listRevisions(bundleId: number): (Revision & { current: boolean 
 export type ResolvedShare = {
   shareSlug: string;
   bundleSlug: string;
-  /** The bundle row this slug resolved to. An unlock grant is tied to it. */
+
   bundleId: number;
   currentSeq: number;
-  /** The scrypt hash guarding this link, or null when anyone holding it may look. */
+
   pinHash: string | null;
 };
 
-/**
- * Resolve a share slug to the bundle's current revision. Returns null when the
- * slug is unknown, when the bundle is private, and when the bundle has never
- * had a successful push, so a caller cannot tell those three cases apart.
- *
- * Mode `pin` with no stored hash resolves to nothing rather than to an open
- * link. The API refuses to write that row, so this only guards a database
- * somebody edited by hand, and it guards it the safe way round.
- */
 export function resolveShare(shareSlug: string): ResolvedShare | null {
   const row = db()
     .prepare(
@@ -261,7 +216,6 @@ export function resolveShare(shareSlug: string): ResolvedShare | null {
   };
 }
 
-/** One bundle as the API reports it, sharing state included. */
 export function describeBundle(bundle: BundleRecord): Bundle {
   const rows = db()
     .prepare("SELECT * FROM revisions WHERE bundle_id = ?")
@@ -279,7 +233,6 @@ export function describeBundle(bundle: BundleRecord): Bundle {
   };
 }
 
-/** The catalog: every bundle, newest push first. */
 export function listCatalog(): Bundle[] {
   const bundles = db()
     .prepare("SELECT * FROM bundles ORDER BY updated_at DESC, id DESC")

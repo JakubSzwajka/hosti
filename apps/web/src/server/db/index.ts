@@ -4,8 +4,6 @@ import { openDatabase } from "./open.mjs";
 
 type Cache = { file: string; db: Database } | null;
 
-// Next reloads modules in development, so the handle hangs off globalThis to
-// keep one connection per database file per process.
 const globalCache = globalThis as typeof globalThis & { __hostiDb?: Cache };
 
 export function db(): Database {

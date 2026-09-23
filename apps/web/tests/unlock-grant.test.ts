@@ -1,12 +1,3 @@
-/**
- * What kills an unlock grant that is already out in the world.
- *
- * A grant is signed over the share slug, the bundle row it resolved to and the
- * pin hash guarding it, so three things end every grant at once: a rotate, a
- * pin change, and deleting the bundle and building it again on the same slug.
- * Hosti stores no session for a guest, so the signature is the only place this
- * can be enforced.
- */
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
@@ -33,7 +24,6 @@ afterAll(async () => {
   await fs.rm(dataDir, { recursive: true, force: true });
 });
 
-/** Unlock a link and hand back the cookie a browser would keep. */
 async function grantFor(link: string, pin: string): Promise<string> {
   const response = await unlock(link, { pin, next: `/v/${link}/` });
   if (response.status !== 303) throw new Error(`unlock failed: ${response.status}`);
@@ -49,8 +39,6 @@ describe("what kills an outstanding grant", () => {
     const rotated = (await (await rotateSharing(token, "kill-by-rotate")).json()) as {
       sharing: { shareSlug: string };
     };
-    // Send the old grant at the new address under the new cookie name, which is
-    // the most a leaked grant could ever manage.
     const renamed = cookie.replace(
       unlockCookieName(link),
       unlockCookieName(rotated.sharing.shareSlug),

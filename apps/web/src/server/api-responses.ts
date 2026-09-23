@@ -15,7 +15,6 @@ export function errorResponse(code: string, message: string, status: number): Re
 export const unauthorized = (): Response =>
   errorResponse("unauthorized", "A valid push token is required", 401);
 
-/** Turn a thrown push failure into the API's shape; anything else is a 500. */
 export function failureResponse(error: unknown): Response {
   if (error instanceof PushError) {
     return errorResponse(error.code, error.message, error.status);

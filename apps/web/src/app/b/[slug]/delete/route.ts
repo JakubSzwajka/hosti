@@ -4,7 +4,6 @@ import { removeBundle } from "@/server/remove-bundle";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Forget the bundle: rows, files and every share link. Then back to the catalog. */
 export async function POST(
   request: Request,
   context: { params: Promise<{ slug: string }> },

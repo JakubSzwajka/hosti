@@ -1,11 +1,3 @@
-/**
- * A bundle's own 404.html answers only where the bundle itself would answer.
- *
- * The `multi-page` fixture ships a 404.html, so it is the sharpest probe: if a
- * locked or a private bundle ever served that page, the answer would differ
- * from the answer an unknown slug gets and a prober could sort real slugs from
- * invented ones. These tests pin the three cases side by side.
- */
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
@@ -19,7 +11,6 @@ const { createPushToken } = await import("@/server/push-tokens");
 let dataDir: string;
 let token: string;
 
-/** An unknown slug, which is the answer every other case has to match. */
 const UNKNOWN = "/v/never-pushed-at-all/missing.css";
 
 async function pushed(slug: string): Promise<void> {
@@ -33,7 +24,6 @@ async function share(slug: string, body: { mode: string; pin?: string }): Promis
   return shareSlugOf(response);
 }
 
-/** Every header, sorted, so two responses can be compared as one value. */
 function headerList(response: Response): [string, string][] {
   return [...response.headers.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
@@ -91,8 +81,6 @@ describe("a bundle's own 404.html answers only where the bundle would", () => {
   it("keeps the parity for a page request too, once the pin is on", async () => {
     await pushed("locked-404-page");
     const link = await share("locked-404-page", { mode: "pin", pin: "4821" });
-    // A page request under a locked link gets the gate, never the bundle's own
-    // page, so the bundle's 404 copy never reaches a guest who has not unlocked.
     const { navigate } = await import("./api");
     const gate = await navigate(`/v/${link}/missing.css`);
     expect(gate.status).toBe(200);

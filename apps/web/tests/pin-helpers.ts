@@ -1,4 +1,3 @@
-/** Opening pin-protected links, for the test files that need them. */
 import type { SharingMode } from "@hosti/shared";
 import { push, setSharing, shareSlugOf } from "./api";
 import { tarFixture } from "./helpers";
@@ -7,7 +6,6 @@ export const TEST_SECRET = "a-long-random-string-for-tests";
 
 export type LinkOptions = { pin?: string; mode?: SharingMode };
 
-/** Move a bundle that already exists into one of the three states. */
 export async function openLink(
   token: string,
   slug: string,
@@ -22,7 +20,6 @@ export async function openLink(
   return shareSlugOf(shared);
 }
 
-/** Push the multi-page fixture and open its link, pin optional. */
 export async function protectedLink(
   token: string,
   slug: string,
@@ -33,7 +30,6 @@ export async function protectedLink(
   return openLink(token, slug, options);
 }
 
-/** The unlock grant out of a Set-Cookie header, ready to send back. */
 export function grantFrom(response: Response, cookieName: string): string {
   const header = response.headers.get("set-cookie") ?? "";
   const match = header.match(new RegExp(`${cookieName}=([^;]+)`));

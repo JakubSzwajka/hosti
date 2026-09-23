@@ -175,8 +175,6 @@ describe("who wrote a revision", () => {
   });
 
   it("refuses a token named like the catalog's own marker", () => {
-    // The marker has to stay a value no token name can reach, or a push could
-    // dress itself up as the owner's upload. The `@` is what keeps it apart.
     expect(() => createPushToken(CATALOG_UPLOAD)).toThrow();
     expect(CATALOG_UPLOAD.startsWith("@")).toBe(true);
   });

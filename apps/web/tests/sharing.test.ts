@@ -22,7 +22,6 @@ async function stateOf(response: Response): Promise<SharingResponse> {
   return (await response.json()) as SharingResponse;
 }
 
-/** The stored hash, read straight off the row. No endpoint reports it. */
 function storedPinHash(slug: string): string | null {
   return findBundle(slug)?.pin_hash ?? null;
 }

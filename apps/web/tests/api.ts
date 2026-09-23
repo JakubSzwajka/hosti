@@ -1,4 +1,3 @@
-/** Calling the route handlers the way a client does, without a live server. */
 import type { SharingMode } from "@hosti/shared";
 import { POST as PRUNE } from "@/app/api/v1/bundles/[slug]/prune/route";
 import { DELETE as DELETE_BUNDLE, GET as GET_BUNDLE } from "@/app/api/v1/bundles/[slug]/route";
@@ -31,7 +30,6 @@ export function push(
   return PUSH(request, { params: Promise.resolve({ slug }) });
 }
 
-/** `PUT /api/v1/bundles/<slug>/sharing`, the one write that moves the state. */
 export function setSharing(
   token: string,
   slug: string,
@@ -47,7 +45,6 @@ export function setSharing(
   return SET_SHARING(request, { params: Promise.resolve({ slug }) });
 }
 
-/** `POST /api/v1/bundles/<slug>/sharing/rotate`. */
 export function rotateSharing(token: string, slug: string): Promise<Response> {
   const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/sharing/rotate`, {
     method: "POST",
@@ -56,13 +53,11 @@ export function rotateSharing(token: string, slug: string): Promise<Response> {
   return ROTATE(request, { params: Promise.resolve({ slug }) });
 }
 
-/** `GET /api/v1/bundles/<slug>`, which now reports the sharing state. */
 export function getBundle(token: string, slug: string): Promise<Response> {
   const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}`, { headers: auth(token) });
   return GET_BUNDLE(request, { params: Promise.resolve({ slug }) });
 }
 
-/** `POST /api/v1/bundles/<slug>/prune`, with no bearer when the token is empty. */
 export function prune(token: string, slug: string): Promise<Response> {
   const headers = new Headers();
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -85,7 +80,6 @@ export function serve(urlPath: string, headers?: HeadersInit): Promise<Response>
   return SERVE(new Request(`${ORIGIN}${urlPath}`, { headers }));
 }
 
-/** A browser navigating, which is the only caller that may see the gate. */
 export function navigate(urlPath: string, headers: HeadersInit = {}): Promise<Response> {
   const merged = new Headers(headers);
   merged.set("accept", "text/html,application/xhtml+xml");
@@ -93,7 +87,6 @@ export function navigate(urlPath: string, headers: HeadersInit = {}): Promise<Re
   return SERVE(new Request(`${ORIGIN}${urlPath}`, { headers: merged }));
 }
 
-/** `POST /v/<share-slug>/unlock`, the form on the gate. */
 export function unlock(
   shareSlug: string,
   fields: Record<string, string>,
@@ -110,7 +103,6 @@ export function unlock(
   );
 }
 
-/** The share slug out of any sharing or bundle response. */
 export async function shareSlugOf(response: Response): Promise<string> {
   const body = (await response.json()) as
     | { sharing: { shareSlug: string } }
@@ -118,10 +110,6 @@ export async function shareSlugOf(response: Response): Promise<string> {
   return "sharing" in body ? body.sharing.shareSlug : body.bundle.sharing.shareSlug;
 }
 
-/**
- * Push a fixture and open it, the two-step walk most tests need. A push leaves
- * the bundle private, so the sharing call is always a second request.
- */
 export async function pushAndShare(
   token: string,
   slug: string,

@@ -1,14 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-/**
- * A reference that starts with a single slash. It asks for the root of the
- * domain, which is the catalog, so it 404s under /v/<slug>/.
- */
 export type AbsoluteRef = {
   file: string;
   line: number;
-  /** The tag or url() as written, trimmed to one line. */
   snippet: string;
 };
 
@@ -16,12 +11,10 @@ const ATTRIBUTE = /\b(href|src|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'<>`]+
 const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s"']+))\s*\)/gi;
 const MAX_SNIPPET = 120;
 
-/** A leading slash, but not `//host/path`, which is a whole other origin. */
 function isRootAbsolute(value: string): boolean {
   return value.startsWith("/") && !value.startsWith("//");
 }
 
-/** srcset is a comma-separated list, and any candidate in it can be absolute. */
 function hasRootAbsolute(attribute: string, value: string): boolean {
   if (attribute.toLowerCase() !== "srcset") return isRootAbsolute(value.trim());
   return value
@@ -41,7 +34,6 @@ function shorten(text: string): string {
   return oneLine.length > MAX_SNIPPET ? `${oneLine.slice(0, MAX_SNIPPET - 1)}…` : oneLine;
 }
 
-/** The whole tag around a match, so the warning reads like the file does. */
 function enclosingTag(text: string, index: number, fallback: string): string {
   const open = text.lastIndexOf("<", index);
   if (open === -1) return shorten(fallback);
@@ -50,7 +42,6 @@ function enclosingTag(text: string, index: number, fallback: string): string {
   return shorten(text.slice(open, close + 1));
 }
 
-/** Every root-absolute reference in one HTML file, in the order they appear. */
 export function findAbsoluteRefs(html: string, file: string): AbsoluteRef[] {
   const found: AbsoluteRef[] = [];
 
@@ -72,7 +63,6 @@ export function findAbsoluteRefs(html: string, file: string): AbsoluteRef[] {
   return found.sort((a, b) => a.line - b.line);
 }
 
-/** Scan the HTML files of a packed bundle before it goes over the wire. */
 export async function scanForAbsoluteRefs(root: string, files: string[]): Promise<AbsoluteRef[]> {
   const found: AbsoluteRef[] = [];
   for (const file of files) {

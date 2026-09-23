@@ -10,7 +10,6 @@ import { collectFiles, PackError, packBundle } from "../src/pack.ts";
 const FIXTURES = path.resolve(import.meta.dirname, "../../../fixtures");
 let messy: string;
 
-/** Read back what the packer produced, so the test sees the real tarball. */
 async function entriesOf(body: Buffer): Promise<string[]> {
   const names: string[] = [];
   const parser = new Parser();

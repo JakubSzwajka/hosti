@@ -2,11 +2,6 @@ import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
-/**
- * The owner's preview of a bundle: the one route that serves bundle bytes to
- * somebody who is not holding a share link.
- */
-
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
 process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
@@ -26,14 +21,12 @@ let dataDir: string;
 let pushToken: string;
 let cookie: string;
 
-/** Ask the preview route for a path, as whoever the headers say. */
 function ask(path: string, headers: HeadersInit = {}): Promise<Response> {
   return PREVIEW(new Request(`${ORIGIN}${path}`, { headers }));
 }
 
 const asOwner = () => ({ cookie: `${SESSION_COOKIE}=${cookie}` });
 
-/** The path an iframe is pointed at: the grant sits in it, not in a cookie. */
 function granted(slug: string, rest = ""): string {
   return `/b/${slug}/preview/~${signPreviewToken(SECRET, slug)}/${rest}`;
 }
@@ -151,8 +144,6 @@ describe("the url the catalog renders", () => {
     const grant = previewGrant("previewed", now);
     expect(grant.expiresAt).toBe(now + PREVIEW_TOKEN_TTL_MS);
 
-    // The stamp is the truth the browser is given: the route refuses one
-    // moment past it, which is exactly when a card stops mounting a frame.
     expect((await ask(grant.src, asOwner())).status).toBe(200);
     const dead = previewGrant("previewed", now - PREVIEW_TOKEN_TTL_MS - 1);
     expect((await ask(dead.src)).status).toBe(404);

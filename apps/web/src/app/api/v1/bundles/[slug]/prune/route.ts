@@ -10,11 +10,6 @@ export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-/**
- * Prune one bundle on demand, down to the same count a push would leave. A
- * push already prunes, so this is for a bundle nobody has pushed since the
- * keep count changed.
- */
 export async function POST(request: Request, context: Context): Promise<Response> {
   if (!authenticatePush(request)) return unauthorized();
   const { slug } = await context.params;

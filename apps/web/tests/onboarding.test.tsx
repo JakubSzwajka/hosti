@@ -4,35 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { useTempDataDir } from "./helpers";
 
-/**
- * Getting an agent pushing without a shell on the server: the
- * `hosti-publish` skill file, the onboarding panel, and the `/tokens` page
- * around it.
- *
- * The skill is a real Markdown file in this repository, installed by
- * repository name, so it is read off disk here rather than fetched from a
- * route. Nothing in it is instance-specific, which is what these assertions
- * guard.
- *
- * The page components are server components, so these tests call them the way
- * Next does and render the tree they return. `next/headers` is the one thing a
- * component reaches for that only exists inside a request, so it is mocked:
- * one cookie and one host, which is all `requireAdmin` and `baseUrlFromHeaders`
- * read.
- */
-
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
 process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
 process.env.HOSTI_SECRET = SECRET;
-// The instance names itself from the host header here, not from a deployment
-// variable another test file may have left lying around.
 process.env.HOSTI_PUBLIC_URL = "";
 
 const ORIGIN = "http://127.0.0.1:3000";
 const HOST = "hosti.test";
 
-/** The admin cookie the mocked `cookies()` hands back, or null for a stranger. */
 let signedCookie: string | null = null;
 
 vi.mock("next/headers", () => ({
@@ -42,8 +22,6 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ host: HOST, "x-forwarded-proto": "https" }),
 }));
 
-// The catalog's drop zone is a client component that asks for the app router.
-// `redirect` stays real, because the login redirect is what one test asserts.
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh: () => {} }),
@@ -62,7 +40,6 @@ let dataDir: string;
 let cookie: string;
 let token: string;
 
-/** The skill file at the repository root, which `npx skills add` installs. */
 const SKILL_PATH = fileURLToPath(
   new URL("../../../skills/hosti-publish/SKILL.md", import.meta.url),
 );
@@ -71,7 +48,6 @@ async function skillText(): Promise<string> {
   return fs.readFile(SKILL_PATH, "utf8");
 }
 
-/** Render a server component the way Next would, and read the HTML back. */
 async function render(component: () => Promise<React.ReactElement>): Promise<string> {
   return renderToStaticMarkup(await component());
 }
@@ -80,7 +56,6 @@ function tokensPage(query: { shown?: string; token?: string } = {}) {
   return () => PushTokens({ searchParams: Promise.resolve(query) });
 }
 
-/** Mint through the route and hand back the `shown` id its redirect carries. */
 async function mint(name: string): Promise<string> {
   const request = new Request(`${ORIGIN}/tokens/mint`, {
     method: "POST",
@@ -114,8 +89,6 @@ describe("the hosti-publish skill file", () => {
     const body = await skillText();
     expect(body).toMatch(/^---\n/);
     expect(body).toContain("name: hosti-publish");
-    // `npx skills add` reads the front matter and refuses a file with no
-    // description, so this line is load-bearing rather than decoration.
     const description = body.match(/^description: (\S.*)$/m)?.[1] ?? "";
     for (const trigger of ["publish", "host", "share", "report", "dashboard", "static"]) {
       expect(description.toLowerCase()).toContain(trigger);
@@ -129,8 +102,6 @@ describe("the hosti-publish skill file", () => {
     const minted = createPushToken("skill-reader");
     const body = await skillText();
     expect(body).not.toContain(minted.secret);
-    // It names the prefix so the agent recognises one, and nothing that could
-    // be a value: a real secret is the prefix plus 32 base64url characters.
     expect(body).not.toMatch(/hosti_[A-Za-z0-9_-]{8,}/);
     expect(body).toContain("$HOSTI_TOKEN");
   });

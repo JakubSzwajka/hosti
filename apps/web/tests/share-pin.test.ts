@@ -18,7 +18,6 @@ let token: string;
 
 const opened = (slug: string, options?: { pin?: string }) => protectedLink(token, slug, options);
 
-/** A stand-in binding for the grants these unit tests sign by hand. */
 const BOUND = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
 
 beforeAll(async () => {
@@ -205,8 +204,6 @@ describe("unlocking", () => {
       sharing: { shareSlug: string };
     };
     const second = rotated.sharing.shareSlug;
-    // The old URL is gone and the grant was scoped to its path, so the fresh
-    // one asks again.
     expect((await navigate(`/v/${first}/`, { cookie })).status).toBe(404);
     const other = await navigate(`/v/${second}/`, { cookie });
     expect(other.status).toBe(200);

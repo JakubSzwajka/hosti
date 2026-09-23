@@ -4,12 +4,6 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { contentTypeFor } from "@/server/serving/content-type";
 
-/**
- * A bundle runs its own JavaScript on the catalog's origin, so every /v/
- * response is boxed in. Inline styles and scripts, data: URLs and same-bundle
- * assets keep working, which is what a generated report actually needs.
- * Nothing may be framed, no form may post anywhere, no plugin may load.
- */
 function bundleCsp(frameAncestors: string): string {
   return [
     "default-src 'self'",
@@ -30,25 +24,14 @@ function bundleCsp(frameAncestors: string): string {
 
 export const BUNDLE_CSP = bundleCsp("'none'");
 
-/**
- * The same box, opened one crack: the catalog may frame its own preview route
- * so the owner sees what a bundle looks like. Nothing else may frame it, and
- * the guest route at `/v/` keeps `frame-ancestors 'none'`.
- */
 export const PREVIEW_CSP = bundleCsp("'self'");
 
-/** Serving options both the guest route and the owner preview route pass down. */
 export type ServeOptions = {
   status?: number;
-  /** Framed by the catalog, so the response carries `frame-ancestors 'self'`. */
+
   embeddable?: boolean;
 };
 
-/**
- * Hosti's own pages under `/v/` are not bundles, so they do not get the bundle
- * policy. The gate has no scripts and one inline stylesheet, and the only place
- * its form may post is back to this origin.
- */
 export const HOSTI_PAGE_CSP = [
   "default-src 'none'",
   "style-src 'unsafe-inline'",
@@ -72,7 +55,7 @@ export function bundleHeaders(extra?: HeadersInit, options: ServeOptions = {}): 
   headers.set("Content-Security-Policy", options.embeddable ? PREVIEW_CSP : BUNDLE_CSP);
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "no-referrer");
-  // Deliberately no Access-Control-Allow-Origin: bundle content is same-origin only.
+  // Bundle content stays same-origin; adding CORS would expose it elsewhere.
   return headers;
 }
 
@@ -80,10 +63,6 @@ function etagFor(size: number, mtimeMs: number): string {
   return `"${size.toString(16)}-${Math.floor(mtimeMs).toString(16)}"`;
 }
 
-/**
- * Serve one file from inside `root`. The real path is checked again here, so a
- * symlink that slipped onto disk still cannot read outside the revision.
- */
 export async function fileResponse(
   request: Request,
   root: string,
@@ -154,7 +133,6 @@ const NOT_FOUND_HTML = `<!doctype html>
 </html>
 `;
 
-/** Hosti's own 404. Used when the bundle has no 404.html of its own. */
 export function hostiNotFound(options: ServeOptions = {}): Response {
   return new Response(NOT_FOUND_HTML, {
     status: 404,
@@ -162,7 +140,6 @@ export function hostiNotFound(options: ServeOptions = {}): Response {
   });
 }
 
-/** A Hosti page served in the bundle's place: the PIN gate, at the guest's URL. */
 export function hostiPage(html: string): Response {
   return new Response(html, {
     status: 200,

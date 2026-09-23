@@ -2,15 +2,6 @@
 
 import { useState } from "react";
 
-/**
- * Copies a value the owner would otherwise retype: a share URL, an agent
- * prompt, an install command. The clipboard API needs a secure context, which
- * localhost counts as; the textarea fallback covers a plain-http box on a LAN,
- * where the owner would otherwise have no copy at all.
- *
- * `tone` is the button family's own, so the one copy that is the next action
- * on a screen can be the filled control without a second component.
- */
 export function CopyButton({
   value,
   label = "copy link",

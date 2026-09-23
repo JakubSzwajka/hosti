@@ -14,10 +14,6 @@ export function currentLink(bundleSlug: string): string {
   return path.join(bundleDir(bundleSlug), "current");
 }
 
-/**
- * The real directory `current` points at, or null when the bundle has never
- * had a successful push.
- */
 export async function currentRevisionRoot(bundleSlug: string): Promise<string | null> {
   try {
     return await fs.realpath(currentLink(bundleSlug));
@@ -26,10 +22,6 @@ export async function currentRevisionRoot(bundleSlug: string): Promise<string | 
   }
 }
 
-/**
- * Join a request path onto a revision root and refuse anything that leaves it.
- * Returns null for absolute paths, `..` segments and NUL bytes.
- */
 export function resolveInside(root: string, relativePath: string): string | null {
   if (relativePath.includes("\0")) return null;
   const target = path.resolve(root, `.${path.posix.sep}${relativePath}`);

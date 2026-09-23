@@ -5,14 +5,6 @@ import { findBundle, setBundleCollection } from "@/server/catalog";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Put this bundle in a collection, move it to another, or take it out of every
- * one. A collection is a flat label, so all three are the same write.
- *
- * Cookie plus mutation token, like every other change the catalog makes. A
- * push may still set a collection through its header; this is the only way to
- * clear one.
- */
 export async function POST(
   request: Request,
   context: { params: Promise<{ slug: string }> },

@@ -1,21 +1,3 @@
-/**
- * The pin gate: Hosti's own page, served at the guest's own URL.
- *
- * It must leak nothing. No bundle title, no collection, no revision, no hint
- * that the slug is real, beyond the unavoidable fact that a gate appeared. An
- * unknown link answers 404 and a protected link answers this, and those are the
- * only two things a stranger can tell apart.
- *
- * The CSS is inline because a route handler cannot pull a stylesheet through
- * Next's pipeline, and because a gate that renders before a second request is a
- * gate that never flashes unstyled. The token values and the card shape mirror
- * `src/styles/hosti.css` and `forms.css`, so this gate and the owner's own
- * login are recognisably the same object. Change one, change the other.
- *
- * The mark is copied in as literal SVG for the same reason: a route handler
- * cannot render a React component. Its numbers come from `_ui/mark.tsx`.
- */
-
 export type GateFault = "wrong" | "locked" | "unavailable";
 
 const FAULTS: Record<GateFault, string> = {
@@ -24,7 +6,6 @@ const FAULTS: Record<GateFault, string> = {
   unavailable: "This server cannot open protected links yet.",
 };
 
-/** The Hosti mark, same 32 grid and same numbers as `app/_ui/mark.tsx`. */
 const MARK = `<svg viewBox="0 0 32 32" width="26" height="26" fill="none" aria-hidden="true">\
 <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4"/>\
 <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4"/>\
@@ -160,13 +141,6 @@ body {
 }
 `.trim();
 
-/**
- * One page, one field, one button, one error line.
- *
- * `sharePath` is the host and prefix the guest already typed, echoed back so
- * they can see they are at the right link. `next` is where they land once the
- * pin is right; the caller has already checked it sits under this share link.
- */
 export function gatePageHtml(input: {
   sharePath: string;
   sharePrefix: string;
