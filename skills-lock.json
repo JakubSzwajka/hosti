@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "hosti-publish": {
+      "source": "Jakubszwajka/hosti",
+      "sourceType": "github",
+      "skillPath": "skills/hosti-publish/SKILL.md",
+      "computedHash": "8f5086e527eede93b490dc54bdc667d012de5861b5e807327c561e9d0c2f5cac"
+    }
+  }
+}
