@@ -37,11 +37,19 @@ Pin every dependency in the root and workspace manifests to an exact version or 
 
 Do not upgrade a dependency as part of unrelated work. Ask before adding, removing, or changing a dependency, Node, pnpm, or Turbo.
 
-`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `lefthook` is disabled because hook setup runs explicitly. `sharp` has no install script; `unrs-resolver` and `@swc/core` are not dependencies. Review any new build script before approving it. `packageExtensions` is unnecessary unless an observed dependency mismatch requires one.
+`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `@swc/core` is denied because its script only adds a wasm fallback; its native binary is optional. `lefthook` is disabled because hook setup runs explicitly. Review any new build script before approving it. `packageExtensions` gives the ESLint comment plugin its own TypeScript 6.0.3 dependency.
 
 ## Hooks
 
 Lefthook runs `pnpm check`, then `pnpm test` before each commit. Fix failures. Never bypass the hook with `--no-verify`, `git commit -n`, `LEFTHOOK=0`, or `core.hooksPath`. The command policy blocks bypass attempts in Pi and Claude Code hook configurations. Do not weaken that policy.
+
+## Effect
+
+Before editing Effect code, read `effect/AGENTS.md` and the docs under `effect/ai-docs/` in an installed workspace copy, such as `packages/storage/node_modules/effect/AGENTS.md`. pnpm may not install `effect` at the repo root. Read `.agent_sources/github.com/Effect-TS/effect` for source examples; run `pnpm vendor:agent-sources` if that mirror is missing. Follow `.agents/skills/add-an-effect-module/SKILL.md` when adding a module.
+
+Effect packages live under `packages/` and declare `effect`. They use TypeScript 7.0.2 patched by `@effect/tsgo` 0.45.0. Root `prepare` runs `effect-tsgo patch` before hook setup. Keep `effect`, `@effect/vitest`, and any other `@effect/*` runtime package on the same exact version. Never lower an Effect diagnostic below `error` to make a change pass.
+
+Next.js 15.5.25 rejects TypeScript 7, so `apps/web`, `apps/cli`, and `packages/shared` keep TypeScript 5.9.3 unless they pass Effect diagnostics unchanged. Web use-cases get a separate check through `apps/web/tsconfig.effect.json`, using the patched root compiler. Keep `src/app`, React, and route handlers out of that project. Dependency Cruiser uses SWC to parse TypeScript 7, and the comment plugin uses its TypeScript 6.0.3 extension.
 
 ## Environment
 

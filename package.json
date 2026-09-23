@@ -11,7 +11,7 @@
     "pins": "node scripts/check-exact-pins.mjs",
     "check": "pnpm run pins && pnpm run env:check && biome ci . && pnpm run lint && pnpm run typecheck && pnpm run check:deps",
     "acceptance": "bash scripts/acceptance-cold-clone.sh",
-    "prepare": "node scripts/prepare-hooks.mjs",
+    "prepare": "effect-tsgo patch && node scripts/prepare-hooks.mjs",
     "check:deps": "cd apps/web && depcruise --config ../../.dependency-cruiser.cjs apps packages",
     "typecheck": "TURBO_TELEMETRY_DISABLED=1 turbo run typecheck",
     "lint:fix": "biome check --write .",
@@ -26,12 +26,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
+    "@effect/tsgo": "0.45.0",
+    "@swc/core": "1.16.2",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
     "eslint-plugin-codebase-ai-rules": "github:JakubSzwajka/eslint-plugin-codebase-ai-rules#012daeb0d1809f0e026b9425dddc9a42a77c3328",
     "lefthook": "2.1.14",
     "turbo": "2.11.2",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "varlock": "1.20.0"
   },
   "engines": {

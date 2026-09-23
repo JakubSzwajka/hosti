@@ -99,6 +99,7 @@ module.exports = {
     },
   ],
   options: {
+    parser: "swc",
     exclude: {
       path: EXCLUDED_PATH,
     },

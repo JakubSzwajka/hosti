@@ -6,13 +6,14 @@
     "dev": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next dev -p ${PORT:-3000}",
     "build": "next build",
     "start": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next start -p ${PORT:-3000}",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && if find src/use-cases -type f -name '*.ts' -print -quit 2>/dev/null | grep -q .; then ../../node_modules/.bin/tsc -p tsconfig.effect.json --noEmit; else echo 'No Effect use-cases yet; TypeScript 7 check skipped'; fi",
     "test": "vitest run",
     "token:new": "node scripts/new-token.mjs"
   },
   "dependencies": {
     "@hosti/shared": "workspace:0.1.0",
     "better-sqlite3": "12.11.1",
+    "effect": "4.0.0-rc.117",
     "next": "15.5.25",
     "react": "19.3.0",
     "react-dom": "19.3.0",
