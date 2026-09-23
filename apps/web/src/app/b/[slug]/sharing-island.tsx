@@ -30,7 +30,7 @@ export function SharingIsland({
   deadUrl: string;
   token: string;
   hasRevision: boolean;
-  refused?: string;
+  refused?: string | undefined;
   replacingPin: boolean;
   confirmingRotate: boolean;
 }) {

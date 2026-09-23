@@ -16,7 +16,7 @@ export function CollectionPicker({
   known: string[];
   token: string;
   creating: boolean;
-  error?: string;
+  error?: string | undefined;
 }) {
   const form = useRef<HTMLFormElement>(null);
   const selected = creating ? "__new" : (collection ?? "");
