@@ -11,6 +11,8 @@
     "token:new": "node scripts/new-token.mjs"
   },
   "dependencies": {
+    "@effect/platform-node": "4.0.0-rc.117",
+    "@hosti/catalog": "workspace:0.1.0",
     "@hosti/shared": "workspace:0.1.0",
     "better-sqlite3": "12.11.1",
     "effect": "4.0.0-rc.117",

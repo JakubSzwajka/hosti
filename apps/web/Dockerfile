@@ -14,12 +14,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/cli/package.json apps/cli/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/catalog/package.json packages/catalog/package.json
 COPY scripts/prepare-hooks.mjs scripts/prepare-hooks.mjs
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
+COPY packages/catalog packages/catalog
 COPY apps/web apps/web
 RUN pnpm --filter @hosti/web build
 
@@ -36,7 +38,7 @@ WORKDIR /app/apps/web
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone /app
 COPY --from=build --chown=node:node /app/apps/web/.next/static /app/apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/scripts /app/apps/web/scripts
-COPY --from=build --chown=node:node /app/apps/web/src/server/db /app/apps/web/src/server/db
+COPY --from=build --chown=node:node /app/packages/catalog/schema.sql /app/packages/catalog/schema.sql
 
 USER node
 EXPOSE 3000
