@@ -5,6 +5,7 @@ export default [
     ignores: [
       "**/node_modules/**",
       "apps/web/.next/**",
+      ".agent_sources/**",
       "apps/web/next-env.d.ts",
       ".pi/specs/**",
       "**/build/**",

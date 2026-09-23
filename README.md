@@ -19,7 +19,9 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
 2. Create a Compose application from this repository. The Compose service is
    `web`. It mounts the named volume `hosti_data:/data`, where Hosti keeps both
    bundles and `hosti.db`.
-3. Set these environment variables in the Compose application:
+3. Set these environment variables in the Compose application. `.env.schema`
+   lists and types the variables Hosti reads. It is the source of truth for the
+   checked-in environment example:
 
    ```dotenv
    HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
@@ -38,8 +40,9 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
    changing a variable, redeploy so the container is recreated. A restart
    keeps the old environment. To check what the running container actually
    holds, open the `web` service's Terminal in Dokploy and run
-   `node scripts/env-check.mjs`, which prints lengths and digest prefixes
-   but never a secret.
+   `node scripts/env-check.mjs` (also available as `npm run env:digest` from
+   the repository root), which prints lengths and digest prefixes but never a
+   secret.
 
    Compose refuses to start if `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is
    missing. `HOSTI_PUBLIC_URL` has a Compose default of
@@ -116,7 +119,7 @@ the service's `environment` reach the container, so optional settings such as
 Run the source directly when you need Hosti on localhost:
 
 ```bash
-npm install
+npm ci
 export HOSTI_OWNER_PASSWORD='whatever-you-will-remember'
 export HOSTI_SECRET=$(openssl rand -hex 32)
 npm run dev            # http://127.0.0.1:3000
@@ -128,14 +131,16 @@ comment. The `HOSTI_SECRET` line stays unquoted on purpose, because the
 command substitution has to run and hex output is safe.
 
 Without both variables, the catalog names the missing value on `/login` and
-serves no admin page. Useful repository commands:
+serves no admin page. `.env.schema` declares and validates the app's settings;
+keep local values in an ignored `.env.local`. Useful repository commands:
 
 ```bash
 npm run build          # Next production build
 npm run test           # ESLint config test, then vitest
-npm run check          # Biome, ESLint comment rule, workspace tsc, then Dependency Cruiser
+npm run check          # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
 npm run token:new -- --name laptop   # or mint it at /tokens in the browser
-npm run env:check      # what the environment holds, no secret printed
+npm run env:check      # validate the declared environment schema with Varlock
+npm run env:digest     # inspect configured values without printing secrets
 ```
 
 The architecture checks adapt the maintained-tool setup from
@@ -587,8 +592,10 @@ $HOSTI_DATA_DIR/
     r2/index.html
 ```
 
-`HOSTI_DATA_DIR` defaults to `./data` and the container sets it to `/data`. See
-[.env.example](./.env.example).
+`HOSTI_DATA_DIR` defaults to `./data` and the container sets it to `/data`.
+The checked-in [`.env.schema`](./.env.schema) is the source of truth;
+[`.env.example`](./.env.example) shows local values and contains no live
+secrets.
 
 ## Project documents
 

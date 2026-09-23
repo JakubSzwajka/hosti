@@ -9,13 +9,15 @@ This repository uses npm 11 workspaces. `packageManager` pins npm 11.19.0. Do no
 | Command | What it does |
 | --- | --- |
 | `npm ci` | Install from `package-lock.json`. In a local Git clone, `prepare` installs the pre-commit hook. It skips CI and directories without `.git`. |
-| `npm run check` | Check exact pins, run Biome and ESLint, run TypeScript checks in each workspace, then Dependency Cruiser. |
+| `npm run check` | Check exact pins, validate the environment schema, run Biome and ESLint, run TypeScript checks in each workspace, then Dependency Cruiser. |
 | `npm run test` | Run `tests/**/*.test.mjs`, ESLint tool tests, then workspace Vitest suites. |
 | `npm run build` | Build the web app. |
 | `npm run acceptance` | Clone committed HEAD and run `npm ci`, check, test and build. Uncommitted changes are not included. |
 | `npm run dev` | Start the Next app at `http://127.0.0.1:3000`. |
 | `npm run token:new -- --name <name>` | Mint a push token locally. |
-| `npm run env:check` | Inspect environment lengths and digest prefixes without printing secrets. |
+| `npm run env:check` | Validate and load variables from `.env.schema` with Varlock. |
+| `npm run env:digest` | Inspect configured variable lengths and digest prefixes without printing secrets. |
+| `npm run vendor:agent-sources` | Shallow-clone the pinned Next.js source for agent reference. Not part of checks. |
 | `npm run compose:up` / `npm run compose:down` | Start or stop the local Compose stack. |
 
 Before handing off code, run `npm run check` and `npm run test`. Run `npm run build` when the change can affect the web app or its Docker image.
@@ -40,7 +42,7 @@ Lefthook runs `npm run check`, then `npm run test` before each commit. Fix failu
 
 ## Environment
 
-The web app needs `HOSTI_OWNER_PASSWORD` and `HOSTI_SECRET`. Set them in your local shell or local environment file. Never commit secrets. `.env.local` and `.env.*.local` are ignored. `HOSTI_PUBLIC_URL` should be the exact public HTTPS origin in a deployment. See README.md for deployment details.
+`.env.schema` is the source of truth for environment variables read by the apps. `npm run env:check` validates it and loads local values; set secrets in your shell or an ignored local env file. The owner password and signing secret stay optional in the schema, but the app refuses admin pages until both are set. Never commit secrets. `.env`, `.env.local`, and `.env.*.local` are ignored. `HOSTI_PUBLIC_URL` should be the exact public HTTPS origin in a deployment. Use `npm run env:digest` to inspect the configured environment without printing secret values. See README.md for deployment details.
 
 Do not run a command that opens or migrates `data/hosti.db` unless you have checked whether the database needs a backup. See the current [STATUS.md](./STATUS.md) before database work.
 
