@@ -27,10 +27,12 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@effect/tsgo": "0.45.0",
+    "@eslint/css": "2.0.0",
+    "@eslint/markdown": "8.0.3",
     "@swc/core": "1.16.2",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
-    "eslint-plugin-codebase-ai-rules": "github:JakubSzwajka/eslint-plugin-codebase-ai-rules#012daeb0d1809f0e026b9425dddc9a42a77c3328",
+    "eslint-plugin-codebase-ai-rules": "github:JakubSzwajka/eslint-plugin-codebase-ai-rules#5ef9c1558285f270a540e96213019f180073f4f4",
     "lefthook": "2.1.14",
     "turbo": "2.11.2",
     "typescript": "7.0.2",

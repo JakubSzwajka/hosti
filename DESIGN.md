@@ -14,6 +14,9 @@ colors:
   danger: "#8a2b14"
   white: "#ffffff"
   selection: "#bfe0e3"
+  ink-hover: "#1b2123"
+  scroll-thumb: "#b3bbbd"
+  scroll-thumb-hover: "#98a2a4"
 typography:
   display:
     fontFamily: "Fraunces, Superclarendon, 'Bookman Old Style', Georgia, serif"

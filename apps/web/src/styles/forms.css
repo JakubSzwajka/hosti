@@ -67,7 +67,7 @@
   margin-top: 2px;
 }
 .gate button:hover {
-  background: #1b2123;
+  background: var(--ink-hover);
 }
 .gate .error {
   font-size: 13px;

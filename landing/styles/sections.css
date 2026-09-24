@@ -65,13 +65,6 @@
 }
 
 .bundle-content {
-  --bundle-bg: #fff8ed;
-  --bundle-ink: #1a2730;
-  --bundle-muted: #68747a;
-  --bundle-line: #d8d4c9;
-  --bundle-accent: #e76445;
-  --bundle-accent-soft: #f6d3c6;
-  --bundle-blue: #2d6179;
   display: flex;
   min-height: 0;
   flex: 1;

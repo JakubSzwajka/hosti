@@ -9,6 +9,7 @@
   --pop: #06707e;
   --pop-wash: #e4f0f1;
   --danger: #8a2b14;
+  --selection: #bfe0e3;
   --gap: 22px;
   --gap-lg: 34px;
   --radius: 10px;
@@ -16,6 +17,18 @@
   --font-serif: Fraunces, Superclarendon, "Bookman Old Style", Georgia, serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+
+/* The mock bundle in the hero is someone else's page, so it is deliberately
+   off Hosti's palette. */
+.bundle-content {
+  --bundle-bg: #fff8ed;
+  --bundle-ink: #1a2730;
+  --bundle-muted: #68747a;
+  --bundle-line: #d8d4c9;
+  --bundle-accent: #e76445;
+  --bundle-accent-soft: #f6d3c6;
+  --bundle-blue: #2d6179;
 }
 
 *,
@@ -43,7 +56,7 @@ body {
 }
 
 ::selection {
-  background: #bfe0e3;
+  background: var(--selection);
   color: var(--ink);
 }
 

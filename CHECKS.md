@@ -10,6 +10,11 @@
 | Environment variables are declared, typed, and sensitive values are masked | Varlock `load` via `pnpm env:check` | `.env.schema`, `.varlock/config.json` |
 | JavaScript and TypeScript follow the configured formatter and lint rules, including two-space indentation, 100-column width, no `export *`, no non-null assertions, kebab-case filenames or export-name filenames, and the configured recommended Biome rules | Biome `ci` | `biome.json` |
 | ESLint's recommended codebase AI rules pass | ESLint | `eslint.config.mjs` |
+| Relative Markdown links, images, and definitions point at a path Git tracks, with exact case | ESLint `codebase-ai-rules/no-broken-relative-links` | `eslint.config.mjs` |
+| CSS in `apps/web/src/styles` and `landing/styles` takes colours from design tokens; only listed alpha fades are allowed | ESLint `codebase-ai-rules/design-no-raw-color` | `eslint.config.mjs`, `apps/web/src/styles/hosti.css`, `landing/styles/tokens.css` |
+| Every `var(--name)` in that CSS has a definition in the token file or the same file, except `--bar`, which the landing page sets inline | ESLint `codebase-ai-rules/design-no-unknown-token` | `eslint.config.mjs` |
+| Web radii come from the radius scale, shadows are `none`, and transitions and animations use `var(--t…)` | ESLint `codebase-ai-rules/design-scale-value` | `eslint.config.mjs` |
+| Strings in `apps/web/src` hold no raw colour, except the standalone not-found page in `respond.ts` | ESLint `codebase-ai-rules/design-no-raw-color-literal` | `eslint.config.mjs` |
 | Web framework, CLI, and shared projects pass with TypeScript 5.9.3; web use-cases pass separately with patched TypeScript 7.0.2 | TypeScript through Turbo `typecheck` | `apps/web/tsconfig.json`, `apps/web/tsconfig.effect.json`, workspace manifests, `turbo.json` |
 | Each workspace TypeScript project passes with strict mode, unchecked index access, exact optional properties, explicit overrides, verbatim module syntax, and erasable syntax | TypeScript via Turbo `typecheck` | `tsconfig.base.json`, `apps/*/tsconfig.json`, `packages/*/tsconfig.json`, `turbo.json` |
 | Effect values must be used or yielded, including inside Vitest callbacks | Effect diagnostics `floatingEffect`, `floatingEffectInVitest` | `tsconfig.base.json` |
@@ -47,4 +52,5 @@ Tools do not decide whether:
 - Tests cover meaningful cases or assert the right product outcome.
 - A module boundary, folder layout, or abstraction is the right one when imports still pass the configured rules.
 - A TypeScript cast or suppression is justified.
+- The standalone pages keep their own colours. No design rule checks the pin gate in `packages/serving/src/gate-page.ts`, and `respond.ts`'s not-found page is exempt from `design-no-raw-color-literal`.
 - A requested behavior has been documented for operators and users.
