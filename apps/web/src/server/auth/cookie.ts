@@ -1,4 +1,6 @@
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/server/auth/session";
+import { SESSION_MAX_AGE_SECONDS } from "@hosti/identity";
+
+export const SESSION_COOKIE = "hosti_admin";
 
 export function isSecureRequest(request: Request): boolean {
   if (request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() === "https") return true;

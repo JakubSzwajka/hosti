@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import Database from "better-sqlite3";
+import { catalogSchemaSql, catalogSchemaVersion } from "@hosti/catalog/schema";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -9,13 +10,6 @@ const nameFlag = args.indexOf("--name");
 const name = nameFlag === -1 ? "unnamed" : (args[nameFlag + 1] ?? "unnamed");
 const dataDir = path.resolve(process.env.HOSTI_DATA_DIR ?? "./data");
 const databaseFile = path.join(dataDir, "hosti.db");
-const schemaFile = new URL("../../../packages/catalog/schema.sql", import.meta.url);
-const schemaSql = readFileSync(schemaFile, "utf8");
-const versionMatch = schemaSql.match(/\('schema_version',\s*'(\d+)'\)/);
-
-if (!versionMatch) throw new Error("Could not read the current catalog schema version");
-const currentSchemaVersion = Number(versionMatch[1]);
-
 let db;
 try {
   mkdirSync(dataDir, { recursive: true });
@@ -36,14 +30,14 @@ try {
         "Database schema version is missing. Start the server once so it can migrate the database.",
       );
     }
-    db.transaction(() => db.exec(schemaSql))();
+    db.transaction(() => db.exec(catalogSchemaSql))();
   }
 
   const versionRow = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get();
   const schemaVersion = Number.parseInt(versionRow?.value ?? "0", 10);
-  if (!Number.isSafeInteger(schemaVersion) || schemaVersion < currentSchemaVersion) {
+  if (!Number.isSafeInteger(schemaVersion) || schemaVersion < catalogSchemaVersion) {
     throw new Error(
-      `Database schema version ${schemaVersion} is older than ${currentSchemaVersion}. Start the server once so it migrates the database, then retry.`,
+      `Database schema version ${schemaVersion} is older than ${catalogSchemaVersion}. Start the server once so it migrates the database, then retry.`,
     );
   }
 

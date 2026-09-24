@@ -1,7 +1,7 @@
+import { PIN_LIMITS, type EffectLoginLimiter } from "@hosti/identity";
 import { signingSecret } from "@/server/auth/config";
 import { isSecureRequest, readCookie } from "@/server/auth/cookie";
-import { pinKey, pinLimiter } from "@/server/auth/rate-limit";
-import { verifyPin } from "@/server/share-pin";
+import { runIdentityPromise, runIdentitySync } from "@/server/runtime";
 import { type GateFault, gatePageHtml } from "@/server/serving/gate-page";
 import { hostiNotFound, hostiPage } from "@/server/serving/respond";
 import {
@@ -13,6 +13,26 @@ import {
 } from "@/server/serving/unlock";
 
 export const UNLOCK_PATH = "/unlock";
+
+type PinLimiterHolder = { __hostiPinLimiter?: EffectLoginLimiter };
+
+function pinLimiter(): EffectLoginLimiter {
+  const holder = globalThis as PinLimiterHolder;
+  holder.__hostiPinLimiter ??= runIdentitySync((identity) =>
+    identity.createLoginLimiter(PIN_LIMITS),
+  );
+  return holder.__hostiPinLimiter;
+}
+
+function pinKey(headers: Headers, shareSlug: string): string {
+  return `${callerKey(headers)}|${shareSlug}`;
+}
+
+function callerKey(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return headers.get("x-real-ip")?.trim() || "unknown";
+}
 
 export type ShareRequest = { shareSlug: string; requestPath: string; sharePrefix: string };
 
@@ -92,16 +112,18 @@ export async function unlockResponse(
 
   const limiter = pinLimiter();
   const key = pinKey(request.headers, parsed.shareSlug);
-  if (!limiter.check(key).allowed) return backToGate(next, "locked");
+  if (!runIdentitySync(() => limiter.check(key)).allowed) return backToGate(next, "locked");
 
   const supplied = form.get("pin");
-  const right = typeof supplied === "string" && (await verifyPin(supplied, pinHash));
+  const right =
+    typeof supplied === "string" &&
+    (await runIdentityPromise((identity) => identity.verifyPin(supplied, pinHash)));
   if (!right) {
-    const verdict = limiter.fail(key);
+    const verdict = runIdentitySync(() => limiter.fail(key));
     return backToGate(next, verdict.allowed ? "wrong" : "locked");
   }
 
-  limiter.succeed(key);
+  runIdentitySync(() => limiter.succeed(key));
   const response = redirectTo(next);
   response.headers.append(
     "Set-Cookie",

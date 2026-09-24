@@ -1,4 +1,3 @@
-import { resolveShare } from "@/server/catalog";
 import {
   isUnlocked,
   lockedResponse,
@@ -8,8 +7,8 @@ import {
 } from "@/server/serving/gate";
 import { hostiNotFound } from "@/server/serving/respond";
 import { serveFromRevision } from "@/server/serving/serve-revision";
-import { runServingSync } from "@/server/runtime";
-import { currentRevisionRoot } from "@/server/storage/paths";
+import { bundlesDir } from "@/server/config";
+import { runCatalogSync, runServingSync, runStoragePromise } from "@/server/runtime";
 
 const PREFIX = "/v/";
 
@@ -39,7 +38,7 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed) return hostiNotFound();
 
-  const link = resolveShare(parsed.shareSlug);
+  const link = runCatalogSync((catalog) => catalog.resolveShare(parsed.shareSlug));
   const pinHash = link?.pinHash ?? null;
   const access = runServingSync((serving) =>
     serving.decideBundleAccess({
@@ -57,7 +56,9 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
   if (access.kind === "gate-required") return lockedResponse(request, parsed);
   if (!link) return hostiNotFound();
 
-  const root = await currentRevisionRoot(link.bundleSlug);
+  const root = await runStoragePromise((storage) =>
+    storage.currentRevisionRoot(bundlesDir(), link.bundleSlug),
+  );
   if (!root) return hostiNotFound();
 
   return serveFromRevision(request, root, {
@@ -70,7 +71,7 @@ export async function unlockBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed || parsed.requestPath !== UNLOCK_PATH) return hostiNotFound();
 
-  const link = resolveShare(parsed.shareSlug);
+  const link = runCatalogSync((catalog) => catalog.resolveShare(parsed.shareSlug));
   if (!link) return hostiNotFound();
 
   return unlockResponse(request, parsed, { bundleId: link.bundleId, pinHash: link.pinHash });

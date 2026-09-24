@@ -10,11 +10,15 @@ process.env.HOSTI_SECRET = SECRET;
 
 const ORIGIN = "http://127.0.0.1:3000";
 
-const { findBundle, listRevisions } = await import("@/server/catalog");
-const { CATALOG_UPLOAD } = await import("@/server/push-tokens");
-const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
-  "@/server/auth/session"
-);
+const {
+  findBundle,
+  listRevisions,
+  CATALOG_UPLOAD,
+  SESSION_COOKIE,
+  mutationToken,
+  signSession,
+  verifySession,
+} = await import("./support");
 const { POST: UPLOAD } = await import("@/app/upload/route");
 
 let dataDir: string;

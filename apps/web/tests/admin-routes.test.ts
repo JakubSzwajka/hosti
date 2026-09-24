@@ -10,12 +10,8 @@ process.env.HOSTI_SECRET = SECRET;
 const ORIGIN = "http://127.0.0.1:3000";
 
 const { push, serve } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
-const { findBundle, listRevisions } = await import("@/server/catalog");
-const { describeSharing } = await import("@/server/sharing");
-const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
-  "@/server/auth/session"
-);
+const { createPushToken, findBundle, listRevisions, describeSharing } = await import("./support");
+const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import("./support");
 const { POST: LOGIN } = await import("@/app/login/submit/route");
 const { POST: LOGOUT } = await import("@/app/logout/route");
 const { POST: SET_SHARING } = await import("@/app/b/[slug]/sharing/route");

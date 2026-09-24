@@ -8,17 +8,13 @@ process.env.HOSTI_SECRET = TEST_SECRET;
 const { navigate, push, serve, setSharing, unlock } = await import("./api");
 const { grantFrom, openLink, protectedLink } = await import("./pin-helpers");
 const { tarFixture } = await import("./helpers");
-const { createPushToken } = await import("@/server/push-tokens");
-const { hashPin, verifyPin } = await import("@/server/share-pin");
-const { signUnlock, unlockCookieName, verifyUnlock } = await import("@/server/serving/unlock");
+const { createPushToken, unlockCookieName } = await import("./support");
 const { isValidPin } = await import("@hosti/shared");
 
 let dataDir: string;
 let token: string;
 
 const opened = (slug: string, options?: { pin?: string }) => protectedLink(token, slug, options);
-
-const BOUND = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
 
 beforeAll(async () => {
   dataDir = await useTempDataDir();
@@ -27,36 +23,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await fs.rm(dataDir, { recursive: true, force: true });
-});
-
-describe("hashing a pin", () => {
-  it("verifies the pin it was made from", async () => {
-    const hash = await hashPin("4821");
-    expect(await verifyPin("4821", hash)).toBe(true);
-  });
-
-  it("refuses a pin that is not the one", async () => {
-    const hash = await hashPin("4821");
-    expect(await verifyPin("4822", hash)).toBe(false);
-    expect(await verifyPin("", hash)).toBe(false);
-  });
-
-  it("salts every pin, so the same digits never write the same row", async () => {
-    const [first, second] = await Promise.all([hashPin("4821"), hashPin("4821")]);
-    expect(first).not.toBe(second);
-    expect(first.startsWith("scrypt$")).toBe(true);
-  });
-
-  it("never keeps the digits anywhere in the hash", async () => {
-    const hash = await hashPin("13571357");
-    expect(hash).not.toContain("13571357");
-  });
-
-  it("refuses a hash it cannot read", async () => {
-    expect(await verifyPin("4821", "")).toBe(false);
-    expect(await verifyPin("4821", "plaintext")).toBe(false);
-    expect(await verifyPin("4821", "argon2$1$2$3$4$5")).toBe(false);
-  });
 });
 
 describe("what counts as a pin", () => {
@@ -208,46 +174,6 @@ describe("unlocking", () => {
     const other = await navigate(`/v/${second}/`, { cookie });
     expect(other.status).toBe(200);
     expect(await other.text()).toContain("This link is protected");
-  });
-
-  it("refuses a grant minted for another link", () => {
-    const stolen = signUnlock(TEST_SECRET, "some-other-link", BOUND);
-    expect(verifyUnlock(TEST_SECRET, "this-link", BOUND, stolen)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "some-other-link", BOUND, stolen)).toBe(true);
-  });
-
-  it("refuses a grant minted for another bundle on the same slug", () => {
-    const grant = signUnlock(TEST_SECRET, "reused-slug", BOUND);
-    expect(verifyUnlock(TEST_SECRET, "reused-slug", BOUND, grant)).toBe(true);
-    const otherBundle = { bundleId: BOUND.bundleId + 1, pinHash: BOUND.pinHash };
-    expect(verifyUnlock(TEST_SECRET, "reused-slug", otherBundle, grant)).toBe(false);
-  });
-
-  it("refuses a grant once the pin behind it has changed", () => {
-    const grant = signUnlock(TEST_SECRET, "pin-moved", BOUND);
-    const newPin = { bundleId: BOUND.bundleId, pinHash: "scrypt$16384$8$1$other$hash" };
-    expect(verifyUnlock(TEST_SECRET, "pin-moved", newPin, grant)).toBe(false);
-  });
-
-  it("refuses a grant that has run out", () => {
-    const grant = signUnlock(TEST_SECRET, "expiring", BOUND, { maxAgeSeconds: 60 });
-    expect(verifyUnlock(TEST_SECRET, "expiring", BOUND, grant)).toBe(true);
-    expect(verifyUnlock(TEST_SECRET, "expiring", BOUND, grant, Date.now() + 61_000)).toBe(false);
-  });
-
-  it("refuses a grant signed with another key, or edited", () => {
-    const grant = signUnlock(TEST_SECRET, "signed", BOUND);
-    expect(verifyUnlock("another-key", "signed", BOUND, grant)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "signed", BOUND, `${grant}x`)).toBe(false);
-    expect(verifyUnlock(TEST_SECRET, "signed", BOUND, null)).toBe(false);
-  });
-
-  it("keeps the bundle id and the pin hash out of the cookie", () => {
-    const grant = signUnlock(TEST_SECRET, "opaque", BOUND);
-    const [payload] = grant.split(".") as [string];
-    const claims = Buffer.from(payload, "base64url").toString("utf8");
-    expect(claims).not.toContain(BOUND.pinHash);
-    expect(claims).toContain("opaque");
   });
 
   it("will not be turned into an open redirect", async () => {

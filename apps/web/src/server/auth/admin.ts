@@ -1,14 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { AdminSession } from "@hosti/identity";
 import { adminSecrets } from "@/server/auth/config";
-import { readCookie } from "@/server/auth/cookie";
-import {
-  type AdminSession,
-  checkMutationToken,
-  mutationToken,
-  SESSION_COOKIE,
-  verifySession,
-} from "@/server/auth/session";
+import { readCookie, SESSION_COOKIE } from "@/server/auth/cookie";
+import { runIdentitySync } from "@/server/runtime";
 
 export type Admin = { session: AdminSession; mutationToken: string };
 
@@ -16,9 +11,14 @@ export async function currentAdmin(): Promise<Admin | null> {
   const secrets = adminSecrets();
   if (!secrets) return null;
   const store = await cookies();
-  const session = verifySession(secrets.secret, store.get(SESSION_COOKIE)?.value);
+  const session = runIdentitySync((identity) =>
+    identity.verifySession(secrets.secret, store.get(SESSION_COOKIE)?.value),
+  );
   if (!session) return null;
-  return { session, mutationToken: mutationToken(secrets.secret, session) };
+  const mutationToken = runIdentitySync((identity) =>
+    identity.mutationToken(secrets.secret, session),
+  );
+  return { session, mutationToken };
 }
 
 export async function requireAdmin(): Promise<Admin> {
@@ -35,7 +35,9 @@ export function guardSession(request: Request): MutationRefusal | MutationAllowe
   if (!secrets) {
     return { ok: false, response: new Response("Hosti is not configured", { status: 503 }) };
   }
-  const session = verifySession(secrets.secret, readCookie(request.headers, SESSION_COOKIE));
+  const session = runIdentitySync((identity) =>
+    identity.verifySession(secrets.secret, readCookie(request.headers, SESSION_COOKIE)),
+  );
   if (!session) {
     return { ok: false, response: new Response("Sign in first", { status: 401 }) };
   }
@@ -51,7 +53,10 @@ export function guardMutation(request: Request, form: FormData): MutationRefusal
   }
   const session = gate.session;
   const supplied = form.get("token");
-  if (typeof supplied !== "string" || !checkMutationToken(secrets.secret, session, supplied)) {
+  const valid =
+    typeof supplied === "string" &&
+    runIdentitySync((identity) => identity.checkMutationToken(secrets.secret, session, supplied));
+  if (!valid) {
     return { ok: false, response: new Response("Stale form, reload the page", { status: 403 }) };
   }
   return { ok: true, session };

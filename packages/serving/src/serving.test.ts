@@ -8,10 +8,10 @@ import { Serving, PREVIEW_TOKEN_TTL_MS } from "./index";
 
 const cryptoLayer = IdentityCrypto.layer({
   encodeBase64Url(value) {
-    return value;
+    return Buffer.from(value).toString("base64url");
   },
   decodeBase64Url(value) {
-    return value;
+    return Buffer.from(value, "base64url").toString("utf8");
   },
   hmacSha256Base64Url(secret, message) {
     return Effect.succeed(`signature:${secret}:${message}`);
@@ -119,6 +119,89 @@ it.layer(servingLayer)("Serving", (servingTest) => {
           canRenderGate: true,
         }),
       ).toEqual({ kind: "gate-required" });
+    }),
+  );
+
+  servingTest.effect("refuses a grant minted for another link", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const stolen = yield* serving.signUnlock("secret", "some-other-link", binding, {
+        now: 1000,
+      });
+
+      expect(yield* serving.verifyUnlock("secret", "this-link", binding, stolen, 1000)).toBe(false);
+      expect(yield* serving.verifyUnlock("secret", "some-other-link", binding, stolen, 1000)).toBe(
+        true,
+      );
+    }),
+  );
+
+  servingTest.effect("refuses a grant minted for another bundle on the same slug", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const grant = yield* serving.signUnlock("secret", "reused-slug", binding, { now: 1000 });
+      const otherBundle = { bundleId: binding.bundleId + 1, pinHash: binding.pinHash };
+
+      expect(yield* serving.verifyUnlock("secret", "reused-slug", binding, grant, 1000)).toBe(true);
+      expect(yield* serving.verifyUnlock("secret", "reused-slug", otherBundle, grant, 1000)).toBe(
+        false,
+      );
+    }),
+  );
+
+  servingTest.effect("refuses a grant once the pin behind it has changed", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const grant = yield* serving.signUnlock("secret", "pin-moved", binding, { now: 1000 });
+      const newPin = { bundleId: binding.bundleId, pinHash: "scrypt$16384$8$1$other$hash" };
+
+      expect(yield* serving.verifyUnlock("secret", "pin-moved", binding, grant, 1000)).toBe(true);
+      expect(yield* serving.verifyUnlock("secret", "pin-moved", newPin, grant, 1000)).toBe(false);
+    }),
+  );
+
+  servingTest.effect("refuses a grant that has run out", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const grant = yield* serving.signUnlock("secret", "expiring", binding, {
+        now: 1000,
+        maxAgeSeconds: 60,
+      });
+
+      expect(yield* serving.verifyUnlock("secret", "expiring", binding, grant, 1000)).toBe(true);
+      expect(yield* serving.verifyUnlock("secret", "expiring", binding, grant, 61_001)).toBe(false);
+    }),
+  );
+
+  servingTest.effect("refuses a grant signed with another key, or edited", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const grant = yield* serving.signUnlock("secret", "signed", binding, { now: 1000 });
+      const changed = grant.slice(0, -1) + (grant.endsWith("x") ? "y" : "x");
+
+      expect(yield* serving.verifyUnlock("another-key", "signed", binding, grant, 1000)).toBe(
+        false,
+      );
+      expect(yield* serving.verifyUnlock("secret", "signed", binding, changed, 1000)).toBe(false);
+      expect(yield* serving.verifyUnlock("secret", "signed", binding, null, 1000)).toBe(false);
+    }),
+  );
+
+  servingTest.effect("keeps the bundle id and the pin hash out of the cookie", () =>
+    Effect.gen(function* () {
+      const serving = yield* Serving;
+      const binding = { bundleId: 7, pinHash: "scrypt$16384$8$1$salt$key" };
+      const grant = yield* serving.signUnlock("secret", "opaque", binding, { now: 1000 });
+      const [payload] = grant.split(".") as [string];
+      const claims = Buffer.from(payload, "base64url").toString("utf8");
+
+      expect(claims).not.toContain(binding.pinHash);
+      expect(claims).toContain("opaque");
     }),
   );
 });

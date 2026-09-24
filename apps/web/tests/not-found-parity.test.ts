@@ -6,7 +6,7 @@ import { tarFixture, useTempDataDir } from "./helpers";
 process.env.HOSTI_SECRET = TEST_SECRET;
 
 const { push, serve, setSharing, shareSlugOf } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
+const { createPushToken } = await import("./support");
 
 let dataDir: string;
 let token: string;

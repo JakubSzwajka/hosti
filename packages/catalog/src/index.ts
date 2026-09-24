@@ -1,3 +1,4 @@
+export { catalogSchemaSql, catalogSchemaVersion } from "./schema.mjs";
 export { Catalog } from "./catalog";
 export { CatalogError } from "./catalog-error";
 export { openDatabaseAt } from "./internal/open-database";
