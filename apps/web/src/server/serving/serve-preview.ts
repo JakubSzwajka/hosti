@@ -6,6 +6,7 @@ import { findBundle } from "@/server/catalog";
 import { TOKEN_MARK, verifyPreviewToken } from "@/server/serving/preview-token";
 import { hostiNotFound } from "@/server/serving/respond";
 import { serveFromRevision } from "@/server/serving/serve-revision";
+import { runServingSync } from "@/server/runtime";
 import { currentRevisionRoot } from "@/server/storage/paths";
 
 export const PREVIEW_SEGMENT = "preview";
@@ -62,7 +63,10 @@ function mayPreview(request: Request, parsed: ParsedPreview): boolean {
 export async function servePreviewRequest(request: Request): Promise<Response> {
   const parsed = parsePreviewUrl(request.url);
   if (!parsed) return hostiNotFound();
-  if (!mayPreview(request, parsed)) return hostiNotFound();
+  const access = runServingSync((serving) =>
+    serving.decidePreviewAccess(mayPreview(request, parsed)),
+  );
+  if (access.kind === "not-found") return hostiNotFound();
 
   const bundle = findBundle(parsed.bundleSlug);
   if (!bundle) return hostiNotFound();

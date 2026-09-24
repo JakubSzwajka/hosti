@@ -16,6 +16,7 @@
     "@hosti/catalog": "workspace:0.1.0",
     "@hosti/identity": "workspace:0.1.0",
     "@hosti/shared": "workspace:0.1.0",
+    "@hosti/serving": "workspace:0.1.0",
     "@hosti/storage": "workspace:0.1.0",
     "better-sqlite3": "12.11.1",
     "effect": "4.0.0-rc.117",

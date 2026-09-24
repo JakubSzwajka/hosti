@@ -1,0 +1,24 @@
+{
+  "name": "@hosti/serving",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hosti/identity": "workspace:0.1.0",
+    "@hosti/shared": "workspace:0.1.0",
+    "effect": "4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.117",
+    "@effect/vitest": "4.0.0-rc.117",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

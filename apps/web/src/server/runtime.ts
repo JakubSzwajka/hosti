@@ -5,6 +5,7 @@ import { Catalog, CatalogError, openDatabaseAt } from "@hosti/catalog";
 import { BundlesError } from "@hosti/bundles";
 import { Storage, StorageError } from "@hosti/storage";
 import { Identity, IdentityInputError } from "@hosti/identity";
+import { Serving } from "@hosti/serving";
 import type Database from "better-sqlite3";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -26,7 +27,7 @@ const platformLayer = Layer.mergeAll(
 );
 const catalogLayer = Catalog.layer(dataDir(), catalogSchemaSql);
 const identityLayer = Identity.layer.pipe(Layer.provideMerge(catalogLayer));
-const runtimeLayer = Layer.mergeAll(identityLayer, Storage.layer).pipe(
+const runtimeLayer = Layer.mergeAll(identityLayer, Storage.layer, Serving.layer).pipe(
   Layer.provideMerge(platformLayer),
 );
 const runtime = ManagedRuntime.make(runtimeLayer);
@@ -57,6 +58,16 @@ export function runStoragePromise<A, E>(
   use: (storage: Storage["Service"]) => Effect.Effect<A, E>,
 ): Promise<A> {
   return runtime.runPromise(Storage.use(use));
+}
+
+export function runServingSync<A, E>(use: (serving: Serving["Service"]) => Effect.Effect<A, E>): A {
+  return runtime.runSync(Serving.use(use));
+}
+
+export function runServingPromise<A, E>(
+  use: (serving: Serving["Service"]) => Effect.Effect<A, E>,
+): Promise<A> {
+  return runtime.runPromise(Serving.use(use));
 }
 
 type BundleRequirements =
