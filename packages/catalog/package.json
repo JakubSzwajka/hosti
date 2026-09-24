@@ -1,0 +1,25 @@
+{
+  "name": "@hosti/catalog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.0-rc.117",
+    "@hosti/shared": "workspace:0.1.0",
+    "better-sqlite3": "12.11.1",
+    "effect": "4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.0-rc.117",
+    "@types/better-sqlite3": "7.6.13",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

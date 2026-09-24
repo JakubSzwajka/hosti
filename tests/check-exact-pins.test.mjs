@@ -32,20 +32,30 @@ const checkWorkspace = (files) => {
     rmSync(dir, { recursive: true, force: true });
   }
 };
-const WORKSPACES = ["apps/*", "packages/*"];
+const WORKSPACE_YAML = 'packages:\n  - "apps/*"\n  - packages/*\n\nsaveExact: true\n';
 
 describe("exact pin check", () => {
   it("accepts exact versions, prereleases, aliases, and commit-pinned GitHub specs", () => {
     const result = checkManifest({
       dependencies: { a: "1.2.3", b: "4.0.0-rc.1", c: "npm:real-name@2.0.0" },
       devDependencies: { d: "github:owner/repo#012daeb0d1809f0e026b9425dddc9a42a77c3328" },
-      optionalDependencies: { e: "0.0.1" },
-      packageManager: "npm@11.19.0",
+      optionalDependencies: { e: "workspace:0.0.0" },
+      packageManager: "pnpm@12.5.1",
     });
     assert.equal(result.status, 0, result.stderr);
   });
 
-  for (const spec of ["^1.2.3", "~1.2.3", ">=1.0.0", "latest", "*", "github:owner/repo#main"]) {
+  for (const spec of [
+    "^1.2.3",
+    "~1.2.3",
+    ">=1.0.0",
+    "latest",
+    "*",
+    "github:owner/repo#main",
+    "workspace:*",
+    "workspace:^",
+    "workspace:^1.2.3",
+  ]) {
     it(`rejects ${spec}`, () => {
       const result = checkManifest({ devDependencies: { loose: spec } });
       assert.equal(result.status, 1);
@@ -54,15 +64,16 @@ describe("exact pin check", () => {
   }
 
   it("rejects a packageManager without an exact version", () => {
-    const result = checkManifest({ packageManager: "npm@latest" });
+    const result = checkManifest({ packageManager: "pnpm@latest" });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /packageManager: npm@latest/);
+    assert.match(result.stderr, /packageManager: pnpm@latest/);
   });
 
-  it("checks root and every workspace package from package.json workspaces", () => {
+  it("checks root and every workspace manifest from pnpm-workspace.yaml", () => {
     const result = checkWorkspace({
-      "package.json": { workspaces: WORKSPACES, devDependencies: { a: "1.2.3" } },
-      "apps/web/package.json": { dependencies: { b: "1.0.0" } },
+      "pnpm-workspace.yaml": WORKSPACE_YAML,
+      "package.json": { devDependencies: { a: "1.2.3" } },
+      "apps/web/package.json": { dependencies: { b: "workspace:0.1.0" } },
       "packages/core/package.json": { dependencies: { c: "^4.0.0" } },
     });
     assert.equal(result.status, 1);
@@ -72,17 +83,21 @@ describe("exact pin check", () => {
 
   it("passes when every workspace manifest is exact", () => {
     const result = checkWorkspace({
-      "package.json": { workspaces: WORKSPACES, devDependencies: { a: "1.2.3" } },
-      "apps/web/package.json": { dependencies: { b: "1.0.0" } },
+      "pnpm-workspace.yaml": WORKSPACE_YAML,
+      "package.json": { devDependencies: { a: "1.2.3" } },
+      "apps/web/package.json": { dependencies: { b: "workspace:0.1.0" } },
       "packages/core/package.json": { dependencies: { c: "4.0.0" } },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /apps\/web\/package\.json, packages\/core\/package\.json/);
   });
 
-  it("fails when package.json lists no workspaces", () => {
-    const result = checkWorkspace({ "package.json": { devDependencies: { a: "1.2.3" } } });
+  it("fails when pnpm-workspace.yaml lists no packages", () => {
+    const result = checkWorkspace({
+      "pnpm-workspace.yaml": "saveExact: true\n",
+      "package.json": { devDependencies: { a: "1.2.3" } },
+    });
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /no `workspaces` list/);
+    assert.match(result.stderr, /no `packages:` list/);
   });
 });

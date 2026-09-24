@@ -40,7 +40,7 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
    changing a variable, redeploy so the container is recreated. A restart
    keeps the old environment. To check what the running container actually
    holds, open the `web` service's Terminal in Dokploy and run
-   `node scripts/env-check.mjs` (also available as `npm run env:digest` from
+   `node scripts/env-check.mjs` (also available as `pnpm env:digest` from
    the repository root), which prints lengths and digest prefixes but never a
    secret.
 
@@ -101,7 +101,7 @@ GitHub account password.
 `pull_policy: always`. Run `docker compose pull` before it only when you want
 the pull as a separate, visible step.
 
-From the repository root on the host, `npm run compose:up` runs
+From the repository root on the host, `pnpm compose:up` runs
 `docker compose up -d --pull always`.
 
 Normal Dokploy redeploys preserve the named `hosti_data` volume. Any action
@@ -119,10 +119,11 @@ the service's `environment` reach the container, so optional settings such as
 Run the source directly when you need Hosti on localhost:
 
 ```bash
-npm ci
+corepack enable
+pnpm install --frozen-lockfile
 export HOSTI_OWNER_PASSWORD='whatever-you-will-remember'
 export HOSTI_SECRET=$(openssl rand -hex 32)
-npm run dev            # http://127.0.0.1:3000
+pnpm dev               # http://127.0.0.1:3000
 ```
 
 Single-quote the password. A shell mangles an unquoted value the same way
@@ -135,20 +136,21 @@ serves no admin page. `.env.schema` declares and validates the app's settings;
 keep local values in an ignored `.env.local`. Useful repository commands:
 
 ```bash
-npm run build          # Next production build
-npm run test           # ESLint config test, then vitest
-npm run check          # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
-npm run token:new -- --name laptop   # or mint it at /tokens in the browser
-npm run env:check      # validate the declared environment schema with Varlock
-npm run env:digest     # inspect configured values without printing secrets
+pnpm build             # Next production build
+pnpm test              # ESLint config test, then workspace tests
+pnpm check             # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
+pnpm token:new -- --name laptop   # or mint it at /tokens in the browser
+pnpm env:check         # validate the declared environment schema with Varlock
+pnpm env:digest        # inspect configured values without printing secrets
 ```
 
 The architecture checks adapt the maintained-tool setup from
 [drunk-cat-stack](https://github.com/JakubSzwajka/drunk-cat-stack).
 
-On npm 11, `npm install` asks before running dependency install scripts.
-`better-sqlite3` needs its script, and `package.json` approves it in
-`allowScripts`.
+pnpm 12 runs only the install scripts approved in `pnpm-workspace.yaml`.
+`better-sqlite3` needs its script to build the native SQLite binding. The
+workspace policy also records explicit decisions for each other package with an
+install script.
 
 ## The catalog
 
@@ -307,7 +309,7 @@ origin, because its sandbox denies `allow-same-origin`. A bundle opened through
 
 ```bash
 export HOSTI_URL=http://127.0.0.1:3000
-export HOSTI_TOKEN=$(npm run --silent token:new -- --name laptop | sed -n 2p)
+export HOSTI_TOKEN=$(pnpm --silent run token:new -- --name laptop | sed -n 2p)
 
 hosti push ./fixtures/multi-page --slug squad-2026 --title "Squad 2026"
 hosti share squad-2026 --mode link
@@ -350,17 +352,17 @@ step and nothing to compile. It talks HTTP only: it never opens the SQLite file.
 To get `hosti` on the PATH, from the repository root:
 
 ```bash
-npm install                    # once, so tar is there for the CLI to find
-npm link -w @hosti/cli         # or: npm i -g ./apps/cli
+pnpm install --frozen-lockfile
+pnpm --filter @hosti/cli link --global   # or: pnpm add --global ./apps/cli
 hosti ls                       # from anywhere now
 ```
 
 Both routes symlink the global `hosti` at this checkout rather than copying it,
 so the repository has to stay where it is and an edit to `apps/cli/src` is live
 at once. There is no third route: `@hosti/cli` is a workspace package and is
-not published, so `npm i -g @hosti/cli` has nothing to fetch.
+not published, so `pnpm add --global @hosti/cli` has nothing to fetch.
 
-`npm unlink -g @hosti/cli` takes it off again.
+`pnpm remove --global @hosti/cli` takes it off again.
 
 Settings resolve in this order, per setting: `--url` and `--token`, then
 `HOSTI_URL` and `HOSTI_TOKEN`, then `~/.config/hosti.json` (or
@@ -389,7 +391,7 @@ it prints use the server you asked for, not the host the server names itself.
 ## Push a bundle by hand
 
 ```bash
-export HOSTI_PUSH_TOKEN=$(npm run --silent token:new -- --name laptop | sed -n 2p)
+export HOSTI_PUSH_TOKEN=$(pnpm --silent run token:new -- --name laptop | sed -n 2p)
 
 tar czf /tmp/b.tgz -C ./fixtures/multi-page .
 curl -X POST localhost:3000/api/v1/bundles/squad-2026/revisions \

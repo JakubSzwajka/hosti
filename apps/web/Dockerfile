@@ -4,24 +4,29 @@
 # Keep the tag in step with .nvmrc.
 FROM node:24.21.0-bookworm-slim AS base
 WORKDIR /app
-ENV npm_config_update_notifier=false
+ENV COREPACK_HOME=/corepack
+RUN corepack enable
 
 FROM base AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
   && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json ./
-COPY scripts/prepare-hooks.mjs scripts/prepare-hooks.mjs
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/cli/package.json apps/cli/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-# npm 11 reads the allowScripts field in the root package.json and refuses
-# --allow-scripts on a project install.
-RUN npm ci
+COPY packages/serving/package.json packages/serving/package.json
+COPY packages/bundles/package.json packages/bundles/package.json
+COPY packages/catalog/package.json packages/catalog/package.json
+COPY packages/identity/package.json packages/identity/package.json
+COPY packages/storage/package.json packages/storage/package.json
+COPY scripts/prepare-hooks.mjs scripts/prepare-hooks.mjs
+RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY tsconfig.base.json ./
-COPY packages/shared packages/shared
+COPY packages/ packages/
 COPY apps/web apps/web
-RUN npm run build -w @hosti/web
+RUN pnpm --filter @hosti/web build
 
 FROM base AS runtime
 ENV NODE_ENV=production \
@@ -32,12 +37,11 @@ ENV NODE_ENV=production \
 RUN mkdir -p /data && chown -R node:node /data
 WORKDIR /app/apps/web
 
-# Next's standalone output carries its own pruned node_modules, plus the
-# schema.sql that next.config.ts adds to the file trace.
+# Next standalone output includes traced packages and native better-sqlite3 files.
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone /app
 COPY --from=build --chown=node:node /app/apps/web/.next/static /app/apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/scripts /app/apps/web/scripts
-COPY --from=build --chown=node:node /app/apps/web/src/server/db /app/apps/web/src/server/db
+COPY --from=build --chown=node:node /app/packages/catalog/schema.sql /app/packages/catalog/schema.sql
 
 USER node
 EXPOSE 3000

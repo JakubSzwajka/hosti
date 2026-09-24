@@ -1,26 +1,17 @@
-export type AdminSecrets = {
-  password: string;
+import { OWNER_PASSWORD_VAR, SECRET_VAR, type AdminSecrets } from "@hosti/identity";
+import { runIdentitySync } from "@/server/runtime";
 
-  secret: string;
-};
-
-export const OWNER_PASSWORD_VAR = "HOSTI_OWNER_PASSWORD";
-export const SECRET_VAR = "HOSTI_SECRET";
+export type { AdminSecrets };
+export { OWNER_PASSWORD_VAR, SECRET_VAR };
 
 export function missingAdminVars(): string[] {
-  const missing: string[] = [];
-  if (!process.env[OWNER_PASSWORD_VAR]?.trim()) missing.push(OWNER_PASSWORD_VAR);
-  if (!process.env[SECRET_VAR]?.trim()) missing.push(SECRET_VAR);
-  return missing;
+  return runIdentitySync((identity) => identity.missingAdminVars);
 }
 
 export function signingSecret(): string | null {
-  return process.env[SECRET_VAR]?.trim() || null;
+  return runIdentitySync((identity) => identity.signingSecret);
 }
 
 export function adminSecrets(): AdminSecrets | null {
-  const password = process.env[OWNER_PASSWORD_VAR]?.trim();
-  const secret = process.env[SECRET_VAR]?.trim();
-  if (!password || !secret) return null;
-  return { password, secret };
+  return runIdentitySync((identity) => identity.adminSecrets);
 }

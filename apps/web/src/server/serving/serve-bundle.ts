@@ -1,7 +1,14 @@
 import { resolveShare } from "@/server/catalog";
-import { isUnlocked, lockedResponse, UNLOCK_PATH, unlockResponse } from "@/server/serving/gate";
+import {
+  isUnlocked,
+  lockedResponse,
+  UNLOCK_PATH,
+  unlockResponse,
+  wantsPage,
+} from "@/server/serving/gate";
 import { hostiNotFound } from "@/server/serving/respond";
 import { serveFromRevision } from "@/server/serving/serve-revision";
+import { runServingSync } from "@/server/runtime";
 import { currentRevisionRoot } from "@/server/storage/paths";
 
 const PREFIX = "/v/";
@@ -32,14 +39,23 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
   if (!parsed) return hostiNotFound();
 
-  // Resolve sharing before disk access so unknown and private links share one 404.
   const link = resolveShare(parsed.shareSlug);
+  const pinHash = link?.pinHash ?? null;
+  const access = runServingSync((serving) =>
+    serving.decideBundleAccess({
+      shareExists: link !== null,
+      pinProtected: pinHash !== null && pinHash.length > 0,
+      unlocked:
+        link !== null &&
+        pinHash !== null &&
+        pinHash.length > 0 &&
+        isUnlocked(request, parsed.shareSlug, { bundleId: link.bundleId, pinHash }),
+      canRenderGate: wantsPage(request),
+    }),
+  );
+  if (access.kind === "not-found") return hostiNotFound();
+  if (access.kind === "gate-required") return lockedResponse(request, parsed);
   if (!link) return hostiNotFound();
-
-  const pinHash = link.pinHash;
-  if (pinHash && !isUnlocked(request, parsed.shareSlug, { bundleId: link.bundleId, pinHash })) {
-    return lockedResponse(request, parsed);
-  }
 
   const root = await currentRevisionRoot(link.bundleSlug);
   if (!root) return hostiNotFound();

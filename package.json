@@ -4,19 +4,16 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
   "scripts": {
-    "dev": "npm run dev -w @hosti/web",
-    "build": "npm run build --workspaces --if-present",
-    "test": "node --test \"tests/**/*.test.mjs\" && node --test tools/eslint/*.test.mjs && npm run test --workspaces --if-present",
+    "dev": "pnpm --filter @hosti/web dev",
+    "build": "pnpm --filter @hosti/web build",
+    "test": "node --test \"tests/**/*.test.mjs\" && node --test tools/eslint/*.test.mjs && TURBO_TELEMETRY_DISABLED=1 turbo run test",
     "pins": "node scripts/check-exact-pins.mjs",
-    "check": "npm run pins && npm run env:check && biome ci . && npm run lint && npm run check --workspaces --if-present && npm run check:deps",
+    "check": "pnpm run pins && pnpm run env:check && biome ci . && pnpm run lint && pnpm run typecheck && pnpm run check:deps",
     "acceptance": "bash scripts/acceptance-cold-clone.sh",
-    "prepare": "node scripts/prepare-hooks.mjs",
+    "prepare": "effect-tsgo patch && node scripts/prepare-hooks.mjs",
     "check:deps": "cd apps/web && depcruise --config ../../.dependency-cruiser.cjs apps packages",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 turbo run typecheck",
     "lint:fix": "biome check --write .",
     "lint": "eslint .",
     "format": "biome format --write .",
@@ -29,21 +26,19 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
+    "@effect/tsgo": "0.45.0",
+    "@swc/core": "1.16.2",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
     "eslint-plugin-codebase-ai-rules": "github:JakubSzwajka/eslint-plugin-codebase-ai-rules#012daeb0d1809f0e026b9425dddc9a42a77c3328",
     "lefthook": "2.1.14",
-    "typescript": "5.9.3",
+    "turbo": "2.11.2",
+    "typescript": "7.0.2",
     "varlock": "1.20.0"
   },
   "engines": {
     "node": ">=24.21.0",
-    "npm": ">=11.19.0"
+    "pnpm": ">=12.5.1"
   },
-  "packageManager": "npm@11.19.0",
-  "allowScripts": {
-    "better-sqlite3@12.11.1": true,
-    "esbuild@0.28.2": true,
-    "lefthook@2.1.14": false
-  }
+  "packageManager": "pnpm@12.5.1"
 }

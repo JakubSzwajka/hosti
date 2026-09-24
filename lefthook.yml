@@ -4,7 +4,7 @@ pre-commit:
   commands:
     check:
       priority: 1
-      run: npm run check
+      run: pnpm check
     test:
       priority: 2
-      run: npm run test
+      run: pnpm test

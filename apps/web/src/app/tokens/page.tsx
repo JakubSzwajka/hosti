@@ -3,10 +3,12 @@ import Link from "next/link";
 import { formatDate, plural } from "@/app/_ui/format";
 import { OnboardingPanel } from "@/app/_ui/onboarding-panel";
 import { Masthead } from "@/app/_ui/pieces";
+import type { PushTokenRecord } from "@hosti/identity";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { requireAdmin } from "@/server/auth/admin";
 import { baseUrlFromHeaders } from "@/server/config";
-import { takeMintedSecret } from "@/server/minted-secret";
-import { listPushTokens, type PushTokenRecord } from "@/server/push-tokens";
+import { listTokens } from "@/use-cases/list-tokens";
+import { takeMintedSecret } from "@/use-cases/take-minted-secret";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,9 +20,9 @@ export default async function PushTokens({
 }) {
   const admin = await requireAdmin();
   const query = await searchParams;
-  const secret = takeMintedSecret(query.shown);
+  const secret = await runAppUseCase(takeMintedSecret(query.shown));
   const baseUrl = baseUrlFromHeaders(await headers());
-  const tokens = listPushTokens();
+  const tokens = await runAppUseCase(listTokens());
 
   return (
     <div className="wrap catalog-shell">

@@ -1,40 +1,39 @@
 ---
 name: add-a-route
-description: Add an API handler or catalog page route to Hosti using its existing Next.js, server, auth, and test conventions.
+description: Add an API handler or catalog page route to Hosti using its existing Next.js, use-case, auth, and test conventions.
 ---
 
 # Add a Hosti route
 
-Read `CONTEXT.md` before changing behavior. Hosti's terms and product rules apply to routes as they do to the rest of the app.
+Read `CONTEXT.md` before changing behavior. Use Hosti's terms and keep its product rules intact.
 
-## Choose the route shape
+## Put work in the right layer
 
-- API handlers live under `apps/web/src/app/api/`. Export the HTTP method function, accept a `Request`, and return a `Response`. See `apps/web/src/app/api/v1/bundles/route.ts` and the slug-scoped handler in `apps/web/src/app/api/v1/bundles/[slug]/sharing/route.ts`.
-- Catalog pages live in `apps/web/src/app/`. Dynamic page params are promises in the current Next.js version. See `apps/web/src/app/b/[slug]/page.tsx`.
-- Keep database and product operations in `apps/web/src/server/`. Route handlers call those modules; server modules must not import Next delivery routes. See `apps/web/src/server/catalog.ts` and the `web-server-does-not-import-next-delivery` rule in `.dependency-cruiser.cjs`.
+- Delivery lives in `apps/web/src/app/`. API handlers accept `Request` and return `Response`; catalog pages use promised route params. See `apps/web/src/app/api/v1/bundles/route.ts` and `apps/web/src/app/b/[slug]/page.tsx`.
+- Add one `Effect.fn` use-case per product action under `apps/web/src/use-cases/`. Compose public `@hosti/*` package services there. Do not import Next, `Request`/`Response`, or `apps/web/src/server/` from a use-case.
+- Route and page code adapts its inputs, calls the use-case through `runAppUseCase` in `apps/web/src/app/_http/run-use-case.ts`, then maps the result to HTTP or UI. `apps/web/src/server/runtime.ts` owns the sole `ManagedRuntime` and is the only place that runs Effects for delivery.
+- Delivery may use `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node glue. Import package constants and pure helpers directly when needed.
+- Do not call server catalog, storage, push, sharing, retention, token, pin, or auth-session adapters from delivery. They stay in `src/server` for the existing tests. Dependency Cruiser enforces `delivery-reaches-domain-through-use-cases`, `use-cases-do-not-import-outer-layers`, and `server-does-not-import-delivery`.
 
-## Handle responses and errors
+## Map failures at the edge
 
-- Use `jsonResponse`, `errorResponse`, `unauthorized`, and `failureResponse` from `apps/web/src/server/api-responses.ts` for JSON endpoints. `failureResponse` maps `PushError` from `apps/web/src/server/errors.ts` and returns an internal error for other failures.
-- API routes using bearer push tokens call `authenticatePush` from `apps/web/src/server/push-tokens.ts`; return `unauthorized()` when it returns null. See `apps/web/src/app/api/v1/bundles/route.ts`.
-- For catalog pages, use `requireAdmin()` from `apps/web/src/server/auth/admin.ts`; it redirects unauthenticated visitors to `/login`. For catalog mutation handlers, call `guardSession` or `guardMutation` from the same module. Mutations use the session cookie and mutation token, not a push token. See `apps/web/src/app/b/[slug]/sharing/route.ts`.
-- Keep each route's error mapping consistent with its response type. The JSON push API and catalog form routes use different response patterns; follow the closest existing route.
+- JSON handlers use `jsonResponse`, `errorResponse`, `unauthorized`, and `failureResponse` from `server/api-responses.ts`. The shared app helper turns expected package failures into `PushError`; `failureResponse` maps it to the existing JSON shape.
+- For catalog forms, use `requireAdmin()`, `guardSession()`, or `guardMutation()` from `server/auth/admin.ts`. Preserve redirects, status codes, headers, and body text.
+- Keep route-specific failure mapping close to the handler. Follow the nearest existing route when JSON APIs and catalog forms differ.
 
 ## Test the route
 
 - Add route tests under `apps/web/tests/`. Vitest is configured by `apps/web/vitest.config.ts`.
-- Import route functions directly, as `apps/web/tests/admin-routes.test.ts` does. Build `Request` objects and provide promised params for dynamic routes.
-- Use `useTempDataDir`, `tarFixture`, and related fixtures from `apps/web/tests/helpers.ts` when the route needs catalog data. Existing tests set auth secrets before dynamically importing route modules; follow that order when module initialization depends on environment values.
-- Cover the refusal path as well as success. Admin mutation tests check missing sessions and invalid mutation tokens; bearer API tests check missing or invalid push tokens.
+- Import route functions directly, as `apps/web/tests/admin-routes.test.ts` does. Build `Request` objects and pass promised params for dynamic routes.
+- Use `useTempDataDir`, `tarFixture`, and the related helpers from `apps/web/tests/helpers.ts` when a route needs catalog data. Tests that set auth values must do so before importing the route module.
+- Cover refusal and success paths. Admin mutation tests check missing sessions and invalid mutation tokens; bearer API tests check absent or invalid push tokens.
 
 ## Run checks
 
-From the repository root:
+From the repository root, run:
 
 ```sh
-npm run check
-npm run test
-npm run build
+pnpm check
+pnpm test
+pnpm build
 ```
-
-`npm run check` includes exact pins, environment schema validation, Biome, ESLint, workspace TypeScript checks, and Dependency Cruiser. Run all three commands after a route change.

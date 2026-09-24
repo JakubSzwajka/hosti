@@ -1,7 +1,9 @@
-import { adminSecrets } from "@/server/auth/config";
+import { callerKey } from "@/app/_http/caller-key";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { isSecureRequest, sessionCookie } from "@/server/auth/cookie";
-import { callerKey, loginLimiter } from "@/server/auth/rate-limit";
-import { constantTimeEquals, signSession } from "@/server/auth/session";
+import { checkLoginAttempt } from "@/use-cases/check-login-attempt";
+import { login } from "@/use-cases/login";
+import { showLoginSetup } from "@/use-cases/show-login-setup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,25 +14,22 @@ function back(error?: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const secrets = adminSecrets();
-  if (!secrets) return back();
+  const missing = await runAppUseCase(showLoginSetup());
+  if (missing.length > 0) return back();
 
   const caller = callerKey(request.headers);
-  const limiter = loginLimiter();
-  if (!limiter.check(caller).allowed) return back("locked");
+  const verdict = await runAppUseCase(checkLoginAttempt(caller));
+  if (!verdict.allowed) return back("locked");
 
   const form = await request.formData();
-  const supplied = form.get("password");
-  if (typeof supplied !== "string" || !constantTimeEquals(secrets.password, supplied)) {
-    const verdict = limiter.fail(caller);
-    return back(verdict.allowed ? "bad" : "locked");
-  }
+  const result = await runAppUseCase(login(caller, form.get("password")));
+  if (result.status === "unconfigured") return back();
+  if (result.status !== "authenticated") return back(result.status);
 
-  limiter.succeed(caller);
   const response = new Response(null, { status: 303, headers: { Location: "/" } });
   response.headers.append(
     "Set-Cookie",
-    sessionCookie(signSession(secrets.secret), { secure: isSecureRequest(request) }),
+    sessionCookie(result.session, { secure: isSecureRequest(request) }),
   );
   return response;
 }

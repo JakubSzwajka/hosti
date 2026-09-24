@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
   outputFileTracingIncludes: {
-    "/**": ["./src/server/db/schema.sql"],
+    "/**": ["../../packages/catalog/schema.sql"],
   },
 };
 

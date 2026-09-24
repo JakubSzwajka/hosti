@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { Mark } from "@/app/_ui/mark";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { currentAdmin } from "@/server/auth/admin";
-import { missingAdminVars } from "@/server/auth/config";
+import { showLoginSetup } from "@/use-cases/show-login-setup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function Login({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const missing = missingAdminVars();
+  const missing = await runAppUseCase(showLoginSetup());
   if (missing.length === 0 && (await currentAdmin())) redirect("/");
   const { error } = await searchParams;
 

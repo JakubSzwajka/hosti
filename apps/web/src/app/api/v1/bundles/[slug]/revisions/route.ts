@@ -1,6 +1,12 @@
+import { Readable } from "node:stream";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
+import { archiveSource } from "@/app/_http/archive";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { failureResponse, jsonResponse, unauthorized } from "@/server/api-responses";
-import { acceptPush } from "@/server/push";
-import { authenticatePush } from "@/server/push-tokens";
+import { bundlesDir, keepRevisions, publicBaseUrl } from "@/server/config";
+import { PushError } from "@/server/errors";
+import { authenticatePush } from "@/use-cases/authenticate-push";
+import { pushBundle } from "@/use-cases/push-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,12 +14,42 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
-  const pushedBy = authenticatePush(request);
+  const pushedBy = await runAppUseCase(authenticatePush(request.headers.get("authorization")));
   if (!pushedBy) return unauthorized();
   const { slug } = await context.params;
+  if (!request.body) {
+    return failureResponse(
+      new PushError("empty_body", "Push a gzipped tarball as the request body"),
+    );
+  }
   try {
-    return jsonResponse(await acceptPush(request, slug, pushedBy), 201);
+    const stored = await runAppUseCase(
+      pushBundle({
+        slug,
+        source: archiveSource(
+          Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>),
+          "bad_tarball",
+          "Cannot read the pushed archive",
+        ),
+        title: headerText(request, "x-hosti-title"),
+        collection: headerText(request, "x-hosti-collection"),
+        bundlesRoot: bundlesDir(),
+        baseUrl: publicBaseUrl(request),
+        pushedBy,
+        keep: keepRevisions(),
+      }),
+    );
+    return jsonResponse(stored, 201);
   } catch (error) {
     return failureResponse(error);
   }
+}
+
+const MAX_HEADER_TEXT = 200;
+
+function headerText(request: Request, name: string): string | null {
+  const raw = request.headers.get(name);
+  if (!raw) return null;
+  const trimmed = raw.trim().slice(0, MAX_HEADER_TEXT);
+  return trimmed || null;
 }

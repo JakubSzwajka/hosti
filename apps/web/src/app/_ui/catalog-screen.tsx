@@ -1,3 +1,4 @@
+import type { PreviewGrant } from "@hosti/serving";
 import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
 import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
@@ -13,9 +14,10 @@ export function CatalogScreen(props: {
   heading?: string | undefined;
   emptyNote: React.ReactNode;
   allSlugs: string[];
+  previewGrants: ReadonlyMap<string, PreviewGrant>;
   collection?: string;
 }) {
-  const { bundles, chips, active, token, heading, emptyNote, allSlugs } = props;
+  const { bundles, chips, active, token, heading, emptyNote, allSlugs, previewGrants } = props;
   const anyBundles = chips.some((chip) => chip.count > 0);
   return (
     <>
@@ -39,7 +41,12 @@ export function CatalogScreen(props: {
         ) : (
           <div className="grid">
             {bundles.map((bundle, index) => (
-              <Card key={bundle.slug} bundle={bundle} frame={index + 1} />
+              <Card
+                key={bundle.slug}
+                bundle={bundle}
+                frame={index + 1}
+                previewGrant={previewGrants.get(bundle.slug) ?? null}
+              />
             ))}
           </div>
         )}
@@ -55,7 +62,15 @@ export function CatalogScreen(props: {
   );
 }
 
-function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
+function Card({
+  bundle,
+  frame,
+  previewGrant,
+}: {
+  bundle: Bundle;
+  frame: number;
+  previewGrant: PreviewGrant | null;
+}) {
   const href = `/b/${bundle.slug}`;
   const current = bundle.currentRevision;
   return (
@@ -70,6 +85,7 @@ function Card({ bundle, frame }: { bundle: Bundle; frame: number }) {
           size="card"
           href={href}
           live={current ? bundle.slug : undefined}
+          previewGrant={previewGrant}
           label={`Preview of ${bundle.title}`}
           fileCount={current?.fileCount ?? 0}
           byteSize={current?.byteSize ?? 0}

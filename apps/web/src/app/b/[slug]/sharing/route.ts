@@ -1,8 +1,8 @@
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { backTo, guardMutation } from "@/server/auth/admin";
-import { findBundle } from "@/server/catalog";
 import { PushError } from "@/server/errors";
-import { hashPin, readFormPin, requireSigningSecret } from "@/server/share-pin";
-import { queueSharingWrite, readSharingMode, setSharing } from "@/server/sharing";
+import { setBundleSharing } from "@/use-cases/set-sharing";
+import { showBundle } from "@/use-cases/show-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,21 +16,19 @@ export async function POST(
   if (!guard.ok) return guard.response;
 
   const { slug } = await context.params;
-  const bundle = findBundle(slug);
-  if (!bundle) return new Response("No such bundle", { status: 404 });
+  if (!(await runAppUseCase(showBundle(slug)))) {
+    return new Response("No such bundle", { status: 404 });
+  }
 
   try {
-    const mode = readSharingMode(form.get("mode"));
-    const pin = readFormPin(form.get("pin"));
-    if (pin && mode !== "pin") {
-      throw new PushError("pin_not_wanted", 'A pin only belongs on mode "pin"');
-    }
-    if (pin) requireSigningSecret();
-    // Serialize writes so a slow pin hash cannot overwrite a later private write.
-    await queueSharingWrite(bundle.id, async () => {
-      const pinHash = pin ? await hashPin(pin) : undefined;
-      setSharing(bundle.id, { mode, ...(pinHash ? { pinHash } : {}) });
-    });
+    await runAppUseCase(
+      setBundleSharing({
+        slug,
+        mode: form.get("mode"),
+        pin: form.get("pin"),
+        pinSource: "form",
+      }),
+    );
   } catch (error) {
     if (error instanceof PushError) return backTo(`/b/${slug}?share=${error.code}`);
     throw error;

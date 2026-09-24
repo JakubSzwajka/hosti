@@ -1,26 +1,11 @@
-import { createHmac, randomBytes } from "node:crypto";
-import { constantTimeEquals } from "@/server/auth/session";
+import { UNLOCK_COOKIE_PREFIX, UNLOCK_MAX_AGE_SECONDS, type UnlockBinding } from "@hosti/serving";
+import { runServingSync } from "@/server/runtime";
 
-export const UNLOCK_MAX_AGE_SECONDS = 12 * 60 * 60;
-
-export const UNLOCK_COOKIE_PREFIX = "hosti_pin_";
-
-export type UnlockBinding = { bundleId: number; pinHash: string };
-
-type Unlocked = { slug: string; iat: number; exp: number };
+export { UNLOCK_COOKIE_PREFIX, UNLOCK_MAX_AGE_SECONDS };
+export type { UnlockBinding };
 
 export function unlockCookieName(shareSlug: string): string {
-  return `${UNLOCK_COOKIE_PREFIX}${shareSlug}`;
-}
-
-function sign(secret: string, payload: string, binding: UnlockBinding): string {
-  return createHmac("sha256", secret)
-    .update(payload)
-    .update("\u0000")
-    .update(String(binding.bundleId))
-    .update("\u0000")
-    .update(binding.pinHash)
-    .digest("base64url");
+  return runServingSync((serving) => serving.unlockCookieName(shareSlug));
 }
 
 export function signUnlock(
@@ -29,16 +14,7 @@ export function signUnlock(
   binding: UnlockBinding,
   options: { now?: number; maxAgeSeconds?: number } = {},
 ): string {
-  const now = options.now ?? Date.now();
-  const maxAge = options.maxAgeSeconds ?? UNLOCK_MAX_AGE_SECONDS;
-  const claims: Unlocked & { nonce: string } = {
-    slug: shareSlug,
-    iat: now,
-    exp: now + maxAge * 1000,
-    nonce: randomBytes(8).toString("hex"),
-  };
-  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  return `${payload}.${sign(secret, payload, binding)}`;
+  return runServingSync((serving) => serving.signUnlock(secret, shareSlug, binding, options));
 }
 
 export function verifyUnlock(
@@ -46,21 +22,9 @@ export function verifyUnlock(
   shareSlug: string,
   binding: UnlockBinding,
   value: string | null | undefined,
-  now = Date.now(),
+  now?: number,
 ): boolean {
-  if (!value) return false;
-  const [payload, signature] = value.split(".");
-  if (!payload || !signature) return false;
-  if (!constantTimeEquals(sign(secret, payload, binding), signature)) return false;
-
-  let claims: Unlocked;
-  try {
-    claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Unlocked;
-  } catch {
-    return false;
-  }
-  if (claims.slug !== shareSlug) return false;
-  return typeof claims.exp === "number" && claims.exp > now;
+  return runServingSync((serving) => serving.verifyUnlock(secret, shareSlug, binding, value, now));
 }
 
 export function unlockCookie(

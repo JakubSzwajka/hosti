@@ -1,6 +1,8 @@
 import { readCollection } from "@hosti/shared";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { backTo, guardMutation } from "@/server/auth/admin";
-import { findBundle, setBundleCollection } from "@/server/catalog";
+import { setCollection } from "@/use-cases/set-collection";
+import { showBundle } from "@/use-cases/show-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +16,9 @@ export async function POST(
   if (!guard.ok) return guard.response;
 
   const { slug } = await context.params;
-  const bundle = findBundle(slug);
-  if (!bundle) return new Response("No such bundle", { status: 404 });
+  if (!(await runAppUseCase(showBundle(slug)))) {
+    return new Response("No such bundle", { status: 404 });
+  }
 
   const typed = form.get("collection");
   if (typed === "__new") return backTo(`/b/${slug}?collection=new`);
@@ -26,6 +29,6 @@ export async function POST(
     return backTo(`/b/${slug}?collection=bad_collection`);
   }
 
-  setBundleCollection(bundle.id, wanted);
+  await runAppUseCase(setCollection(slug, wanted));
   return backTo(`/b/${slug}`);
 }
