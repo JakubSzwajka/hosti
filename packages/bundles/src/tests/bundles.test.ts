@@ -2,8 +2,9 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { assert, expect, it } from "@effect/vitest";
-import { CATALOG_UPLOAD } from "@hosti/identity";
+import { CATALOG_UPLOAD, IdentityCrypto } from "@hosti/identity";
 import { Catalog } from "@hosti/catalog";
+import { ROTATED_ALPHABET, ROTATED_LENGTH } from "@hosti/shared";
 import { ArchiveCodec, Storage } from "@hosti/storage";
 import { Effect, FileSystem, Layer, Path, Ref, Stream } from "effect";
 import {
@@ -50,12 +51,28 @@ const platformLayer = Layer.mergeAll(
 type BundleServices =
   | Catalog
   | Storage
+  | IdentityCrypto
   | FileSystem.FileSystem
   | Path.Path
   | import("effect/Crypto").Crypto;
 
+function testIdentityCrypto(randomInt: (maxExclusive: number) => number = () => 0) {
+  return IdentityCrypto.layer({
+    encodeBase64Url: (value) => value,
+    decodeBase64Url: (value) => value,
+    hmacSha256Base64Url: () => Effect.succeed(""),
+    sha256Hex: () => Effect.succeed(""),
+    randomBytesHex: () => Effect.succeed(""),
+    randomBytesBase64Url: () => Effect.succeed(""),
+    randomInt: (maxExclusive) => Effect.sync(() => randomInt(maxExclusive)),
+    deriveScryptBase64Url: () => Effect.succeed(""),
+    constantTimeEquals: () => Effect.succeed(false),
+  });
+}
+
 function withBundleServices<A, E>(
   test: (bundlesRoot: string) => Effect.Effect<A, E, BundleServices>,
+  identityCryptoLayer: Layer.Layer<IdentityCrypto> = testIdentityCrypto(),
 ) {
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -66,9 +83,11 @@ function withBundleServices<A, E>(
     const dataDir = path.join(tempDir, "data");
     yield* fs.makeDirectory(dataDir, { recursive: true });
     const bundlesRoot = path.join(tempDir, "bundles");
-    const servicesLayer = Layer.mergeAll(Catalog.layer(dataDir, schemaSql), Storage.layer).pipe(
-      Layer.provideMerge(platformLayer),
-    );
+    const servicesLayer = Layer.mergeAll(
+      Catalog.layer(dataDir, schemaSql),
+      Storage.layer,
+      identityCryptoLayer,
+    ).pipe(Layer.provideMerge(platformLayer));
     return yield* test(bundlesRoot).pipe(Effect.provide(servicesLayer));
   }).pipe(Effect.provide(platformLayer));
 }
@@ -113,6 +132,30 @@ it.effect("keeps the bundle slug until a share slug is rotated", () =>
     }),
   ),
 );
+
+it.effect("mints share slugs through the identity crypto seam", () => {
+  const draws: number[] = [];
+  const identityCryptoLayer = testIdentityCrypto((maxExclusive) => {
+    const index = draws.length;
+    draws.push(maxExclusive);
+    return index;
+  });
+
+  return withBundleServices(
+    () =>
+      Effect.gen(function* () {
+        const catalog = yield* Catalog;
+        yield* catalog.createBundle({ slug: "reserved-share" });
+        const slug = yield* initialShareSlug("reserved-share");
+
+        expect(slug).toBe("bcdfghjkmnpq");
+        expect(draws).toEqual(
+          Array.from({ length: ROTATED_LENGTH }, () => ROTATED_ALPHABET.length),
+        );
+      }),
+    identityCryptoLayer,
+  );
+});
 
 it.effect("serializes sharing writes for one bundle", () =>
   Effect.gen(function* () {

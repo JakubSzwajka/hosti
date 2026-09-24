@@ -1,4 +1,4 @@
-import { Context, type Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 export type ScryptCost = { N: number; r: number; p: number };
 
@@ -22,6 +22,7 @@ export class IdentityCrypto extends Context.Service<
     sha256Hex(value: string): Effect.Effect<string, IdentityCryptoError>;
     randomBytesHex(size: number): Effect.Effect<string, IdentityCryptoError>;
     randomBytesBase64Url(size: number): Effect.Effect<string, IdentityCryptoError>;
+    randomInt(maxExclusive: number): Effect.Effect<number, IdentityCryptoError>;
     deriveScryptBase64Url(
       value: string,
       salt: string,
@@ -31,6 +32,23 @@ export class IdentityCrypto extends Context.Service<
     constantTimeEquals(left: string, right: string): Effect.Effect<boolean, IdentityCryptoError>;
   }
 >()("@hosti/identity/IdentityCrypto") {
-  static readonly layer = (service: IdentityCrypto["Service"]): Layer.Layer<IdentityCrypto> =>
-    Layer.succeed(IdentityCrypto)(service);
+  static readonly layer = (
+    service: Omit<IdentityCrypto["Service"], "randomInt"> & {
+      readonly randomInt?: IdentityCrypto["Service"]["randomInt"];
+    },
+  ): Layer.Layer<IdentityCrypto> =>
+    Layer.succeed(IdentityCrypto)(
+      IdentityCrypto.of({
+        ...service,
+        randomInt:
+          service.randomInt ??
+          (() =>
+            Effect.fail(
+              new IdentityCryptoError({
+                operation: "randomInt",
+                cause: new Error("Random integer generation is not configured"),
+              }),
+            )),
+      }),
+    );
 }

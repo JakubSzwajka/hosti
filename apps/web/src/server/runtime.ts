@@ -55,6 +55,7 @@ export function runUseCase<A, E, R extends UseCaseRequirements>(
   mkdirSync(activeDataDir, { recursive: true });
   const configured = Catalog.use((catalog) =>
     Effect.gen(function* () {
+      // Production fixes the data dir per process; only tests switch it.
       yield* catalog.setDataDir(activeDataDir);
       return yield* effect;
     }),

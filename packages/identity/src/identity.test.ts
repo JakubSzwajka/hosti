@@ -29,6 +29,9 @@ const fakeCryptoLayer = IdentityCrypto.layer({
   randomBytesBase64Url(size) {
     return Effect.succeed(`random-${size}-${randomSequence++}`);
   },
+  randomInt() {
+    return Effect.succeed(0);
+  },
   deriveScryptBase64Url(value) {
     return Effect.succeed(`${value}:`.padEnd(43, "x").slice(0, 43));
   },

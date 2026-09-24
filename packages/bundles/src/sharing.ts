@@ -7,7 +7,8 @@ import {
   ROTATED_LENGTH,
   SHARING_MODE_RULE,
 } from "@hosti/shared";
-import { Effect, Random, Semaphore } from "effect";
+import { IdentityCrypto } from "@hosti/identity";
+import { Effect, Semaphore } from "effect";
 import { BundlesError } from "./bundles-error";
 import { catalogBundlesError, internalBundlesError } from "./internal/errors";
 
@@ -63,9 +64,10 @@ function isShareSlugTaken(catalog: CatalogService, shareSlug: string, exceptBund
 
 function mintShareSlug() {
   return Effect.gen(function* () {
+    const crypto = yield* IdentityCrypto;
     const characters: string[] = [];
     for (let index = 0; index < ROTATED_LENGTH; index += 1) {
-      const characterIndex = yield* Random.nextIntBetween(0, ROTATED_ALPHABET.length - 1);
+      const characterIndex = yield* crypto.randomInt(ROTATED_ALPHABET.length);
       characters.push(ROTATED_ALPHABET.charAt(characterIndex));
     }
     return characters.join("");

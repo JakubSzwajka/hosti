@@ -1,5 +1,12 @@
 import { Effect } from "effect";
-import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt as secureRandomInt,
+  scrypt,
+  timingSafeEqual,
+} from "node:crypto";
 import { IdentityCrypto, IdentityCryptoError, type ScryptCost } from "@hosti/identity";
 
 export const NodeIdentityCrypto = IdentityCrypto.layer({
@@ -31,6 +38,12 @@ export const NodeIdentityCrypto = IdentityCrypto.layer({
     return Effect.try({
       try: () => randomBytes(size).toString("base64url"),
       catch: (cause) => new IdentityCryptoError({ operation: "randomBytes", cause }),
+    });
+  },
+  randomInt(maxExclusive) {
+    return Effect.try({
+      try: () => secureRandomInt(maxExclusive),
+      catch: (cause) => new IdentityCryptoError({ operation: "randomInt", cause }),
     });
   },
   deriveScryptBase64Url(value, salt, cost: ScryptCost, keyBytes) {
