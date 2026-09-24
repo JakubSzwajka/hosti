@@ -1,19 +1,18 @@
-import { COLLECTION_RULE, type PushResponse, isValidSlug, readCollection } from "@hosti/shared";
-import { Readable } from "node:stream";
-import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
-import { publicBaseUrl } from "@/server/config";
+import type { PushIdentity } from "@hosti/identity";
 import {
-  createBundle,
-  findBundle,
-  nextRevisionSeq,
-  recordRevision,
-  updateBundleMeta,
-} from "@/server/catalog";
+  acceptPush as acceptPushEffect,
+  storeRevision as storeRevisionEffect,
+  type RevisionSource,
+} from "@hosti/bundles";
+import type { PushResponse } from "@hosti/shared";
+import type { ArchiveFormat } from "@hosti/storage";
+import { effectReadable } from "@/server/storage/compat";
+import { bundlesDir, keepRevisions, publicBaseUrl } from "@/server/config";
 import { PushError } from "@/server/errors";
-import type { CATALOG_UPLOAD, PushIdentity } from "@/server/push-tokens";
-import { pruneRevisions } from "@/server/retention";
-import { describeSharing, shareUrl } from "@/server/sharing";
-import { type ArchiveFormat, writeRevision } from "@/server/storage/revisions";
+import { runBundlesPromise } from "@/server/runtime";
+import type { Readable } from "node:stream";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
+import { Readable as NodeReadable } from "node:stream";
 
 const MAX_HEADER_TEXT = 200;
 
@@ -24,82 +23,34 @@ function headerText(request: Request, name: string): string | null {
   return trimmed || null;
 }
 
-function collectionHeader(request: Request): string | null {
-  const raw = headerText(request, "x-hosti-collection");
-  if (raw === null) return null;
-  const wanted = readCollection(raw);
-  if (!wanted) throw new PushError("bad_collection", `${COLLECTION_RULE}`);
-  return wanted;
-}
-
 export type RevisionInput = {
   slug: string;
-
   body: Readable;
-
   format?: ArchiveFormat;
-
   title: string | null;
-
   collection: string | null;
-
   baseUrl: string;
-
   pushedBy: RevisionSource;
 };
 
-export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD;
+export type { RevisionSource };
 
-function writerName(source: RevisionSource): string {
-  return typeof source === "string" ? source : source.name;
+function effectInput(input: RevisionInput) {
+  return {
+    slug: input.slug,
+    source: effectReadable(input.body, "bad_tarball", "Cannot read the pushed archive"),
+    ...(input.format === undefined ? {} : { format: input.format }),
+    title: input.title,
+    collection: input.collection,
+    bundlesRoot: bundlesDir(),
+    baseUrl: input.baseUrl,
+    pushedBy: input.pushedBy,
+    keep: keepRevisions(),
+  };
 }
 
-export async function storeRevision(input: RevisionInput): Promise<PushResponse> {
-  const { slug, title, collection } = input;
-  if (!isValidSlug(slug)) {
-    throw new PushError(
-      "bad_slug",
-      "A bundle slug is lowercase letters, digits and dashes, 1 to 64 characters",
-    );
-  }
-
-  const existing = findBundle(slug);
-  const seq = existing ? nextRevisionSeq(existing.id) : 1;
-
-  const stats = await writeRevision({
-    bundleSlug: slug,
-    seq,
-    body: input.body,
-    ...(input.format ? { format: input.format } : {}),
-  });
-
-  const bundle = existing ?? createBundle({ slug, title, collection });
-  if (existing) updateBundleMeta(existing.id, { title, collection });
-
-  const revision = recordRevision({
-    bundleId: bundle.id,
-    seq,
-    byteSize: stats.byteSize,
-    fileCount: stats.fileCount,
-    pushedBy: writerName(input.pushedBy),
-  });
-
-  try {
-    await pruneRevisions(slug);
-  } catch (error) {
-    console.error(`hosti: pruning ${slug} failed`, error);
-  }
-
-  const { baseUrl } = input;
-
-  const sharing = describeSharing(findBundle(slug) ?? bundle);
-  return {
-    bundle: slug,
-    revision: revision.seq,
-    adminUrl: `${baseUrl}/b/${slug}`,
-    sharing,
-    shareUrl: shareUrl(sharing, baseUrl),
-  };
+export function storeRevision(input: RevisionInput): Promise<PushResponse> {
+  return runBundlesPromise(storeRevisionEffect(effectInput(input)));
 }
 
 export async function acceptPush(
@@ -111,13 +62,14 @@ export async function acceptPush(
     throw new PushError("empty_body", "Push a gzipped tarball as the request body");
   }
   const title = headerText(request, "x-hosti-title");
-  const collection = collectionHeader(request);
-  return storeRevision({
+  const collection = headerText(request, "x-hosti-collection");
+  const input: RevisionInput = {
     slug,
-    body: Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>),
+    body: NodeReadable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>),
     title,
     collection,
     baseUrl: publicBaseUrl(request),
     pushedBy,
-  });
+  };
+  return runBundlesPromise(acceptPushEffect(effectInput(input)));
 }

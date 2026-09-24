@@ -1,18 +1,7 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import { removeBundle as removeBundleEffect } from "@hosti/bundles";
 import { bundlesDir } from "@/server/config";
-import { deleteBundle, findBundle } from "@/server/catalog";
+import { runBundlesPromise } from "@/server/runtime";
 
 export async function removeBundle(slug: string): Promise<boolean> {
-  const bundle = findBundle(slug);
-  if (!bundle) return false;
-
-  deleteBundle(bundle.id);
-
-  const root = bundlesDir();
-  const dir = path.join(root, bundle.slug);
-  if (dir.startsWith(root + path.sep)) {
-    await fs.rm(dir, { recursive: true, force: true });
-  }
-  return true;
+  return runBundlesPromise(removeBundleEffect({ slug, bundlesRoot: bundlesDir() }));
 }

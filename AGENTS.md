@@ -27,6 +27,7 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 
 - `apps/web` is the Next.js 15 catalog and server. Keep its routes and UI inside this app.
 - `apps/cli` is the private `@hosti/cli` workspace package.
+- `packages/bundles` is `@hosti/bundles`, the Effect-backed bundle operations capability.
 - `packages/shared` is `@hosti/shared`, the shared public package. Export through `src/index.ts`.
 - `packages/catalog` is `@hosti/catalog`, the Effect-backed SQLite catalog. Export through `src/index.ts`.
 - `packages/identity` is `@hosti/identity`, the Effect-backed identity and authentication capability. Export through `src/index.ts`.
