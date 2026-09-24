@@ -6,6 +6,8 @@ const CLI_ENTRY = "^apps/cli/src/index[.][cm]?[jt]sx?$";
 const WEB_NEXT_ENV_DECLARATION = "^apps/web/next-env[.]d[.]ts$";
 const WEB_DELIVERY_ROOT = "^apps/web/src/app(?:/|$)";
 const WEB_SERVER_ROOT = "^apps/web/src/server(?:/|$)";
+const WEB_TEST_SERVER_ALLOWLIST =
+  "^apps/web/src/server/(?:runtime[.]ts|config[.]ts|auth/(?:config|cookie)[.]ts)$";
 const WEB_USE_CASE_ROOT = "^apps/web/src/use-cases(?:/|$)";
 const WEB_DOMAIN_ADAPTERS =
   "^apps/web/src/server/(?:catalog[.]ts|db(?:/|$)|storage(?:/|$)|sharing[.]ts|push[.]ts|retention[.]ts|remove-bundle[.]ts|push-tokens[.]ts|share-pin[.]ts|minted-secret[.]ts|auth/(?:session|rate-limit)[.]ts)$";
@@ -71,6 +73,14 @@ module.exports = {
       comment: "Delivery must call web use-cases instead of server domain adapters.",
       from: { path: WEB_DELIVERY_ROOT },
       to: { path: WEB_DOMAIN_ADAPTERS },
+    },
+    {
+      name: "web-tests-import-only-server-test-glue",
+      severity: "error",
+      comment:
+        "Web tests seed through tests/support.ts and may import only the explicit server glue allowlist.",
+      from: { path: "^apps/web/tests(?:/|$)" },
+      to: { path: WEB_SERVER_ROOT, pathNot: WEB_TEST_SERVER_ALLOWLIST },
     },
     {
       name: "no-unresolved-deep-package-imports",

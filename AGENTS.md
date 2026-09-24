@@ -40,11 +40,12 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 
 - `src/app` is delivery. It owns Next routes, pages, and React UI. A route is an entry point: it reads HTTP or Next inputs, applies auth/HTTP glue, calls a use-case, and maps the result to a response or page.
 - `src/use-cases` holds one `Effect.fn` per product action. Use-cases compose public `@hosti/*` package operations and return typed failures. They do not import Next, `Request`/`Response`, or `src/server`.
-- `src/server` holds the Node layers, HTTP glue, `runtime.ts` and the single `ManagedRuntime`, plus the domain adapters retained for existing tests.
+- `src/server` holds Node layers, HTTP glue, `runtime.ts`, and the single `ManagedRuntime`. It has no domain adapters. Server glue calls public `@hosti/*` operations through the runtime.
 - Delivery calls use-cases through `src/app/_http/run-use-case.ts`, which uses `runtime.ts`. Do not run Effects from a route or page. Delivery may import `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node serving glue. It may import `@hosti/*` exports directly for constants and pure helpers.
-- Delivery must not import server domain adapters for catalog, database, storage, sharing, push, retention, bundle removal, push tokens, share pins, minted secrets, or auth sessions/rate limits. Those adapters stay in `src/server` for the existing tests, not for app product flows.
+- Delivery must not import domain operations from `src/server`. Product actions go through use-cases. Serving, auth, HTTP, and Node glue may call public `@hosti/*` operations through `runtime.ts`.
+- Web tests seed state through `apps/web/tests/support.ts`. They may import only `src/server/runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` directly; Dependency Cruiser enforces this allowlist with `web-tests-import-only-server-test-glue`.
 
-Dependency Cruiser enforces the three layer rules: `use-cases-do-not-import-outer-layers`, `server-does-not-import-delivery`, and `delivery-reaches-domain-through-use-cases`.
+Dependency Cruiser enforces `use-cases-do-not-import-outer-layers`, `server-does-not-import-delivery`, `delivery-reaches-domain-through-use-cases`, and `web-tests-import-only-server-test-glue`.
 
 ## Pins and install policy
 

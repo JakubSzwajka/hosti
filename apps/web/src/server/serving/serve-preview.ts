@@ -1,13 +1,16 @@
 import { isValidSlug } from "@hosti/shared";
 import { adminSecrets, signingSecret } from "@/server/auth/config";
-import { readCookie } from "@/server/auth/cookie";
-import { SESSION_COOKIE, verifySession } from "@/server/auth/session";
-import { findBundle } from "@/server/catalog";
+import { readCookie, SESSION_COOKIE } from "@/server/auth/cookie";
 import { TOKEN_MARK, verifyPreviewToken } from "@/server/serving/preview-token";
 import { hostiNotFound } from "@/server/serving/respond";
 import { serveFromRevision } from "@/server/serving/serve-revision";
-import { runServingSync } from "@/server/runtime";
-import { currentRevisionRoot } from "@/server/storage/paths";
+import { bundlesDir } from "@/server/config";
+import {
+  runCatalogSync,
+  runIdentitySync,
+  runServingSync,
+  runStoragePromise,
+} from "@/server/runtime";
 
 export const PREVIEW_SEGMENT = "preview";
 
@@ -50,7 +53,11 @@ export function parsePreviewUrl(url: string): ParsedPreview | null {
 export function hasAdminSession(request: Request): boolean {
   const secrets = adminSecrets();
   if (!secrets) return false;
-  return verifySession(secrets.secret, readCookie(request.headers, SESSION_COOKIE)) !== null;
+  return (
+    runIdentitySync((identity) =>
+      identity.verifySession(secrets.secret, readCookie(request.headers, SESSION_COOKIE)),
+    ) !== null
+  );
 }
 
 function mayPreview(request: Request, parsed: ParsedPreview): boolean {
@@ -68,10 +75,12 @@ export async function servePreviewRequest(request: Request): Promise<Response> {
   );
   if (access.kind === "not-found") return hostiNotFound();
 
-  const bundle = findBundle(parsed.bundleSlug);
+  const bundle = runCatalogSync((catalog) => catalog.findBundle(parsed.bundleSlug));
   if (!bundle) return hostiNotFound();
 
-  const root = await currentRevisionRoot(bundle.slug);
+  const root = await runStoragePromise((storage) =>
+    storage.currentRevisionRoot(bundlesDir(), bundle.slug),
+  );
   if (!root) return hostiNotFound();
 
   return serveFromRevision(

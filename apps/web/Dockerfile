@@ -41,7 +41,10 @@ WORKDIR /app/apps/web
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone /app
 COPY --from=build --chown=node:node /app/apps/web/.next/static /app/apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/scripts /app/apps/web/scripts
-COPY --from=build --chown=node:node /app/packages/catalog/schema.sql /app/packages/catalog/schema.sql
+COPY --from=build --chown=node:node /app/packages/catalog/package.json /app/packages/catalog/package.json
+COPY --from=build --chown=node:node /app/packages/catalog/src/schema.mjs /app/packages/catalog/src/schema.mjs
+RUN mkdir -p /app/node_modules/@hosti \
+  && ln -sfn /app/packages/catalog /app/node_modules/@hosti/catalog
 
 USER node
 EXPOSE 3000

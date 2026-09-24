@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { Effect } from "effect";
+import { catalogSchemaVersion } from "../schema.mjs";
 import { tryCatalog } from "./catalog-errors";
 
 export const openDatabaseAt = Effect.fn("openDatabaseAt")(function* (
@@ -27,7 +28,7 @@ function createSchema(database: Database.Database, schemaSql: string): void {
   database.transaction(() => database.exec(schemaSql))();
 }
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = catalogSchemaVersion;
 
 function setSchemaVersion(database: Database.Database, version: number): void {
   database.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run(String(version));

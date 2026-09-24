@@ -23,14 +23,15 @@
 | Packages do not import apps; apps do not import other apps; cross-workspace package imports use package names and package public entries | Dependency Cruiser workspace rules | `.dependency-cruiser.cjs` |
 | Web server modules do not import Next delivery routes | Dependency Cruiser `server-does-not-import-delivery` | `.dependency-cruiser.cjs` |
 | Web use-cases do not import delivery or server modules | Dependency Cruiser `use-cases-do-not-import-outer-layers` | `.dependency-cruiser.cjs` |
-| Delivery does not import server domain adapters for catalog, storage, sharing, push, retention, tokens, pins, minted secrets, or auth internals | Dependency Cruiser `delivery-reaches-domain-through-use-cases` | `.dependency-cruiser.cjs` |
+| Delivery reaches product actions through web use-cases instead of server domain adapters | Dependency Cruiser `delivery-reaches-domain-through-use-cases` | `.dependency-cruiser.cjs` |
+| Web tests import only the server glue allowlist and seed state through `apps/web/tests/support.ts` | Dependency Cruiser `web-tests-import-only-server-test-glue` | `.dependency-cruiser.cjs` |
 | Deep `@hosti/*` package imports do not resolve | Dependency Cruiser `no-unresolved-deep-package-imports` | `.dependency-cruiser.cjs` |
 | Code outside `@hosti/cli` uses its public entry and does not import its implementation | Dependency Cruiser CLI rules | `.dependency-cruiser.cjs` |
 | Production code does not import tests | Dependency Cruiser `production-does-not-import-tests` | `.dependency-cruiser.cjs` |
 | Imports resolve, except the generated Next declaration file | Dependency Cruiser `no-unresolved-imports` | `.dependency-cruiser.cjs` |
 | Hook policy and exact-pin checker cases pass | Node test runner over `tests/**/*.test.mjs` | `package.json`, `tests/*.test.mjs` |
 | ESLint configuration tests pass | Node test runner | `tools/eslint/*.test.mjs`, `package.json` |
-| Workspace behavior tests pass | Vitest through Turbo `test` | `apps/cli/package.json`, `apps/web/package.json`, Vitest configuration files |
+| Workspace behavior tests pass; web tests seed through `apps/web/tests/support.ts` | Vitest through Turbo `test` | `apps/cli/package.json`, `apps/web/package.json`, Vitest configuration files |
 
 `pnpm check` runs pins, Varlock environment validation, Biome, ESLint, workspace typechecks through Turbo, and Dependency Cruiser. `pnpm test` runs the Node test suites and workspace tests through Turbo. Turbo caching is off for both tasks. The vendored Next.js source under `.agent_sources/` is reference material and is excluded from Biome, ESLint, and Dependency Cruiser.
 

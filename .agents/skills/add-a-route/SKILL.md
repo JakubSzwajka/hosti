@@ -13,7 +13,7 @@ Read `CONTEXT.md` before changing behavior. Use Hosti's terms and keep its produ
 - Add one `Effect.fn` use-case per product action under `apps/web/src/use-cases/`. Compose public `@hosti/*` package services there. Do not import Next, `Request`/`Response`, or `apps/web/src/server/` from a use-case.
 - Route and page code adapts its inputs, calls the use-case through `runAppUseCase` in `apps/web/src/app/_http/run-use-case.ts`, then maps the result to HTTP or UI. `apps/web/src/server/runtime.ts` owns the sole `ManagedRuntime` and is the only place that runs Effects for delivery.
 - Delivery may use `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node glue. Import package constants and pure helpers directly when needed.
-- Do not call server catalog, storage, push, sharing, retention, token, pin, or auth-session adapters from delivery. They stay in `src/server` for the existing tests. Dependency Cruiser enforces `delivery-reaches-domain-through-use-cases`, `use-cases-do-not-import-outer-layers`, and `server-does-not-import-delivery`.
+- `src/server` has no domain adapters. Delivery sends product actions through use-cases; server serving and auth glue may call public `@hosti/*` operations through `runtime.ts`. Dependency Cruiser enforces `delivery-reaches-domain-through-use-cases`, `use-cases-do-not-import-outer-layers`, `server-does-not-import-delivery`, and `web-tests-import-only-server-test-glue`.
 
 ## Map failures at the edge
 
@@ -25,7 +25,7 @@ Read `CONTEXT.md` before changing behavior. Use Hosti's terms and keep its produ
 
 - Add route tests under `apps/web/tests/`. Vitest is configured by `apps/web/vitest.config.ts`.
 - Import route functions directly, as `apps/web/tests/admin-routes.test.ts` does. Build `Request` objects and pass promised params for dynamic routes.
-- Use `useTempDataDir`, `tarFixture`, and the related helpers from `apps/web/tests/helpers.ts` when a route needs catalog data. Tests that set auth values must do so before importing the route module.
+- Seed catalog and identity state through `apps/web/tests/support.ts`; use `useTempDataDir`, `tarFixture`, and related helpers from `apps/web/tests/helpers.ts` when needed. Tests may import only `runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` from `src/server/`. Set auth values before importing the route module.
 - Cover refusal and success paths. Admin mutation tests check missing sessions and invalid mutation tokens; bearer API tests check absent or invalid push tokens.
 
 ## Run checks

@@ -1,23 +1,18 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import { Catalog, CatalogError, openDatabaseAt } from "@hosti/catalog";
+import { Catalog, CatalogError, catalogSchemaSql } from "@hosti/catalog";
 import { BundlesError } from "@hosti/bundles";
 import { Storage, StorageError } from "@hosti/storage";
 import { Identity, IdentityInputError } from "@hosti/identity";
 import { Serving } from "@hosti/serving";
 import { LoginThrottle } from "@/use-cases/login";
-import type Database from "better-sqlite3";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
-import { mkdirSync, readFileSync } from "node:fs";
-import path from "node:path";
+import { mkdirSync } from "node:fs";
 import { PushError } from "@/server/errors";
 import { dataDir } from "@/server/config";
 import { NodeIdentityCrypto } from "@/server/node-crypto";
 import { NodeArchiveCodec } from "@/server/storage/node-archive-codec";
-
-const catalogSchemaFile = path.resolve(process.cwd(), "../../packages/catalog/schema.sql");
-const catalogSchemaSql = readFileSync(catalogSchemaFile, "utf8");
 
 const platformLayer = Layer.mergeAll(
   NodeCrypto.layer,
@@ -68,11 +63,6 @@ export function runUseCase<A, E, R extends UseCaseRequirements>(
       }),
     ),
   );
-}
-
-export function runOpenDatabaseSync(databaseFile: string): Database.Database {
-  mkdirSync(path.dirname(databaseFile), { recursive: true });
-  return runtime.runSync(openDatabaseAt(databaseFile, catalogSchemaSql));
 }
 
 export function runCatalogSync<A, E>(use: (catalog: Catalog["Service"]) => Effect.Effect<A, E>): A {
@@ -142,28 +132,10 @@ function mapBundlesError(error: unknown): never {
   throw error;
 }
 
-export function runBundlesSync<A, E, R extends BundleRequirements>(
-  effect: Effect.Effect<A, E, R>,
-): A {
-  try {
-    return runtime.runSync(bundleEffect(effect));
-  } catch (error) {
-    return mapBundlesError(error);
-  }
-}
-
 export function runBundlesPromise<A, E, R extends BundleRequirements>(
   effect: Effect.Effect<A, E, R>,
 ): Promise<A> {
   return runtime.runPromise(bundleEffect(effect)).catch(mapBundlesError);
-}
-
-export function runBundlesPureSync<A, E>(effect: Effect.Effect<A, E>): A {
-  try {
-    return runtime.runSync(effect);
-  } catch (error) {
-    return mapBundlesError(error);
-  }
 }
 
 function mapIdentityError(error: unknown): never {
