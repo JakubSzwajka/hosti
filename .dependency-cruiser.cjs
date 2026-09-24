@@ -6,6 +6,9 @@ const CLI_ENTRY = "^apps/cli/src/index[.][cm]?[jt]sx?$";
 const WEB_NEXT_ENV_DECLARATION = "^apps/web/next-env[.]d[.]ts$";
 const WEB_DELIVERY_ROOT = "^apps/web/src/app(?:/|$)";
 const WEB_SERVER_ROOT = "^apps/web/src/server(?:/|$)";
+const WEB_USE_CASE_ROOT = "^apps/web/src/use-cases(?:/|$)";
+const WEB_DOMAIN_ADAPTERS =
+  "^apps/web/src/server/(?:catalog[.]ts|db(?:/|$)|storage(?:/|$)|sharing[.]ts|push[.]ts|retention[.]ts|remove-bundle[.]ts|push-tokens[.]ts|share-pin[.]ts|minted-secret[.]ts|auth/(?:session|rate-limit)[.]ts)$";
 const APPS_ROOT = "^apps/";
 const APP_ROOT = "^(apps/[^/]+)/";
 const WORKSPACE_ROOT = "^((?:apps|packages)/[^/]+)/";
@@ -49,11 +52,25 @@ module.exports = {
       to: { path: `${PACKAGES_ROOT}[^/]+/(?!${PACKAGE_ENTRY})`, pathNot: "^$1/" },
     },
     {
-      name: "web-server-does-not-import-next-delivery",
+      name: "server-does-not-import-delivery",
       severity: "error",
       comment: "Server code must not depend on Next app routes or delivery components.",
       from: { path: WEB_SERVER_ROOT },
       to: { path: WEB_DELIVERY_ROOT },
+    },
+    {
+      name: "use-cases-do-not-import-outer-layers",
+      severity: "error",
+      comment: "Use-cases compose package services and must not depend on delivery or server code.",
+      from: { path: WEB_USE_CASE_ROOT },
+      to: { path: [WEB_DELIVERY_ROOT, WEB_SERVER_ROOT] },
+    },
+    {
+      name: "delivery-reaches-domain-through-use-cases",
+      severity: "error",
+      comment: "Delivery must call web use-cases instead of server domain adapters.",
+      from: { path: WEB_DELIVERY_ROOT },
+      to: { path: WEB_DOMAIN_ADAPTERS },
     },
     {
       name: "no-unresolved-deep-package-imports",

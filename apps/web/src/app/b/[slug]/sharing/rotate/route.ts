@@ -1,6 +1,7 @@
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { backTo, guardMutation } from "@/server/auth/admin";
-import { findBundle } from "@/server/catalog";
-import { rotateShareSlug } from "@/server/sharing";
+import { rotateShare } from "@/use-cases/rotate-share";
+import { showBundle } from "@/use-cases/show-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,9 +15,10 @@ export async function POST(
   if (!guard.ok) return guard.response;
 
   const { slug } = await context.params;
-  const bundle = findBundle(slug);
-  if (!bundle) return new Response("No such bundle", { status: 404 });
+  if (!(await runAppUseCase(showBundle(slug)))) {
+    return new Response("No such bundle", { status: 404 });
+  }
 
-  rotateShareSlug(bundle.id);
+  await runAppUseCase(rotateShare(slug));
   return backTo(`/b/${slug}`);
 }

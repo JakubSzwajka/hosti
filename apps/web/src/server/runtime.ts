@@ -6,6 +6,7 @@ import { BundlesError } from "@hosti/bundles";
 import { Storage, StorageError } from "@hosti/storage";
 import { Identity, IdentityInputError } from "@hosti/identity";
 import { Serving } from "@hosti/serving";
+import { LoginThrottle } from "@/use-cases/login";
 import type Database from "better-sqlite3";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -27,10 +28,46 @@ const platformLayer = Layer.mergeAll(
 );
 const catalogLayer = Catalog.layer(dataDir(), catalogSchemaSql);
 const identityLayer = Identity.layer.pipe(Layer.provideMerge(catalogLayer));
-const runtimeLayer = Layer.mergeAll(identityLayer, Storage.layer, Serving.layer).pipe(
+const identityAndLoginLayer = LoginThrottle.layer.pipe(Layer.provideMerge(identityLayer));
+const runtimeLayer = Layer.mergeAll(identityAndLoginLayer, Storage.layer, Serving.layer).pipe(
   Layer.provideMerge(platformLayer),
 );
 const runtime = ManagedRuntime.make(runtimeLayer);
+
+export type UseCaseResult<A, E> = { ok: true; value: A } | { ok: false; error: E };
+
+export type UseCaseRequirements =
+  | Catalog
+  | Storage
+  | Identity
+  | Serving
+  | LoginThrottle
+  | import("effect").FileSystem.FileSystem
+  | import("effect").Path.Path
+  | import("effect/Crypto").Crypto
+  | import("@hosti/storage").ArchiveCodec
+  | import("@hosti/identity").IdentityCrypto;
+
+export function runUseCase<A, E, R extends UseCaseRequirements>(
+  effect: Effect.Effect<A, E, R>,
+): Promise<UseCaseResult<A, E | CatalogError>> {
+  const activeDataDir = dataDir();
+  mkdirSync(activeDataDir, { recursive: true });
+  const configured = Catalog.use((catalog) =>
+    Effect.gen(function* () {
+      yield* catalog.setDataDir(activeDataDir);
+      return yield* effect;
+    }),
+  ).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv())));
+  return runtime.runPromise(
+    configured.pipe(
+      Effect.match({
+        onFailure: (error) => ({ ok: false as const, error }),
+        onSuccess: (value) => ({ ok: true as const, value }),
+      }),
+    ),
+  );
+}
 
 export function runOpenDatabaseSync(databaseFile: string): Database.Database {
   mkdirSync(path.dirname(databaseFile), { recursive: true });

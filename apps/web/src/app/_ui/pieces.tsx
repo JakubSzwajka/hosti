@@ -1,9 +1,9 @@
+import type { PreviewGrant } from "@hosti/serving";
 import type { SharingMode } from "@hosti/shared";
 import Link from "next/link";
 import { formatBytes, plural } from "@/app/_ui/format";
 import { Mark } from "@/app/_ui/mark";
 import { Shot } from "@/app/_ui/shot";
-import { previewGrant } from "@/server/serving/preview-token";
 
 export function Masthead({ meta, token }: { meta?: React.ReactNode; token: string }) {
   return (
@@ -74,6 +74,7 @@ export function Thumb({
   size,
   href,
   live,
+  previewGrant,
   openHref,
   label,
   fileCount,
@@ -83,13 +84,14 @@ export function Thumb({
   size: "card" | "detail";
   href?: string | undefined;
   live?: string | undefined;
+  previewGrant: PreviewGrant | null;
   openHref?: string | undefined;
   label?: string | undefined;
   fileCount: number;
   byteSize: number;
 }) {
   const card = size === "card";
-  const grant = live ? previewGrant(live) : null;
+  const grant = previewGrant;
   const entry = live ? "index.html" : "no entry file";
   const facts = (
     <>

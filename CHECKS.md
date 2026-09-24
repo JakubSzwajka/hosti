@@ -21,7 +21,9 @@
 | Effect packages and web use-cases run the full configured diagnostics block at error severity | Patched TypeScript 7.0.2 via `@effect/tsgo` | `tsconfig.base.json`, `apps/web/tsconfig.effect.json`, `packages/*/tsconfig.json` |
 | Imports have no cycles | Dependency Cruiser `no-cycles` | `.dependency-cruiser.cjs` |
 | Packages do not import apps; apps do not import other apps; cross-workspace package imports use package names and package public entries | Dependency Cruiser workspace rules | `.dependency-cruiser.cjs` |
-| Web server modules do not import Next delivery routes | Dependency Cruiser `web-server-does-not-import-next-delivery` | `.dependency-cruiser.cjs` |
+| Web server modules do not import Next delivery routes | Dependency Cruiser `server-does-not-import-delivery` | `.dependency-cruiser.cjs` |
+| Web use-cases do not import delivery or server modules | Dependency Cruiser `use-cases-do-not-import-outer-layers` | `.dependency-cruiser.cjs` |
+| Delivery does not import server domain adapters for catalog, storage, sharing, push, retention, tokens, pins, minted secrets, or auth internals | Dependency Cruiser `delivery-reaches-domain-through-use-cases` | `.dependency-cruiser.cjs` |
 | Deep `@hosti/*` package imports do not resolve | Dependency Cruiser `no-unresolved-deep-package-imports` | `.dependency-cruiser.cjs` |
 | Code outside `@hosti/cli` uses its public entry and does not import its implementation | Dependency Cruiser CLI rules | `.dependency-cruiser.cjs` |
 | Production code does not import tests | Dependency Cruiser `production-does-not-import-tests` | `.dependency-cruiser.cjs` |

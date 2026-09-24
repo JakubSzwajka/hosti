@@ -1,5 +1,5 @@
+import { TOKEN_NAME_MAX_LENGTH, TOKEN_NAME_RULE } from "@hosti/identity";
 import { CopyButton } from "@/app/_ui/copy-button";
-import { TOKEN_NAME_MAX_LENGTH, TOKEN_NAME_RULE } from "@/server/push-tokens";
 
 export const TOKEN_MARKER = "paste-your-push-token";
 

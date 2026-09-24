@@ -5,11 +5,17 @@ import { formatBytes, formatDate, plural } from "@/app/_ui/format";
 import { Masthead, Thumb } from "@/app/_ui/pieces";
 import { CollectionPicker } from "@/app/b/[slug]/collection-picker";
 import { SharingIsland } from "@/app/b/[slug]/sharing-island";
+import { describeSharing, shareUrl } from "@hosti/bundles";
+import { CATALOG_UPLOAD } from "@hosti/identity";
+import type { PreviewGrant } from "@hosti/serving";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { requireAdmin } from "@/server/auth/admin";
-import { findBundle, listCatalog, listCollections, listRevisions } from "@/server/catalog";
 import { baseUrlFromHeaders } from "@/server/config";
-import { CATALOG_UPLOAD } from "@/server/push-tokens";
-import { describeSharing, shareUrl } from "@/server/sharing";
+import { listCatalog } from "@/use-cases/list-catalog";
+import { listCollections } from "@/use-cases/list-collections";
+import { listRevisions } from "@/use-cases/list-revisions";
+import { createPreviewGrant } from "@/use-cases/create-preview-grant";
+import { showBundle } from "@/use-cases/show-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,21 +49,23 @@ export default async function BundleDetail({
 }) {
   const admin = await requireAdmin();
   const { slug } = await params;
-  const bundle = findBundle(slug);
-  if (!bundle) notFound();
+  const shown = await runAppUseCase(showBundle(slug));
+  if (!shown) notFound();
+  const bundle = shown.record;
 
   const baseUrl = baseUrlFromHeaders(await headers());
-  const revisions = listRevisions(bundle.id);
+  const revisions = await runAppUseCase(listRevisions(bundle.id));
   const current = revisions.find((revision) => revision.current);
+  const previewGrant = current ? await runAppUseCase(createPreviewGrant(slug)) : null;
   const arrival = current ? arrivalNote(current.pushedBy) : null;
   const sharing = describeSharing(bundle);
   const liveUrl = shareUrl(sharing, baseUrl);
   const deadUrl = `${baseUrl.replace(/\/$/, "")}/v/${sharing.shareSlug}/`;
   const query = await searchParams;
-  const catalog = listCatalog();
+  const catalog = await runAppUseCase(listCatalog());
   const position = catalog.findIndex((entry) => entry.slug === slug);
   const token = admin.mutationToken;
-  const collections = listCollections();
+  const collections = await runAppUseCase(listCollections());
 
   return (
     <div className="wrap bundle-shell">
@@ -110,6 +118,7 @@ export default async function BundleDetail({
         fileCount={current?.fileCount ?? 0}
         byteSize={current?.byteSize ?? 0}
         hasRevision={Boolean(current)}
+        previewGrant={previewGrant}
       />
       <SharingIsland
         slug={bundle.slug}
@@ -156,12 +165,14 @@ function Preview({
   fileCount,
   byteSize,
   hasRevision,
+  previewGrant,
 }: {
   slug: string;
   title: string;
   fileCount: number;
   byteSize: number;
   hasRevision: boolean;
+  previewGrant: PreviewGrant | null;
 }) {
   return (
     <section className="preview-panel" aria-label="bundle preview">
@@ -175,6 +186,7 @@ function Preview({
         seed={slug}
         size="detail"
         live={hasRevision ? slug : undefined}
+        previewGrant={previewGrant}
         openHref={hasRevision ? `/b/${slug}/preview/` : undefined}
         label={`Preview of ${title}`}
         fileCount={fileCount}

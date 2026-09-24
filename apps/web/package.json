@@ -6,7 +6,7 @@
     "dev": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next dev -p ${PORT:-3000}",
     "build": "next build",
     "start": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next start -p ${PORT:-3000}",
-    "typecheck": "tsc -p tsconfig.json --noEmit && if find src/use-cases -type f -name '*.ts' -print -quit 2>/dev/null | grep -q .; then ../../node_modules/.bin/tsc -p tsconfig.effect.json --noEmit; else echo 'No Effect use-cases yet; TypeScript 7 check skipped'; fi",
+    "typecheck": "tsc -p tsconfig.json --noEmit && ../../node_modules/.bin/tsc -p tsconfig.effect.json --noEmit",
     "test": "vitest run",
     "token:new": "node scripts/new-token.mjs"
   },

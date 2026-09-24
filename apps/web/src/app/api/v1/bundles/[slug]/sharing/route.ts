@@ -1,10 +1,10 @@
+import { sharingBody } from "@hosti/bundles";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 import { errorResponse, failureResponse, jsonResponse, unauthorized } from "@/server/api-responses";
 import { publicBaseUrl } from "@/server/config";
-import { findBundle } from "@/server/catalog";
-import { PushError } from "@/server/errors";
-import { authenticatePush } from "@/server/push-tokens";
-import { hashPin, readJsonPin, requireSigningSecret } from "@/server/share-pin";
-import { queueSharingWrite, readSharingMode, setSharing, sharingBody } from "@/server/sharing";
+import { authenticatePush } from "@/use-cases/authenticate-push";
+import { setBundleSharing } from "@/use-cases/set-sharing";
+import { showBundle } from "@/use-cases/show-bundle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,27 +12,18 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 export async function PUT(request: Request, context: Context): Promise<Response> {
-  if (!authenticatePush(request)) return unauthorized();
+  if (!(await runAppUseCase(authenticatePush(request.headers.get("authorization"))))) {
+    return unauthorized();
+  }
   const { slug } = await context.params;
   try {
-    const bundle = findBundle(slug);
-    if (!bundle) return noSuchBundle(slug);
+    if (!(await runAppUseCase(showBundle(slug)))) return noSuchBundle(slug);
 
     const text = await request.text().catch(() => "");
     const body = text.trim() ? (JSON.parse(text) as { mode?: unknown; pin?: unknown }) : {};
-    const mode = readSharingMode(body.mode);
-    const pin = readJsonPin(body.pin);
-    if (pin && mode !== "pin") {
-      throw new PushError("pin_not_wanted", 'A pin only belongs on mode "pin"');
-    }
-    if (pin) requireSigningSecret();
-
-    // Serialize writes so a slow pin hash cannot overwrite a later private write.
-    const fresh = await queueSharingWrite(bundle.id, async () => {
-      const pinHash = pin ? await hashPin(pin) : undefined;
-      setSharing(bundle.id, { mode, ...(pinHash ? { pinHash } : {}) });
-      return findBundle(slug);
-    });
+    const fresh = await runAppUseCase(
+      setBundleSharing({ slug, mode: body.mode, pin: body.pin, pinSource: "json" }),
+    );
     if (!fresh) return noSuchBundle(slug);
     return jsonResponse(sharingBody(fresh, publicBaseUrl(request)));
   } catch (error) {

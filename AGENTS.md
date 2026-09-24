@@ -36,6 +36,16 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 - Declare workspace dependencies by package name and use `workspace:<exact version>`. Do not import another workspace through a relative path.
 - Do not change `.dependency-cruiser.cjs` rules as part of routine feature work.
 
+## Layers inside apps/web
+
+- `src/app` is delivery. It owns Next routes, pages, and React UI. A route is an entry point: it reads HTTP or Next inputs, applies auth/HTTP glue, calls a use-case, and maps the result to a response or page.
+- `src/use-cases` holds one `Effect.fn` per product action. Use-cases compose public `@hosti/*` package operations and return typed failures. They do not import Next, `Request`/`Response`, or `src/server`.
+- `src/server` holds the Node layers, HTTP glue, `runtime.ts` and the single `ManagedRuntime`, plus the domain adapters retained for existing tests.
+- Delivery calls use-cases through `src/app/_http/run-use-case.ts`, which uses `runtime.ts`. Do not run Effects from a route or page. Delivery may import `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node serving glue. It may import `@hosti/*` exports directly for constants and pure helpers.
+- Delivery must not import server domain adapters for catalog, database, storage, sharing, push, retention, bundle removal, push tokens, share pins, minted secrets, or auth sessions/rate limits. Those adapters stay in `src/server` for the existing tests, not for app product flows.
+
+Dependency Cruiser enforces the three layer rules: `use-cases-do-not-import-outer-layers`, `server-does-not-import-delivery`, and `delivery-reaches-domain-through-use-cases`.
+
 ## Pins and install policy
 
 Pin every dependency in the root and workspace manifests to an exact version or a full Git commit SHA. The `pins` check enforces this and rejects `workspace:*`. `packageManager` must stay exact. pnpm writes exact versions and `workspace:<exact version>` through `pnpm-workspace.yaml`.

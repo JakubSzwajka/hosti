@@ -1,7 +1,9 @@
 import { CatalogScreen, EmptyCollection } from "@/app/_ui/catalog-screen";
 import { collectionChips, NO_COLLECTION } from "@/app/_ui/format";
+import { previewGrants } from "@/app/_http/preview-grants";
 import { requireAdmin } from "@/server/auth/admin";
-import { listCatalog } from "@/server/catalog";
+import { listCatalog } from "@/use-cases/list-catalog";
+import { runAppUseCase } from "@/app/_http/run-use-case";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,11 +17,12 @@ export default async function CollectionPage({
   const { collection } = await params;
   const wanted = decodeURIComponent(collection);
   const loose = wanted === NO_COLLECTION;
-  const all = listCatalog();
+  const all = await runAppUseCase(listCatalog());
   const bundles = all.filter((bundle) =>
     loose ? bundle.collection === null : bundle.collection === wanted,
   );
   const name = loose ? "no collection" : wanted;
+  const grants = await previewGrants(bundles);
 
   return (
     <CatalogScreen
@@ -28,6 +31,7 @@ export default async function CollectionPage({
       active={`/c/${encodeURIComponent(collection)}`}
       token={admin.mutationToken}
       allSlugs={all.map((bundle) => bundle.slug)}
+      previewGrants={grants}
       {...(loose ? {} : { collection: wanted })}
       {...(bundles.length === 0 ? {} : { heading: "newest first" })}
       emptyNote={<EmptyCollection name={name} />}
