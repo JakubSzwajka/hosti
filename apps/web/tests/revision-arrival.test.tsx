@@ -25,10 +25,7 @@ vi.mock("next/navigation", async (importOriginal) => ({
   useRouter: () => ({ refresh: () => {} }),
 }));
 
-const { createBundle, recordRevision } = await import("@/server/catalog");
-const { db } = await import("@/server/db");
-const { CATALOG_UPLOAD } = await import("@/server/push-tokens");
-const { signSession } = await import("@/server/auth/session");
+const { createBundle, recordRevision, db, CATALOG_UPLOAD, signSession } = await import("./support");
 const BundleDetail = (await import("@/app/b/[slug]/page")).default;
 
 let dataDir: string;

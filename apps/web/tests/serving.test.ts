@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
 const { push, pushAndShare, serve } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
+const { createPushToken } = await import("./support");
 
 let dataDir: string;
 let token: string;

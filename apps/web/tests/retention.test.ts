@@ -4,11 +4,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./helpers";
 
 const { prune, push } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
-const { findBundle, listRevisions } = await import("@/server/catalog");
-const { pruneRevisions } = await import("@/server/retention");
+const { createPushToken, findBundle, listRevisions, pruneRevisions, bundleDir } = await import(
+  "./support"
+);
 const { DEFAULT_KEEP_REVISIONS } = await import("@/server/config");
-const { bundleDir } = await import("@/server/storage/paths");
 
 let dataDir: string;
 let token: string;

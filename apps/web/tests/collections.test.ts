@@ -10,12 +10,9 @@ process.env.HOSTI_SECRET = SECRET;
 const ORIGIN = "http://127.0.0.1:3000";
 
 const { push } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
-const { findBundle, listCatalog, listCollections } = await import("@/server/catalog");
+const { createPushToken, findBundle, listCatalog, listCollections } = await import("./support");
 const { collectionChips, NO_COLLECTION } = await import("@/app/_ui/format");
-const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
-  "@/server/auth/session"
-);
+const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import("./support");
 const { POST: SET_COLLECTION } = await import("@/app/b/[slug]/collection/route");
 
 let dataDir: string;

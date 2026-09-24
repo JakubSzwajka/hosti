@@ -7,8 +7,7 @@ import { tarFixture, useTempDataDir } from "./helpers";
 process.env.HOSTI_SECRET = "a-long-random-string-for-tests";
 
 const { getBundle, push, removeBundle, rotateSharing, serve, setSharing } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
-const { findBundle } = await import("@/server/catalog");
+const { createPushToken, findBundle } = await import("./support");
 
 let dataDir: string;
 let token: string;

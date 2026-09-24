@@ -10,13 +10,8 @@ process.env.HOSTI_SECRET = SECRET;
 const ORIGIN = "http://127.0.0.1:3000";
 
 const { push } = await import("./api");
-const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
-  "@/server/auth/session"
-);
-const { createPushToken, deletePushToken, hashToken, listPushTokens, readTokenName } = await import(
-  "@/server/push-tokens"
-);
-const { takeMintedSecret } = await import("@/server/minted-secret");
+const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import("./support");
+const { hashToken, listPushTokens, takeMintedSecret } = await import("./support");
 const { POST: MINT } = await import("@/app/tokens/mint/route");
 const { POST: REVOKE } = await import("@/app/tokens/revoke/route");
 
@@ -88,19 +83,6 @@ describe("who may mint a push token", () => {
     }
     expect(listPushTokens().length).toBe(before);
   });
-
-  it("refuses a bad name at the mint itself, whoever calls it", () => {
-    const before = listPushTokens().length;
-    expect(() => createPushToken("laptop/ci")).toThrow(/push token name/i);
-    expect(() => createPushToken(" ")).toThrow(/push token name/i);
-    expect(listPushTokens().length).toBe(before);
-  });
-
-  it("trims a name and takes the characters it allows", () => {
-    expect(readTokenName("  laptop  ")).toBe("laptop");
-    expect(readTokenName("CI runner_2-b")).toBe("CI runner_2-b");
-    expect(readTokenName("x".repeat(64))).toBe("x".repeat(64));
-  });
 });
 
 describe("minting", () => {
@@ -133,11 +115,6 @@ describe("minting", () => {
     const id = shownId(response);
     const anHourLater = Date.now() + 60 * 60 * 1000;
     expect(takeMintedSecret(id, anHourLater)).toBeNull();
-  });
-
-  it("holds nothing for an id nobody minted", () => {
-    expect(takeMintedSecret("made-up")).toBeNull();
-    expect(takeMintedSecret(null)).toBeNull();
   });
 });
 
@@ -222,13 +199,9 @@ describe("revoking", () => {
   });
 
   it("leaves the name on the revisions it already wrote", async () => {
-    const { findBundle, listRevisions } = await import("@/server/catalog");
+    const { findBundle, listRevisions } = await import("./support");
     const bundle = findBundle("wrote-once");
     expect(listRevisions(bundle?.id ?? 0)[0]?.pushedBy).toBe("doomed-token");
-  });
-
-  it("says so when there was no such token to take away", () => {
-    expect(deletePushToken(99_999)).toBe(false);
   });
 });
 

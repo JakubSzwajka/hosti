@@ -10,11 +10,15 @@ process.env.HOSTI_SECRET = SECRET;
 const ORIGIN = "http://127.0.0.1:3000";
 
 const { push } = await import("./api");
-const { createPushToken } = await import("@/server/push-tokens");
-const { SESSION_COOKIE, signSession } = await import("@/server/auth/session");
-const { signPreviewToken, previewGrant, previewUrl, PREVIEW_TOKEN_TTL_MS } = await import(
-  "@/server/serving/preview-token"
-);
+const {
+  createPushToken,
+  SESSION_COOKIE,
+  signSession,
+  signPreviewToken,
+  previewGrant,
+  previewUrl,
+  PREVIEW_TOKEN_TTL_MS,
+} = await import("./support");
 const { GET: PREVIEW } = await import("@/app/b/[slug]/preview/[[...path]]/route");
 
 let dataDir: string;

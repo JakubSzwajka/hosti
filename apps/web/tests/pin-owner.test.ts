@@ -7,8 +7,8 @@ process.env.HOSTI_SECRET = TEST_SECRET;
 
 const { getBundle, navigate, setSharing, unlock } = await import("./api");
 const { openLink, protectedLink } = await import("./pin-helpers");
-const { createPushToken } = await import("@/server/push-tokens");
-const { unlockCookieName } = await import("@/server/serving/unlock");
+const { createPushToken } = await import("./support");
+const { unlockCookieName } = await import("./support");
 
 let dataDir: string;
 let token: string;

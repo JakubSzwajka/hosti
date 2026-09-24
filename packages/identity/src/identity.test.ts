@@ -33,7 +33,7 @@ const fakeCryptoLayer = IdentityCrypto.layer({
     return Effect.succeed(0);
   },
   deriveScryptBase64Url(value) {
-    return Effect.succeed(`${value}:`.padEnd(43, "x").slice(0, 43));
+    return Effect.succeed(`${value.split("").reverse().join("")}:`.padEnd(43, "x").slice(0, 43));
   },
   constantTimeEquals(left, right) {
     return Effect.succeed(left === right);
@@ -119,6 +119,95 @@ it.layer(testIdentityLayer)("Identity", (identityTest) => {
           lastUsedAt: expect.any(String),
         }),
       );
+    }),
+  );
+
+  identityTest.effect("verifies the pin it was made from", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const hash = yield* identity.hashPin("4821");
+
+      expect(yield* identity.verifyPin("4821", hash)).toBe(true);
+    }),
+  );
+
+  identityTest.effect("refuses a pin that is not the one", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const hash = yield* identity.hashPin("4821");
+
+      expect(yield* identity.verifyPin("4822", hash)).toBe(false);
+      expect(yield* identity.verifyPin("", hash)).toBe(false);
+    }),
+  );
+
+  identityTest.effect("salts every pin, so the same digits never write the same row", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const first = yield* identity.hashPin("4821");
+      const second = yield* identity.hashPin("4821");
+
+      expect(first).not.toBe(second);
+      expect(first.startsWith("scrypt$")).toBe(true);
+    }),
+  );
+
+  identityTest.effect("never keeps the digits anywhere in the hash", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const hash = yield* identity.hashPin("13571357");
+
+      expect(hash).not.toContain("13571357");
+    }),
+  );
+
+  identityTest.effect("refuses a hash it cannot read", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+
+      expect(yield* identity.verifyPin("4821", "")).toBe(false);
+      expect(yield* identity.verifyPin("4821", "plaintext")).toBe(false);
+      expect(yield* identity.verifyPin("4821", "argon2$1$2$3$4$5")).toBe(false);
+    }),
+  );
+
+  identityTest.effect("refuses a bad name at the mint itself, whoever calls it", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+      const before = (yield* identity.listPushTokens).length;
+      const slash = yield* Effect.flip(identity.createPushToken("laptop/ci"));
+      const blank = yield* Effect.flip(identity.createPushToken(" "));
+
+      expect(slash.message).toMatch(/push token name/i);
+      expect(blank.message).toMatch(/push token name/i);
+      expect((yield* identity.listPushTokens).length).toBe(before);
+    }),
+  );
+
+  identityTest.effect("trims a name and takes the characters it allows", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+
+      expect(yield* identity.readTokenName("  laptop  ")).toBe("laptop");
+      expect(yield* identity.readTokenName("CI runner_2-b")).toBe("CI runner_2-b");
+      expect(yield* identity.readTokenName("x".repeat(64))).toBe("x".repeat(64));
+    }),
+  );
+
+  identityTest.effect("says so when there was no such token to take away", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+
+      expect(yield* identity.deletePushToken(99_999)).toBe(false);
+    }),
+  );
+
+  identityTest.effect("holds nothing for an id nobody minted", () =>
+    Effect.gen(function* () {
+      const identity = yield* Identity;
+
+      expect(yield* identity.takeMintedSecret("made-up")).toBeNull();
+      expect(yield* identity.takeMintedSecret(null)).toBeNull();
     }),
   );
 });

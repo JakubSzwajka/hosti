@@ -31,10 +31,14 @@ const { POST: MINT } = await import("@/app/tokens/mint/route");
 const PushTokens = (await import("@/app/tokens/page")).default;
 const Catalog = (await import("@/app/page")).default;
 const { SKILL_INSTALL_COMMAND, TOKEN_MARKER } = await import("@/app/_ui/onboarding-panel");
-const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import(
-  "@/server/auth/session"
-);
-const { createPushToken, listPushTokens } = await import("@/server/push-tokens");
+const {
+  SESSION_COOKIE,
+  mutationToken,
+  signSession,
+  verifySession,
+  createPushToken,
+  listPushTokens,
+} = await import("./support");
 
 let dataDir: string;
 let cookie: string;

@@ -5,8 +5,7 @@ import { makeTar, tarFixture, useTempDataDir } from "./helpers";
 
 const { GET } = await import("@/app/api/v1/bundles/route");
 const { POST } = await import("@/app/api/v1/bundles/[slug]/revisions/route");
-const { CATALOG_UPLOAD, createPushToken } = await import("@/server/push-tokens");
-const { findBundle, listRevisions } = await import("@/server/catalog");
+const { CATALOG_UPLOAD, createPushToken, findBundle, listRevisions } = await import("./support");
 
 let dataDir: string;
 let token: string;
