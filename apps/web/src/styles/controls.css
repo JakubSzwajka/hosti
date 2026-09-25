@@ -42,7 +42,7 @@
   border: 1px solid var(--pop);
   border-radius: 5px;
   background: var(--pop);
-  color: #fff;
+  color: var(--white);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.3;
@@ -106,7 +106,7 @@
   font-weight: 500;
 }
 .btn[data-tone="go"]:hover {
-  background: #1b2123;
+  background: var(--ink-hover);
 }
 .btn[data-tone="go"] .arw {
   opacity: 0.66;

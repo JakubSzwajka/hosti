@@ -14,6 +14,14 @@
   --pop: #06707e;
   --pop-wash: #e4f0f1;
   --danger: #8a2b14;
+  /* Text on a filled pop or danger button, and the page behind a live preview. */
+  --white: #ffffff;
+  /* The dark button's hover: one step below ink. */
+  --ink-hover: #1b2123;
+  /* Surfaces the browser draws for us. */
+  --selection: #bfe0e3;
+  --scroll-thumb: #b3bbbd;
+  --scroll-thumb-hover: #98a2a4;
   /* One rhythm for every gap on every screen. */
   --gap: 22px;
   --gap-lg: 34px;
@@ -58,7 +66,7 @@ button {
 /* The surfaces the browser draws for us. Left alone they belong to no design
    system, and they are the cheapest tell that a page was assembled. */
 ::selection {
-  background: #bfe0e3;
+  background: var(--selection);
   color: var(--ink);
 }
 input,
@@ -72,19 +80,19 @@ textarea {
 }
 * {
   scrollbar-width: thin;
-  scrollbar-color: #b3bbbd transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 ::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #b3bbbd;
+  background: var(--scroll-thumb);
   border: 3px solid var(--paper);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #98a2a4;
+  background: var(--scroll-thumb-hover);
 }
 
 .wrap {

@@ -30,7 +30,7 @@
   flex: 1;
   max-width: 42px;
   border-radius: 2px 2px 0 0;
-  background: #c5cdcf;
+  background: var(--line);
 }
 .plate-path {
   font-size: 11px;
@@ -43,7 +43,7 @@
   left: 0;
   border: 0;
   transform-origin: top left;
-  background: #fff;
+  background: var(--white);
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--t) ease-in;
@@ -230,7 +230,7 @@
 }
 .drop[data-over] {
   border-color: var(--pop);
-  background: #e8f4f5;
+  background: var(--pop-wash);
 }
 .drop-say,
 .drop-done {

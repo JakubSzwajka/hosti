@@ -198,7 +198,7 @@
   border: 1px solid var(--danger);
   border-radius: 6px;
   background: var(--danger);
-  color: #fff;
+  color: var(--white);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
