@@ -120,8 +120,8 @@ const NOT_FOUND_HTML = `<!doctype html>
     <title>Not found</title>
     <style>
       body { font: 16px/1.6 ui-sans-serif, system-ui, sans-serif; margin: 20vh auto; max-width: 32rem;
-             padding: 0 1.5rem; color: #1c1917; background: #fafaf9; }
-      code { background: #f5f5f4; padding: 0.1rem 0.3rem; border-radius: 3px; }
+             padding: 0 1.5rem; color: #2b3133; background: #ecf2f3; }
+      code { background: #dee4e5; padding: 0.1rem 0.3rem; border-radius: 3px; }
     </style>
   </head>
   <body>
