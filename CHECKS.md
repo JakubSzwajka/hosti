@@ -15,6 +15,7 @@
 | Every `var(--name)` in that CSS has a definition in the token file or the same file, except `--bar`, which the landing page sets inline | ESLint `codebase-ai-rules/design-no-unknown-token` | `eslint.config.mjs` |
 | Web radii come from the radius scale, shadows are `none`, and transitions and animations use `var(--t…)` | ESLint `codebase-ai-rules/design-scale-value` | `eslint.config.mjs` |
 | Strings in `apps/web/src` hold no raw colour, except the standalone not-found page in `respond.ts` | ESLint `codebase-ai-rules/design-no-raw-color-literal` | `eslint.config.mjs` |
+| The pin gate in `packages/serving/src/gate-page.ts` sets `--paper`, `--card`, `--ink`, `--muted`, `--line`, `--line-soft`, `--pop`, and `--danger` to the same values as `hosti.css` | Vitest `apps/web/tests/gate-page-tokens.test.ts` | `apps/web/tests/gate-page-tokens.test.ts`, `apps/web/src/styles/hosti.css` |
 | Web framework, CLI, and shared projects pass with TypeScript 5.9.3; web use-cases pass separately with patched TypeScript 7.0.2 | TypeScript through Turbo `typecheck` | `apps/web/tsconfig.json`, `apps/web/tsconfig.effect.json`, workspace manifests, `turbo.json` |
 | Each workspace TypeScript project passes with strict mode, unchecked index access, exact optional properties, explicit overrides, verbatim module syntax, and erasable syntax | TypeScript via Turbo `typecheck` | `tsconfig.base.json`, `apps/*/tsconfig.json`, `packages/*/tsconfig.json`, `turbo.json` |
 | Effect values must be used or yielded, including inside Vitest callbacks | Effect diagnostics `floatingEffect`, `floatingEffectInVitest` | `tsconfig.base.json` |
@@ -52,5 +53,5 @@ Tools do not decide whether:
 - Tests cover meaningful cases or assert the right product outcome.
 - A module boundary, folder layout, or abstraction is the right one when imports still pass the configured rules.
 - A TypeScript cast or suppression is justified.
-- The standalone pages keep their own colours. No design rule checks the pin gate in `packages/serving/src/gate-page.ts`, and `respond.ts`'s not-found page is exempt from `design-no-raw-color-literal`.
+- The standalone pages still look like Hosti. No lint rule checks the pin gate in `packages/serving/src/gate-page.ts`, but `gate-page-tokens.test.ts` holds its token values to `hosti.css`. The not-found page in `respond.ts` uses Hosti's paper, ink, and surface values as raw literals, is exempt from `design-no-raw-color-literal`, and no test ties it to `hosti.css`.
 - A requested behavior has been documented for operators and users.
