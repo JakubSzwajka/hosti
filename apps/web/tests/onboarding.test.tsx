@@ -10,7 +10,6 @@ process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
 process.env.HOSTI_SECRET = SECRET;
 process.env.HOSTI_PUBLIC_URL = "";
 
-const ORIGIN = "http://127.0.0.1:3000";
 const HOST = "hosti.test";
 
 let signedCookie: string | null = null;
@@ -27,22 +26,15 @@ vi.mock("next/navigation", async (importOriginal) => ({
   useRouter: () => ({ refresh: () => {} }),
 }));
 
-const { POST: MINT } = await import("@/app/tokens/mint/route");
 const PushTokens = (await import("@/app/tokens/page")).default;
 const Catalog = (await import("@/app/page")).default;
-const { SKILL_INSTALL_COMMAND, TOKEN_MARKER } = await import("@/app/_ui/onboarding-panel");
-const {
-  SESSION_COOKIE,
-  mutationToken,
-  signSession,
-  verifySession,
-  createPushToken,
-  listPushTokens,
-} = await import("./support");
+const { CLI_INSTALL_COMMAND, SKILL_INSTALL_COMMAND, agentPrompt } = await import(
+  "@/app/_ui/onboarding-panel"
+);
+const { signSession, verifySession, createPushToken, listPushTokens } = await import("./support");
 
 let dataDir: string;
 let cookie: string;
-let token: string;
 
 const SKILL_PATH = fileURLToPath(
   new URL("../../../skills/hosti-publish/SKILL.md", import.meta.url),
@@ -56,23 +48,17 @@ async function render(component: () => Promise<React.ReactElement>): Promise<str
   return renderToStaticMarkup(await component());
 }
 
-function tokensPage(query: { shown?: string; token?: string } = {}) {
+function tokensPage(query: { token?: string } = {}) {
   return () => PushTokens({ searchParams: Promise.resolve(query) });
 }
 
-async function mint(name: string): Promise<string> {
-  const request = new Request(`${ORIGIN}/tokens/mint`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-      cookie: `${SESSION_COOKIE}=${cookie}`,
-    },
-    body: new URLSearchParams({ token, name }),
-  });
-  const response = await MINT(request);
-  const id = new URL(response.headers.get("location") ?? "", ORIGIN).searchParams.get("shown");
-  if (!id) throw new Error(`mint held no secret: ${response.headers.get("location")}`);
-  return id;
+function decodeEntities(html: string): string {
+  return html
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
 }
 
 beforeAll(async () => {
@@ -80,7 +66,6 @@ beforeAll(async () => {
   cookie = signSession(SECRET);
   const session = verifySession(SECRET, cookie);
   if (!session) throw new Error("session should verify");
-  token = mutationToken(SECRET, session);
   signedCookie = cookie;
 });
 
@@ -135,69 +120,73 @@ describe("the /tokens page", () => {
     }
   });
 
-  it("lists every push token, with a revoke on each", async () => {
-    createPushToken("laptop");
-    createPushToken("ci runner");
+  it("lists every push token with its scopes and last use, and a revoke on each", async () => {
+    createPushToken("laptop", ["publish", "share"]);
+    createPushToken("ci runner", ["publish"]);
     const html = await render(tokensPage());
 
     for (const record of listPushTokens()) {
       expect(html).toContain(record.name);
     }
+    expect(html).toContain("publish, share, delete");
+    expect(html).toContain("publish, share<");
+    expect(html).toContain("unused");
     expect(html).toContain('action="/tokens/revoke"');
     const revokes = html.match(/name="id"/g) ?? [];
     expect(revokes.length).toBe(listPushTokens().length);
   });
 
-  it("shows no secret and no digest when nothing was just minted", async () => {
+  it("renders no mint form and no secret", async () => {
     const html = await render(tokensPage());
+    expect(html).not.toContain("/tokens/mint");
+    expect(html).not.toContain('name="name"');
     expect(html).not.toContain("hosti_");
-    expect(html).toContain(TOKEN_MARKER);
+    expect(html).not.toContain("HOSTI_TOKEN");
+  });
+
+  it("leads with the install command and the login command for this instance", async () => {
+    const html = decodeEntities(await render(tokensPage()));
+    const install = html.indexOf(CLI_INSTALL_COMMAND);
+    const login = html.indexOf(`hosti login https://${HOST}`);
+    expect(install).toBeGreaterThan(-1);
+    expect(login).toBeGreaterThan(install);
+    expect(html).toContain(SKILL_INSTALL_COMMAND);
   });
 });
 
-describe("the minted secret", () => {
-  it("shows once, and the second read of the same id shows nothing", async () => {
-    const id = await mint("shown-once");
+describe("the agent prompt", () => {
+  it("tells the agent to install the CLI and log in, and carries no token", async () => {
+    const prompt = agentPrompt(`https://${HOST}/`);
+    expect(prompt).toContain(CLI_INSTALL_COMMAND);
+    expect(prompt).toContain(`hosti login https://${HOST}\n`);
+    expect(prompt).toContain(SKILL_INSTALL_COMMAND);
+    expect(prompt).not.toMatch(/hosti_[A-Za-z0-9_-]{8,}/);
+    expect(prompt).not.toContain("HOSTI_TOKEN");
 
-    const first = await render(tokensPage({ shown: id }));
-    const secret = first.match(/hosti_[A-Za-z0-9_-]+/)?.[0];
-    expect(secret).toMatch(/^hosti_/);
-    expect(first).toContain("shown once");
-
-    const second = await render(tokensPage({ shown: id }));
-    expect(second).not.toContain("hosti_");
-    expect(second).toContain(TOKEN_MARKER);
+    const html = decodeEntities(await render(tokensPage()));
+    expect(html).toContain(prompt.trim());
   });
 
-  it("is already in the prompt the owner copies", async () => {
-    const id = await mint("in-the-prompt");
-    const html = await render(tokensPage({ shown: id }));
-    const secret = html.match(/hosti_[A-Za-z0-9_-]+/)?.[0] ?? "";
-    expect(html).toContain(`HOSTI_TOKEN=${secret}`);
-    expect(html).toContain(SKILL_INSTALL_COMMAND);
-    expect(html).not.toContain(TOKEN_MARKER);
-  });
-
-  it("says so when a name was refused, and mints nothing", async () => {
-    const before = listPushTokens().length;
-    const html = await render(tokensPage({ token: "bad_token_name" }));
-    expect(html).toContain("push token name");
-    expect(listPushTokens().length).toBe(before);
+  it("installs from the release tarball on GitHub", () => {
+    expect(CLI_INSTALL_COMMAND).toBe(
+      "npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz",
+    );
   });
 });
 
 describe("the empty catalog", () => {
   it("offers the panel instead of telling the owner to open a shell", async () => {
-    const html = await render(Catalog);
-    expect(html).toContain('action="/tokens/mint"');
-    expect(html).toContain(TOKEN_MARKER);
+    const html = decodeEntities(await render(Catalog));
+    expect(html).toContain(CLI_INSTALL_COMMAND);
+    expect(html).toContain(`hosti login https://${HOST}`);
+    expect(html).not.toContain("/tokens/mint");
     expect(html).not.toContain("npm run token:new");
     expect(html).not.toContain("hosti push ./out");
     expect(SKILL_INSTALL_COMMAND).toBe("npx skills add JakubSzwajka/hosti");
     expect(SKILL_INSTALL_COMMAND).not.toContain("http");
     expect(html).toContain(SKILL_INSTALL_COMMAND);
-    // The prompt still carries the instance URL. Nothing else may.
-    expect(html.match(new RegExp(`https://${HOST}`, "g"))?.length).toBe(1);
+    // The login command and the prompt carry the instance URL. Nothing else may.
+    expect(html.match(new RegExp(`https://${HOST}`, "g"))?.length).toBe(2);
   });
 
   it("reaches /tokens from the masthead", async () => {

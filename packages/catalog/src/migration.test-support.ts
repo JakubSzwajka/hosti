@@ -81,6 +81,11 @@ CREATE TABLE push_tokens (
 INSERT INTO meta (key, value) VALUES ('schema_version', '2');
 `;
 
+const VERSION_3_SCHEMA = `${VERSION_2_SCHEMA.replace(
+  "  created_at TEXT NOT NULL,\n  UNIQUE (bundle_id, seq)",
+  "  pushed_by TEXT,\n  created_at TEXT NOT NULL,\n  UNIQUE (bundle_id, seq)",
+).replace("'schema_version', '2'", "'schema_version', '3'")}`;
+
 export function withTempDirectory<A, E>(
   test: (dataDir: string, schemaSql: string) => Effect.Effect<A, E>,
 ) {
@@ -203,4 +208,33 @@ export function tableNames(database: Database.Database): string[] {
       name: string;
     }[]
   ).map((row) => row.name);
+}
+
+export function seedVersion3(file: string): void {
+  const database = new Database(file);
+  database.exec(VERSION_3_SCHEMA);
+  database
+    .prepare(
+      `INSERT INTO bundles (id, slug, title, collection, share_mode, share_slug, created_at, updated_at)
+       VALUES (1, 'squad-2026', 'Squad 2026', 'reports', 'link', 'squad-2026', ?, ?)`,
+    )
+    .run(NOW, NOW);
+  database
+    .prepare(
+      `INSERT INTO revisions (id, bundle_id, seq, byte_size, file_count, pushed_by, created_at)
+       VALUES (1, 1, 1, 100, 3, 'laptop', ?)`,
+    )
+    .run(NOW);
+  database.prepare("UPDATE bundles SET current_revision_id = 1 WHERE id = 1").run();
+  for (const [id, name, hash, lastUsed] of [
+    [7, "laptop", "abc123", NOW],
+    [9, "ci", "def456", null],
+  ] as const) {
+    database
+      .prepare(
+        "INSERT INTO push_tokens (id, name, token_hash, created_at, last_used_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(id, name, hash, NOW, lastUsed);
+  }
+  database.close();
 }

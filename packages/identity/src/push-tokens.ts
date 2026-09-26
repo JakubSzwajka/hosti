@@ -1,7 +1,9 @@
 import type { Catalog } from "@hosti/catalog";
+import type { PushScope } from "@hosti/shared";
 import { Effect } from "effect";
 import type { IdentityCrypto } from "./crypto";
 import { IdentityDatabaseError, IdentityInputError } from "./errors";
+import { formatScopes, orderScopes, parseStoredScopes } from "./scopes";
 
 const PREFIX = "hosti_";
 
@@ -14,11 +16,16 @@ const TOKEN_NAME_PATTERN = /^[A-Za-z0-9_\- ]+$/;
 export type PushTokenRecord = {
   id: number;
   name: string;
+  scopes: PushScope[];
   createdAt: string;
   lastUsedAt: string | null;
 };
 
-export type PushIdentity = { id: number; name: string };
+export type PushIdentity = { id: number; name: string; scopes: PushScope[] };
+
+export const TOKEN_EXISTS_MESSAGE = "That token digest is already in use";
+
+type TokenRow = { id: number; name: string; scopes: string };
 
 function validateName(value: unknown): Effect.Effect<string, IdentityInputError> {
   const trimmed = typeof value === "string" ? value.trim() : "";
@@ -54,18 +61,66 @@ export function makePushTokenOperations(dependencies: {
 
   const hashToken = (secret: string) => crypto.sha256Hex(secret);
 
-  const createPushToken = Effect.fn("Identity.createPushToken")(function* (name: string) {
-    const checked = yield* validateName(name);
-    const secret = `${PREFIX}${yield* crypto.randomBytesBase64Url(24)}`;
-    const tokenHash = yield* hashToken(secret);
+  const insertPushToken = Effect.fn("Identity.insertPushToken")(function* (input: {
+    name: string;
+    tokenHash: string;
+    scopes: readonly PushScope[];
+  }) {
+    const checked = yield* validateName(input.name);
+    const scopes = orderScopes(input.scopes);
     const createdAt = yield* catalog.nowIso;
     const database = yield* catalog.database;
-    const result = yield* databaseOperation("createPushToken", () =>
-      database
-        .prepare("INSERT INTO push_tokens (name, token_hash, created_at) VALUES (?, ?, ?)")
-        .run(checked, tokenHash, createdAt),
+    const result = yield* Effect.try({
+      try: () =>
+        database
+          .prepare(
+            "INSERT INTO push_tokens (name, token_hash, created_at, scopes) VALUES (?, ?, ?, ?)",
+          )
+          .run(checked, input.tokenHash, createdAt, formatScopes(scopes)),
+      catch: (cause) =>
+        String(cause).includes("UNIQUE")
+          ? new IdentityInputError({
+              code: "token_exists",
+              message: TOKEN_EXISTS_MESSAGE,
+              status: 409,
+            })
+          : new IdentityDatabaseError({ operation: "insertPushToken", cause }),
+    });
+    return { id: Number(result.lastInsertRowid), name: checked, scopes };
+  });
+
+  /** Mints a token and hands back its secret. Only the server shell and tests do this. */
+  const createPushToken = Effect.fn("Identity.createPushToken")(function* (
+    name: string,
+    scopes: readonly PushScope[],
+  ) {
+    const secret = `${PREFIX}${yield* crypto.randomBytesBase64Url(24)}`;
+    const tokenHash = yield* hashToken(secret);
+    const created = yield* insertPushToken({ name, tokenHash, scopes });
+    return { ...created, secret };
+  });
+
+  /** Stores a digest the agent made. The server never sees the clear token. */
+  const activatePushToken = Effect.fn("Identity.activatePushToken")(function* (input: {
+    name: string;
+    tokenDigest: string;
+    scopes: readonly PushScope[];
+  }) {
+    return yield* insertPushToken({
+      name: input.name,
+      tokenHash: input.tokenDigest,
+      scopes: input.scopes,
+    });
+  });
+
+  const pushTokenDigestExists = Effect.fn("Identity.pushTokenDigestExists")(function* (
+    tokenDigest: string,
+  ) {
+    const database = yield* catalog.database;
+    const row = yield* databaseOperation("pushTokenDigestExists", () =>
+      database.prepare("SELECT 1 AS found FROM push_tokens WHERE token_hash = ?").get(tokenDigest),
     );
-    return { id: result.lastInsertRowid as number, name: checked, secret };
+    return row !== undefined;
   });
 
   const listPushTokens = Effect.fn("Identity.listPushTokens")(function* () {
@@ -75,13 +130,14 @@ export function makePushTokenOperations(dependencies: {
       () =>
         database
           .prepare(
-            "SELECT id, name, created_at, last_used_at FROM push_tokens ORDER BY created_at DESC, id DESC",
+            "SELECT id, name, scopes, created_at, last_used_at FROM push_tokens ORDER BY created_at DESC, id DESC",
           )
-          .all() as { id: number; name: string; created_at: string; last_used_at: string | null }[],
+          .all() as (TokenRow & { created_at: string; last_used_at: string | null })[],
     );
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
+      scopes: parseStoredScopes(row.scopes),
       createdAt: row.created_at,
       lastUsedAt: row.last_used_at,
     }));
@@ -104,9 +160,9 @@ export function makePushTokenOperations(dependencies: {
     const row = yield* databaseOperation(
       "authenticatePush",
       () =>
-        database.prepare("SELECT id, name FROM push_tokens WHERE token_hash = ?").get(tokenHash) as
-          | PushIdentity
-          | undefined,
+        database
+          .prepare("SELECT id, name, scopes FROM push_tokens WHERE token_hash = ?")
+          .get(tokenHash) as TokenRow | undefined,
     );
     if (!row) return null;
     const lastUsedAt = yield* catalog.nowIso;
@@ -115,13 +171,15 @@ export function makePushTokenOperations(dependencies: {
         .prepare("UPDATE push_tokens SET last_used_at = ? WHERE id = ?")
         .run(lastUsedAt, row.id),
     );
-    return { id: row.id, name: row.name };
+    return { id: row.id, name: row.name, scopes: parseStoredScopes(row.scopes) };
   });
 
   return {
     readTokenName,
     hashToken,
     createPushToken,
+    activatePushToken,
+    pushTokenDigestExists,
     listPushTokens,
     deletePushToken,
     authenticatePush,

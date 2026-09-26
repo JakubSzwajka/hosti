@@ -22,7 +22,7 @@ function withTemporaryCatalog<A, E>(test: (dataDir: string) => Effect.Effect<A, 
   }).pipe(Effect.provide(platformLayer));
 }
 
-it.effect("opens a version 2 database and migrates it to version 3", () =>
+it.effect("opens a version 2 database and migrates it to version 4", () =>
   withTemporaryCatalog((dataDir) =>
     Effect.gen(function* () {
       const path = yield* Path.Path;
@@ -78,7 +78,7 @@ it.effect("opens a version 2 database and migrates it to version 3", () =>
           },
       );
 
-      expect(version.value).toBe("3");
+      expect(version.value).toBe("4");
       expect(revisionColumns.map((column) => column.name)).toContain("pushed_by");
       expect(collection.collection).toBeNull();
     }),

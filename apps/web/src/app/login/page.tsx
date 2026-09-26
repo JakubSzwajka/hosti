@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Mark } from "@/app/_ui/mark";
+import { safeReturnPath } from "@/app/_http/return-path";
 import { runAppUseCase } from "@/app/_http/run-use-case";
 import { currentAdmin } from "@/server/auth/admin";
 import { showLoginSetup } from "@/use-cases/show-login-setup";
@@ -12,11 +13,12 @@ export const metadata = { title: "Hosti" };
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   const missing = await runAppUseCase(showLoginSetup());
-  if (missing.length === 0 && (await currentAdmin())) redirect("/");
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const returnTo = safeReturnPath(next);
+  if (missing.length === 0 && (await currentAdmin())) redirect(returnTo ?? "/");
 
   return (
     <main className="gate">
@@ -25,16 +27,21 @@ export default async function Login({
           <Mark size={21} />
           hosti
         </h1>
-        {missing.length > 0 ? <Setup missing={missing} /> : <Form error={error} />}
+        {missing.length > 0 ? (
+          <Setup missing={missing} />
+        ) : (
+          <Form error={error} returnTo={returnTo} />
+        )}
       </div>
       {missing.length === 0 ? <p className="after">A share link never asks for this.</p> : null}
     </main>
   );
 }
 
-function Form({ error }: { error?: string | undefined }) {
+function Form({ error, returnTo }: { error?: string | undefined; returnTo: string | null }) {
   return (
     <form method="post" action="/login/submit">
+      {returnTo ? <input type="hidden" name="next" value={returnTo} /> : null}
       <label htmlFor="password">Owner password</label>
       <input
         id="password"

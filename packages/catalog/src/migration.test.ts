@@ -94,7 +94,7 @@ it.effect("writes the new version and runs only once", () =>
           const version = yield* Effect.sync(() =>
             database.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get(),
           );
-          expect(version).toEqual({ value: "3" });
+          expect(version).toEqual({ value: "4" });
           yield* Effect.sync(() =>
             database
               .prepare("UPDATE bundles SET share_mode = 'link' WHERE slug = 'squad-2026'")
@@ -221,7 +221,7 @@ it.effect("writes the new version and runs only once", () =>
           const version = yield* Effect.sync(() =>
             database.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get(),
           );
-          expect(version).toEqual({ value: "3" });
+          expect(version).toEqual({ value: "4" });
           yield* Effect.sync(() =>
             database.prepare("UPDATE revisions SET pushed_by = 'laptop' WHERE id = 1").run(),
           );
@@ -260,7 +260,7 @@ it.effect("starts at the same version with the same columns", () =>
             ),
           );
 
-          expect(version).toEqual({ value: "3" });
+          expect(version).toEqual({ value: "4" });
           expect(names).toEqual(["bundles", "meta", "push_tokens", "revisions"]);
           expect(bundleColumns).toContain("share_mode");
           expect(bundleColumns).toContain("share_slug");

@@ -5,7 +5,7 @@ import { expect, it } from "@effect/vitest";
 import { Catalog } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { TestClock } from "effect/testing";
-import { Identity, IdentityCrypto } from "./index";
+import { ALL_SCOPES, Identity, IdentityCrypto } from "./index";
 
 let randomSequence = 0;
 
@@ -105,17 +105,19 @@ it.layer(testIdentityLayer)("Identity", (identityTest) => {
   identityTest.effect("authenticates a stored push token", () =>
     Effect.gen(function* () {
       const identity = yield* Identity;
-      const minted = yield* identity.createPushToken("test runner");
+      const minted = yield* identity.createPushToken("test runner", ["share", "publish"]);
 
       expect(yield* identity.authenticatePush(minted.secret)).toEqual({
         id: minted.id,
         name: "test runner",
+        scopes: ["publish", "share"],
       });
       expect(yield* identity.authenticatePush("wrong-token")).toBeNull();
       expect(yield* identity.listPushTokens).toContainEqual(
         expect.objectContaining({
           id: minted.id,
           name: "test runner",
+          scopes: ["publish", "share"],
           lastUsedAt: expect.any(String),
         }),
       );
@@ -175,8 +177,8 @@ it.layer(testIdentityLayer)("Identity", (identityTest) => {
     Effect.gen(function* () {
       const identity = yield* Identity;
       const before = (yield* identity.listPushTokens).length;
-      const slash = yield* Effect.flip(identity.createPushToken("laptop/ci"));
-      const blank = yield* Effect.flip(identity.createPushToken(" "));
+      const slash = yield* Effect.flip(identity.createPushToken("laptop/ci", ALL_SCOPES));
+      const blank = yield* Effect.flip(identity.createPushToken(" ", ALL_SCOPES));
 
       expect(slash.message).toMatch(/push token name/i);
       expect(blank.message).toMatch(/push token name/i);
@@ -199,15 +201,6 @@ it.layer(testIdentityLayer)("Identity", (identityTest) => {
       const identity = yield* Identity;
 
       expect(yield* identity.deletePushToken(99_999)).toBe(false);
-    }),
-  );
-
-  identityTest.effect("holds nothing for an id nobody minted", () =>
-    Effect.gen(function* () {
-      const identity = yield* Identity;
-
-      expect(yield* identity.takeMintedSecret("made-up")).toBeNull();
-      expect(yield* identity.takeMintedSecret(null)).toBeNull();
     }),
   );
 });

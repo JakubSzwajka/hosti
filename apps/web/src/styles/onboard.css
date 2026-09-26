@@ -45,62 +45,6 @@
   margin: 0 0 8px;
 }
 
-/* mint ---------------------------------------------------------------- */
-.mint-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 11px;
-}
-.mint-form input[name="name"] {
-  font: inherit;
-  font-size: 14px;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 9px;
-  min-width: 190px;
-}
-.mint-form input[name="name"]:focus {
-  outline: 2px solid var(--pop);
-  outline-offset: 1px;
-  border-color: var(--pop);
-}
-
-/* The one read of a secret. It is loud because it does not come back. */
-.minted {
-  background: var(--paper);
-  border: 1px solid var(--pop);
-  border-radius: 8px;
-  padding: 11px 14px 13px;
-  margin: 2px 0 14px;
-}
-.minted-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.minted-once {
-  color: var(--pop);
-}
-.minted-secret {
-  font-size: 13px;
-  color: var(--ink);
-  margin: 0;
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-.minted .onboard-acts {
-  margin-top: 10px;
-}
-
 /* the list ------------------------------------------------------------ */
 .tokens-page {
   margin-top: var(--gap);
@@ -146,6 +90,12 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+.token-scopes {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 12.5px;
+  color: var(--ink);
+}
 .token-when {
   font-size: 12.5px;
   color: var(--muted);
@@ -179,6 +129,99 @@
   color: var(--ink);
 }
 
+/* the approval page -------------------------------------------------- */
+/* The login card, a little wider: it carries the code to compare and the
+   scopes to grant, and the owner reads every line before pressing Approve. */
+.gate.connect {
+  max-width: 460px;
+}
+.connect-title {
+  font-family: var(--font-serif);
+  font-weight: 900;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+.connect-lead,
+.connect-hint,
+.connect-expiry {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+.connect-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  margin: 14px 0 8px;
+}
+.connect-facts dt {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  align-self: center;
+}
+.connect-facts dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.connect-code {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+}
+.connect-hint {
+  margin-bottom: 14px;
+}
+.connect-scopes {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px 10px;
+  margin: 0;
+}
+.connect-scopes legend {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.connect-scopes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.connect-scopes span,
+.connect-granted {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  color: var(--ink);
+}
+.gate .connect-scopes input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  margin: 0 4px 0 0;
+  accent-color: var(--danger);
+}
+.gate .connect-deny button {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.gate .connect-deny button:hover {
+  background: var(--paper);
+}
+.gate .connect-deny {
+  margin-top: 8px;
+}
+
 @media (max-width: 560px) {
   .token-list {
     padding: 16px 16px 18px;
@@ -187,9 +230,5 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
-  }
-  .mint-form input[name="name"] {
-    min-width: 0;
-    flex: 1 1 140px;
   }
 }

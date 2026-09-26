@@ -88,6 +88,46 @@ export type ErrorResponse = {
   message: string;
 };
 
+export type PushScope = "publish" | "share" | "delete";
+
+export const PUSH_SCOPES: readonly PushScope[] = ["publish", "share", "delete"] as const;
+
+export function isPushScope(value: unknown): value is PushScope {
+  return typeof value === "string" && (PUSH_SCOPES as readonly string[]).includes(value);
+}
+
+export type MissingScopeResponse = {
+  error: "missing_scope";
+  scope: PushScope;
+  message: string;
+};
+
+export type WhoamiResponse = {
+  name: string;
+  scopes: PushScope[];
+};
+
+export type AgentAuthorizationRequest = {
+  tokenName: string;
+  tokenDigest: string;
+  pollingDigest: string;
+  scopes: PushScope[];
+};
+
+export type AgentAuthorizationCreatedResponse = {
+  id: string;
+  userCode: string;
+  approvalUrl: string;
+  expiresAt: string;
+  pollAfterSeconds: number;
+};
+
+export type AgentAuthorizationStatusResponse =
+  | { status: "pending"; expiresAt: string; pollAfterSeconds: number }
+  | { status: "approved"; scopes: PushScope[]; name: string }
+  | { status: "denied" }
+  | { status: "expired" };
+
 export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/;
 
 export function isValidSlug(value: string): boolean {

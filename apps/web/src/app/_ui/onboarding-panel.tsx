@@ -1,120 +1,92 @@
-import { TOKEN_NAME_MAX_LENGTH, TOKEN_NAME_RULE } from "@hosti/identity";
 import { CopyButton } from "@/app/_ui/copy-button";
 
-export const TOKEN_MARKER = "paste-your-push-token";
+export const CLI_INSTALL_COMMAND =
+  "npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz";
 
 export const SKILL_INSTALL_COMMAND = "npx skills add JakubSzwajka/hosti";
 
-export function agentPrompt(baseUrl: string, token: string | null): string {
-  const url = baseUrl.replace(/\/+$/, "");
+export function loginCommand(baseUrl: string): string {
+  return `hosti login ${baseUrl.replace(/\/+$/, "")}`;
+}
+
+export function agentPrompt(baseUrl: string): string {
   return `Publish a static site to my Hosti catalog.
 
 Hosti is a self-hosted catalog for static bundles. A bundle is a folder of
 files with an index.html at its root. It gets a URL.
 
-  HOSTI_URL=${url}
-  HOSTI_TOKEN=${token ?? TOKEN_MARKER}
+First install the Hosti CLI and the skill that tells you how to use it:
 
-First install the skill, which tells you how to push and share:
-
+  ${CLI_INSTALL_COMMAND}
   ${SKILL_INSTALL_COMMAND}
+
+Then connect to my catalog:
+
+  ${loginCommand(baseUrl)}
+
+It prints a link and a code. Show me both and wait while I approve it in my
+browser. Never print the token it saves.
 
 Then publish the folder I point you at. It lands private. Give me back the
 admin URL, and ask before you open it to anyone.
 `;
 }
 
-export function OnboardingPanel({
-  baseUrl,
-  token,
-  secret,
-  nameRefused,
-  heading,
-}: {
-  baseUrl: string;
-  token: string;
-  secret: string | null;
-  nameRefused: boolean;
-  heading: string;
-}) {
-  const prompt = agentPrompt(baseUrl, secret);
-  const install = SKILL_INSTALL_COMMAND;
+export function OnboardingPanel({ baseUrl, heading }: { baseUrl: string; heading: string }) {
+  const login = loginCommand(baseUrl);
+  const prompt = agentPrompt(baseUrl);
 
   return (
     <section className="onboard" aria-labelledby="onboard-head">
       <h2 id="onboard-head">{heading}</h2>
       <p className="empty-lead">
         A bundle is a folder of static files with an <span className="mono">index.html</span> at its
-        root. Hosti gives it a URL. An agent needs two things to push one: this address, and a push
-        token.
+        root. Hosti gives it a URL. An agent pushes one with the Hosti CLI, once you approve it
+        here.
       </p>
 
       <ol className="steps">
         <li>
-          <h3>Mint a push token</h3>
-          {secret ? <MintedSecret secret={secret} /> : null}
-          <p>
-            It is the only secret an agent ever holds. Hosti keeps the digest, so the value is
-            readable once and never again.
-          </p>
-          {nameRefused ? <p className="onboard-error">{TOKEN_NAME_RULE}.</p> : null}
-          <form className="mint-form" method="post" action="/tokens/mint">
-            <input type="hidden" name="token" value={token} />
-            <input
-              name="name"
-              defaultValue=""
-              maxLength={TOKEN_NAME_MAX_LENGTH}
-              autoComplete="off"
-              placeholder="laptop"
-              aria-label="name for the new push token"
-              required
-            />
-            <button className="btn" type="submit">
-              mint a token
-            </button>
-          </form>
-        </li>
-
-        <li>
-          <h3>Hand your agent this prompt</h3>
-          <p>
-            {secret
-              ? "The token above is already in it. Paste it into the agent and point it at a folder."
-              : "Mint a token first, or paste the value into the HOSTI_TOKEN line yourself."}
-          </p>
-          <pre>{prompt}</pre>
+          <h3>Install the CLI where the agent works</h3>
+          <pre>{CLI_INSTALL_COMMAND}</pre>
           <div className="onboard-acts">
-            <CopyButton value={prompt} label="copy the prompt" tone="go" />
+            <CopyButton value={CLI_INSTALL_COMMAND} label="copy the install command" />
           </div>
         </li>
 
         <li>
-          <h3>Or install the skill on its own</h3>
+          <h3>Log in to this catalog</h3>
+          <p>
+            It prints a link and a code. Open the link here, check the code matches, and approve.
+            The agent never sees your password, and its token never passes through your clipboard.
+          </p>
+          <pre>{login}</pre>
+          <div className="onboard-acts">
+            <CopyButton value={login} label="copy the login command" tone="go" />
+          </div>
+        </li>
+
+        <li>
+          <h3>Or hand your agent this prompt</h3>
+          <p>It runs both commands itself and asks you to approve. It carries no token.</p>
+          <pre>{prompt}</pre>
+          <div className="onboard-acts">
+            <CopyButton value={prompt} label="copy the prompt" />
+          </div>
+        </li>
+
+        <li>
+          <h3>Install the skill on its own</h3>
           <p>
             The prompt installs it too. Run this where the agent works if you would rather do it by
             hand.
           </p>
-          <pre>{install}</pre>
+          <pre>{SKILL_INSTALL_COMMAND}</pre>
           <div className="onboard-acts">
-            <CopyButton value={install} label="copy the command" />
+            <CopyButton value={SKILL_INSTALL_COMMAND} label="copy the command" />
           </div>
         </li>
       </ol>
     </section>
-  );
-}
-
-function MintedSecret({ secret }: { secret: string }) {
-  return (
-    <div className="minted">
-      <p className="minted-head">
-        <span>your new push token</span>
-        <span className="minted-once">shown once</span>
-      </p>
-      <p className="minted-secret mono">{secret}</p>
-      <div className="onboard-acts">
-        <CopyButton value={secret} label="copy the token" />
-      </div>
-    </div>
   );
 }

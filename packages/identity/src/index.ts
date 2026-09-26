@@ -15,3 +15,27 @@ export {
   TOKEN_NAME_RULE,
 } from "./push-tokens";
 export type { PushIdentity, PushTokenRecord } from "./push-tokens";
+export {
+  ALL_SCOPES,
+  DEFAULT_SCOPES,
+  formatScopes,
+  orderScopes,
+  parseStoredScopes,
+  SCOPES_RULE,
+} from "./scopes";
+export {
+  CONNECTION_ID_PATTERN,
+  CONNECTION_LIFETIME_MS,
+  CONNECTION_RETAIN_MS,
+  MAX_PENDING_CONNECTIONS,
+  POLL_AFTER_SECONDS,
+  USER_CODE_ALPHABET,
+  USER_CODE_PATTERN,
+} from "./agent-connection-model";
+export type {
+  AgentConnectionCreated,
+  AgentConnectionPoll,
+  AgentConnectionRequest,
+  AgentConnectionStatus,
+  AgentConnectionView,
+} from "./agent-connection-model";

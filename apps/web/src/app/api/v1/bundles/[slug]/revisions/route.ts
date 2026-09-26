@@ -1,11 +1,11 @@
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { archiveSource } from "@/app/_http/archive";
+import { requirePushScope } from "@/app/_http/push-access";
 import { runAppUseCase } from "@/app/_http/run-use-case";
-import { failureResponse, jsonResponse, unauthorized } from "@/server/api-responses";
+import { failureResponse, jsonResponse } from "@/server/api-responses";
 import { bundlesDir, keepRevisions, publicBaseUrl } from "@/server/config";
 import { PushError } from "@/server/errors";
-import { authenticatePush } from "@/use-cases/authenticate-push";
 import { pushBundle } from "@/use-cases/push-bundle";
 
 export const runtime = "nodejs";
@@ -14,8 +14,9 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
-  const pushedBy = await runAppUseCase(authenticatePush(request.headers.get("authorization")));
-  if (!pushedBy) return unauthorized();
+  const access = await requirePushScope(request, "publish");
+  if (!access.ok) return access.response;
+  const pushedBy = access.identity;
   const { slug } = await context.params;
   if (!request.body) {
     return failureResponse(

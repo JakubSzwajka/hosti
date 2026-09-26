@@ -1,8 +1,8 @@
 import { sharingBody } from "@hosti/bundles";
+import { requirePushScope } from "@/app/_http/push-access";
 import { runAppUseCase } from "@/app/_http/run-use-case";
-import { errorResponse, failureResponse, jsonResponse, unauthorized } from "@/server/api-responses";
+import { errorResponse, failureResponse, jsonResponse } from "@/server/api-responses";
 import { publicBaseUrl } from "@/server/config";
-import { authenticatePush } from "@/use-cases/authenticate-push";
 import { rotateShare } from "@/use-cases/rotate-share";
 import { showBundle } from "@/use-cases/show-bundle";
 
@@ -12,9 +12,8 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
-  if (!(await runAppUseCase(authenticatePush(request.headers.get("authorization"))))) {
-    return unauthorized();
-  }
+  const access = await requirePushScope(request, "share");
+  if (!access.ok) return access.response;
   const { slug } = await context.params;
   try {
     if (!(await runAppUseCase(showBundle(slug)))) {

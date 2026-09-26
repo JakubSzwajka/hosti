@@ -8,6 +8,7 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const nameFlag = args.indexOf("--name");
 const name = nameFlag === -1 ? "unnamed" : (args[nameFlag + 1] ?? "unnamed");
+const scopes = args.includes("--allow-delete") ? "delete,publish,share" : "publish,share";
 const dataDir = path.resolve(process.env.HOSTI_DATA_DIR ?? "./data");
 const databaseFile = path.join(dataDir, "hosti.db");
 let db;
@@ -43,16 +44,16 @@ try {
 
   const secret = `hosti_${randomBytes(24).toString("base64url")}`;
   const hash = createHash("sha256").update(secret, "utf8").digest("hex");
-  db.prepare("INSERT INTO push_tokens (name, token_hash, created_at) VALUES (?, ?, ?)").run(
-    name,
-    hash,
-    new Date().toISOString(),
-  );
+  db.prepare(
+    "INSERT INTO push_tokens (name, token_hash, created_at, scopes) VALUES (?, ?, ?, ?)",
+  ).run(name, hash, new Date().toISOString(), scopes);
 
-  process.stdout.write(`push token "${name}" created in ${dataDir}\n`);
+  process.stdout.write(`push token "${name}" created in ${dataDir}, scopes ${scopes}\n`);
   process.stdout.write(`${secret}\n`);
   process.stdout.write("Store it now. Hosti keeps only the digest.\n");
-  process.stdout.write("The catalog mints one too, at /tokens, with the agent prompt beside it.\n");
+  process.stdout.write(
+    "An agent can get its own token instead: run `hosti login <url>` and approve it in the browser.\n",
+  );
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`${message}\n`);

@@ -1,4 +1,5 @@
 import { Catalog, type CatalogError } from "@hosti/catalog";
+import type { PushScope } from "@hosti/shared";
 import { Context, Effect, Layer } from "effect";
 import { adminSecrets, missingAdminVars, signingSecret, type AdminSecrets } from "./auth/config";
 import {
@@ -10,7 +11,13 @@ import {
 import { makeSessionOperations, type AdminSession } from "./auth/session";
 import { IdentityCrypto, type IdentityCryptoError } from "./crypto";
 import type { IdentityDatabaseError, IdentityInputError } from "./errors";
-import { makeMintedSecretStore } from "./minted-secret";
+import type {
+  AgentConnectionCreated,
+  AgentConnectionPoll,
+  AgentConnectionRequest,
+  AgentConnectionView,
+} from "./agent-connection-model";
+import { makeAgentConnectionStore } from "./agent-connections";
 import { makePushTokenOperations, type PushIdentity, type PushTokenRecord } from "./push-tokens";
 import { makeSharePinOperations } from "./share-pin";
 
@@ -63,7 +70,19 @@ export class Identity extends Context.Service<
     readonly hashToken: (secret: string) => Effect.Effect<string, IdentityCryptoError>;
     readonly createPushToken: (
       name: string,
-    ) => Effect.Effect<{ id: number; name: string; secret: string }, IdentityFailure>;
+      scopes: readonly PushScope[],
+    ) => Effect.Effect<
+      { id: number; name: string; scopes: PushScope[]; secret: string },
+      IdentityFailure
+    >;
+    readonly activatePushToken: (input: {
+      name: string;
+      tokenDigest: string;
+      scopes: readonly PushScope[];
+    }) => Effect.Effect<{ id: number; name: string; scopes: PushScope[] }, IdentityFailure>;
+    readonly pushTokenDigestExists: (
+      tokenDigest: string,
+    ) => Effect.Effect<boolean, CatalogError | IdentityDatabaseError>;
     readonly listPushTokens: Effect.Effect<PushTokenRecord[], CatalogError | IdentityDatabaseError>;
     readonly deletePushToken: (
       id: number,
@@ -71,14 +90,28 @@ export class Identity extends Context.Service<
     readonly authenticatePush: (
       secret: string | null,
     ) => Effect.Effect<PushIdentity | null, IdentityFailure>;
-    readonly holdMintedSecret: (
-      secret: string,
+    readonly createAgentConnection: (
+      request: AgentConnectionRequest,
       now?: number,
-    ) => Effect.Effect<string, IdentityCryptoError>;
-    readonly takeMintedSecret: (
+    ) => Effect.Effect<AgentConnectionCreated, IdentityFailure>;
+    readonly pollAgentConnection: (
+      id: string | null | undefined,
+      pollingSecret: string | null | undefined,
+      now?: number,
+    ) => Effect.Effect<AgentConnectionPoll | null, IdentityCryptoError>;
+    readonly showAgentConnection: (
       id: string | null | undefined,
       now?: number,
-    ) => Effect.Effect<string | null, IdentityCryptoError>;
+    ) => Effect.Effect<AgentConnectionView | null>;
+    readonly approveAgentConnection: (
+      id: string,
+      grant: readonly PushScope[],
+      now?: number,
+    ) => Effect.Effect<AgentConnectionView | null, IdentityFailure>;
+    readonly denyAgentConnection: (
+      id: string,
+      now?: number,
+    ) => Effect.Effect<AgentConnectionView | null>;
   }
 >()("@hosti/identity/Identity") {
   static readonly layer = Layer.effect(
@@ -89,7 +122,7 @@ export class Identity extends Context.Service<
       const session = makeSessionOperations(crypto);
       const pushTokens = makePushTokenOperations({ catalog, crypto });
       const sharePin = makeSharePinOperations({ crypto, signingSecret: signingSecret() });
-      const mintedSecrets = yield* makeMintedSecretStore(crypto);
+      const connections = yield* makeAgentConnectionStore({ crypto, tokens: pushTokens });
       const limiter = (options: Partial<LimiterOptions> = {}) =>
         makeLoginLimiter({ ...DEFAULT_LIMITS, ...options });
 
@@ -104,8 +137,11 @@ export class Identity extends Context.Service<
         requireSigningSecret: sharePin.requireSigningSecret(),
         ...pushTokens,
         listPushTokens: pushTokens.listPushTokens(),
-        holdMintedSecret: mintedSecrets.hold,
-        takeMintedSecret: mintedSecrets.take,
+        createAgentConnection: connections.create,
+        pollAgentConnection: connections.poll,
+        showAgentConnection: connections.show,
+        approveAgentConnection: connections.approve,
+        denyAgentConnection: connections.deny,
       });
     }),
   );

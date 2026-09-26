@@ -138,16 +138,10 @@ function EmptyFooter() {
   );
 }
 
-export function EmptyCatalog({ baseUrl, token }: { baseUrl: string; token: string }) {
+export function EmptyCatalog({ baseUrl }: { baseUrl: string }) {
   return (
     <div className="empty onboard-shell">
-      <OnboardingPanel
-        baseUrl={baseUrl}
-        token={token}
-        secret={null}
-        nameRefused={false}
-        heading="Nothing pushed yet"
-      />
+      <OnboardingPanel baseUrl={baseUrl} heading="Nothing pushed yet" />
     </div>
   );
 }

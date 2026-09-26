@@ -44,7 +44,8 @@ function schemaVersion(database: Database.Database): number {
 
 function migrate(database: Database.Database): void {
   if (schemaVersion(database) < 2) database.transaction(toVersion2)(database);
-  if (schemaVersion(database) < SCHEMA_VERSION) database.transaction(toVersion3)(database);
+  if (schemaVersion(database) < 3) database.transaction(toVersion3)(database);
+  if (schemaVersion(database) < SCHEMA_VERSION) database.transaction(toVersion4)(database);
 }
 
 function toVersion2(database: Database.Database): void {
@@ -61,6 +62,32 @@ function toVersion2(database: Database.Database): void {
 
 function toVersion3(database: Database.Database): void {
   database.exec("ALTER TABLE revisions ADD COLUMN pushed_by TEXT;");
+  setSchemaVersion(database, 3);
+}
+
+function toVersion4(database: Database.Database): void {
+  // Rebuilt, not altered, so a migrated table has no column default, exactly as schema.sql.
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      id           INTEGER PRIMARY KEY,
+      name         TEXT    NOT NULL,
+      token_hash   TEXT    NOT NULL UNIQUE,
+      created_at   TEXT    NOT NULL,
+      last_used_at TEXT
+    );
+    CREATE TABLE push_tokens_v4 (
+      id           INTEGER PRIMARY KEY,
+      name         TEXT    NOT NULL,
+      token_hash   TEXT    NOT NULL UNIQUE,
+      created_at   TEXT    NOT NULL,
+      last_used_at TEXT,
+      scopes       TEXT    NOT NULL
+    );
+    INSERT INTO push_tokens_v4 (id, name, token_hash, created_at, last_used_at, scopes)
+      SELECT id, name, token_hash, created_at, last_used_at, 'delete,publish,share' FROM push_tokens;
+    DROP TABLE push_tokens;
+    ALTER TABLE push_tokens_v4 RENAME TO push_tokens;
+  `);
   setSchemaVersion(database, SCHEMA_VERSION);
 }
 

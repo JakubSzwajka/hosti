@@ -1,5 +1,6 @@
 import { describeSharing, pruneRevisions as pruneRevisionsEffect } from "@hosti/bundles";
-import { CATALOG_UPLOAD } from "@hosti/identity";
+import { ALL_SCOPES, type AgentConnectionRequest, CATALOG_UPLOAD } from "@hosti/identity";
+import type { PushScope } from "@hosti/shared";
 import { PREVIEW_TOKEN_TTL_MS } from "@hosti/serving";
 import { bundlesDir, keepRevisions } from "@/server/config";
 import { signingSecret } from "@/server/auth/config";
@@ -46,8 +47,8 @@ export function constantTimeEquals(left: string, right: string): boolean {
   return runIdentitySync((identity) => identity.constantTimeEquals(left, right));
 }
 
-export function createPushToken(name: string) {
-  return runIdentitySync((identity) => identity.createPushToken(name));
+export function createPushToken(name: string, scopes: readonly PushScope[] = ALL_SCOPES) {
+  return runIdentitySync((identity) => identity.createPushToken(name, scopes));
 }
 
 export function listPushTokens() {
@@ -66,8 +67,12 @@ export function readTokenName(value: unknown): string {
   return runIdentitySync((identity) => identity.readTokenName(value));
 }
 
-export function takeMintedSecret(id: string | null | undefined, now?: number): string | null {
-  return runIdentitySync((identity) => identity.takeMintedSecret(id, now));
+export function createAgentConnection(request: AgentConnectionRequest, now?: number) {
+  return runIdentitySync((identity) => identity.createAgentConnection(request, now));
+}
+
+export function showAgentConnection(id: string, now?: number) {
+  return runIdentitySync((identity) => identity.showAgentConnection(id, now));
 }
 
 export function hashPin(pin: string): Promise<string> {

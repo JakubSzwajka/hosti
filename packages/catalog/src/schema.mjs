@@ -43,15 +43,18 @@ CREATE TABLE revisions (
 );
 
 -- A bearer secret an agent or the CLI uses to write. Stored as a SHA-256 hex digest.
+--   scopes  the powers the token carries: a sorted, comma-separated list drawn from
+--           delete, publish and share, for example 'publish,share'
 CREATE TABLE push_tokens (
   id           INTEGER PRIMARY KEY,
   name         TEXT    NOT NULL,
   token_hash   TEXT    NOT NULL UNIQUE,
   created_at   TEXT    NOT NULL,
-  last_used_at TEXT
+  last_used_at TEXT,
+  scopes       TEXT    NOT NULL
 );
 
-INSERT INTO meta (key, value) VALUES ('schema_version', '3');
+INSERT INTO meta (key, value) VALUES ('schema_version', '4');
 `;
 
 const versionMatch = catalogSchemaSql.match(/\('schema_version',\s*'(\d+)'\)/);

@@ -21,9 +21,9 @@ export async function currentAdmin(): Promise<Admin | null> {
   return { session, mutationToken };
 }
 
-export async function requireAdmin(): Promise<Admin> {
+export async function requireAdmin(returnTo?: string): Promise<Admin> {
   const admin = await currentAdmin();
-  if (!admin) redirect("/login");
+  if (!admin) redirect(returnTo ? `/login?next=${encodeURIComponent(returnTo)}` : "/login");
   return admin;
 }
 

@@ -26,7 +26,7 @@ export default async function Catalog() {
       allSlugs={bundles.map((bundle) => bundle.slug)}
       previewGrants={grants}
       {...(bundles.length === 0 ? {} : { heading: "newest first" })}
-      emptyNote={<EmptyCatalog baseUrl={baseUrl} token={admin.mutationToken} />}
+      emptyNote={<EmptyCatalog baseUrl={baseUrl} />}
     />
   );
 }
