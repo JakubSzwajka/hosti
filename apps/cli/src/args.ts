@@ -1,10 +1,21 @@
 export class UsageError extends Error {}
 
-export const COMMANDS = ["push", "ls", "share", "rotate", "rm", "open", "prune"] as const;
+export const COMMANDS = [
+  "login",
+  "whoami",
+  "logout",
+  "push",
+  "ls",
+  "share",
+  "rotate",
+  "rm",
+  "open",
+  "prune",
+] as const;
 export type Command = (typeof COMMANDS)[number];
 
-const SWITCHES = new Set(["allow-absolute", "yes", "open", "help", "version"]);
-const VALUE_FLAGS = new Set(["slug", "title", "collection", "mode", "pin", "url", "token"]);
+const SWITCHES = new Set(["allow-absolute", "allow-delete", "yes", "open", "help", "version"]);
+const VALUE_FLAGS = new Set(["slug", "title", "collection", "mode", "pin", "url", "token", "name"]);
 
 export type Flags = {
   slug?: string;
@@ -14,7 +25,9 @@ export type Flags = {
   pin?: string;
   url?: string;
   token?: string;
+  name?: string;
   allowAbsolute?: boolean;
+  allowDelete?: boolean;
   yes?: boolean;
   open?: boolean;
   help?: boolean;
@@ -27,7 +40,10 @@ export type Invocation =
 
 const CAMEL: Record<string, keyof Flags> = {
   "allow-absolute": "allowAbsolute",
+  "allow-delete": "allowDelete",
 };
+
+const NO_ARGUMENT: readonly Command[] = ["whoami", "logout"];
 
 function assign(flags: Flags, name: string, value: string | boolean): void {
   const key = CAMEL[name] ?? (name as keyof Flags);
@@ -82,13 +98,26 @@ export function parseInvocation(argv: string[]): Invocation {
   const command = name as Command;
 
   if (rest.length > 1) throw new UsageError(`${command} takes one argument, got ${rest.length}`);
-  const target = rest[0] ?? "";
+  let target = rest[0] ?? "";
+
+  if (command === "login") {
+    if (!target && flags.url) target = flags.url;
+    if (!target)
+      throw new UsageError("login needs the server URL: hosti login https://hosti.example.com");
+    if (flags.token) throw new UsageError("login makes its own token; drop --token");
+  } else {
+    if (flags.name) throw new UsageError(`--name means nothing to ${command}`);
+    if (flags.allowDelete) throw new UsageError(`--allow-delete means nothing to ${command}`);
+  }
+  if (NO_ARGUMENT.includes(command) && target) {
+    throw new UsageError(`${command} takes no argument`);
+  }
 
   if (command === "push") {
     if (!target) throw new UsageError("push needs a path: hosti push ./dist --slug my-bundle");
     if (!flags.slug) throw new UsageError("push needs --slug");
   }
-  if (command !== "push" && command !== "ls" && !target) {
+  if (command !== "push" && command !== "ls" && !NO_ARGUMENT.includes(command) && !target) {
     throw new UsageError(`${command} needs a slug: hosti ${command} my-bundle`);
   }
   if (command === "share") {
@@ -114,6 +143,9 @@ const MODES = ["private", "link", "pin"] as const;
 
 export const HELP = `hosti - push static bundles to a Hosti server
 
+  hosti login <url> [--name N] [--allow-delete]
+  hosti whoami
+  hosti logout
   hosti push <path> --slug <slug> [--title T] [--collection C]
                     [--allow-absolute]
   hosti ls [--collection C]
@@ -141,5 +173,12 @@ open prints the bundle's share link, or its owner-only page while the bundle
 is private, and always on the last line. --open hands it to a browser.
 prune trims a bundle to the newest few revisions the server keeps.
 
+login asks the owner for a push token. It prints a link and a code; the owner
+opens the link, checks the code and approves. The token lands in the config
+file and is never printed. A token can publish and share; --allow-delete asks
+for delete too, and the owner decides. whoami shows the server, the token name
+and its scopes. logout forgets the saved login; the token itself keeps
+working until the owner removes it on /tokens.
+
 Config, in order: --url and --token, then HOSTI_URL and HOSTI_TOKEN,
-then ~/.config/hosti.json.`;
+then ~/.config/hosti.json (or $XDG_CONFIG_HOME/hosti.json).`;

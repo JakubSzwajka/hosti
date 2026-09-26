@@ -122,3 +122,36 @@ describe("the sharing flags", () => {
     );
   });
 });
+
+describe("connecting an agent", () => {
+  it("reads a login with a name and a request for delete", () => {
+    expect(
+      parseInvocation(["login", "https://hosti.example.com", "--name", "ci box", "--allow-delete"]),
+    ).toEqual({
+      kind: "run",
+      command: "login",
+      target: "https://hosti.example.com",
+      flags: { name: "ci box", allowDelete: true },
+    });
+  });
+
+  it("needs the server URL to log in, and makes its own token", () => {
+    expect(() => parseInvocation(["login"])).toThrow(/login needs the server URL/);
+    expect(() => parseInvocation(["login", "https://h.example", "--token", "hosti_x"])).toThrow(
+      /makes its own token/,
+    );
+  });
+
+  it("keeps --name and --allow-delete to login", () => {
+    expect(() => parseInvocation(["push", "./d", "--slug", "a", "--name", "x"])).toThrow(
+      /means nothing/,
+    );
+    expect(() => parseInvocation(["whoami", "--allow-delete"])).toThrow(/means nothing/);
+  });
+
+  it("takes no argument for whoami and logout", () => {
+    expect(parseInvocation(["whoami"])).toMatchObject({ command: "whoami", target: "" });
+    expect(parseInvocation(["logout"])).toMatchObject({ command: "logout", target: "" });
+    expect(() => parseInvocation(["whoami", "atlas"])).toThrow(/takes no argument/);
+  });
+});

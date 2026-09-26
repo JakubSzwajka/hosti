@@ -9,3 +9,4 @@ node_modules/
 *.tsbuildinfo
 coverage/
 /.agent_sources/
+/apps/cli/hosti-cli.tgz

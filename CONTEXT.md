@@ -60,10 +60,27 @@ _Avoid_: password, passcode, PIN code.
 
 **Push token**:
 A bearer secret an agent or the CLI uses to write. Never used by a browser.
-The owner mints one at `/tokens` and reads its value exactly once; Hosti keeps
-only a digest. A revision records the name of the push token that wrote it, or
-nothing when the owner uploaded the archive through the catalog.
+It carries scopes, and the server checks them on every `/api/v1/bundles` route.
+The catalog creates one only when the owner approves an agent connection. The
+agent made the secret, so Hosti only ever holds its digest. The owner's shell
+can still make one with `pnpm token:new`. A revision records the name of the
+push token that wrote it, or nothing when the owner uploaded the archive
+through the catalog.
 _Avoid_: API key, access token.
+
+**Agent connection**:
+A short-lived request from an agent to receive a push token. It waits for the
+owner to approve or deny it in the browser, at `/connect/<id>`. It lives only
+in server memory, lasts ten minutes, and carries only digests: the agent keeps
+the clear token and the polling secret. It is never a push token itself.
+_Avoid_: device code, pairing, token request.
+
+**Scope**:
+One named power a push token carries. There are three. `publish` lists, reads,
+pushes and prunes. `share` sets the sharing state and the pin, and rotates.
+`delete` deletes a bundle. Every token has `publish`. `delete` is granted only
+when the agent asked for it and the owner ticked it.
+_Avoid_: permission, role, right.
 
 **Admin session**:
 The cookie the owner gets after typing the owner password. It unlocks the
@@ -90,7 +107,9 @@ wrapped in. A tarball is read by one reader and a zip by another, and both hand
 every entry to one sink, so the limits and the path rules cannot drift apart.
 
 A push stops at the left column. Nothing on the right answers while the bundle
-is private, and sharing has its own endpoints, all on the push token:
+is private, and sharing has its own endpoints, all on the push token. Each route
+needs its scope: `share` for the sharing routes, `delete` for the delete, and
+`publish` for the rest:
 
 ```
 PUT    /api/v1/bundles/<slug>/sharing         set the state: private, link, pin
@@ -119,20 +138,30 @@ POST   /api/v1/bundles/<slug>/prune          push token, prune on demand
 POST   /upload                               admin session, an archive from the browser
 ```
 
+An agent gets its push token through an agent connection, and can ask what the
+token is:
+
+```
+POST   /api/v1/agent-authorizations          no credential; digests only, answers the id and the user code
+GET    /api/v1/agent-authorizations/<id>     the polling secret: pending, approved, denied or expired
+GET    /api/v1/whoami                        push token, no scope: its name and scopes
+```
+
 The catalog's own writes take the admin session and the mutation token, never a
 push token:
 
 ```
 POST   /b/<slug>/sharing                     set the state from the bundle page
 POST   /b/<slug>/sharing/rotate              mint a fresh share slug
-POST   /tokens/mint                          mint a push token from the catalog
+POST   /connect/<id>/approve                 approve an agent connection, with the scopes ticked
+POST   /connect/<id>/deny                    deny an agent connection
 POST   /tokens/revoke                        forget one push token's digest
 ```
 
 Hosti serves no skill. The `hosti-publish` skill is a file in this repository,
 at `skills/hosti-publish/SKILL.md`, and an agent installs it with
-`npx skills add JakubSzwajka/hosti`. It reads `HOSTI_URL` and `HOSTI_TOKEN`
-from its own environment, so no instance value is written into it.
+`npx skills add JakubSzwajka/hosti`. It drives the `hosti` CLI, which saves its
+login with `hosti login`, so no instance value is written into the skill.
 
 ## Rules the code must keep
 
@@ -176,8 +205,8 @@ from its own environment, so no instance value is written into it.
 15. [x] The catalog's upload is a change the catalog makes, so it wants the
     admin session and the mutation token, never a push token. It changes no
     sharing state either: a bundle is private however it arrived.
-16. [x] Minting and revoking a push token are catalog writes on the same gate,
-    so no push token can mint another one. A minted secret is held in memory,
-    shown once and forgotten on the first read. Nothing writes it to disk, to
-    a URL or to a log, because the digest exists so that it cannot be read
-    back.
+16. [x] Approving an agent connection and revoking a push token are catalog
+    writes on the admin session and the mutation token, so no push token can
+    create another one. The agent makes the secret and sends only its digest,
+    so the server never holds a clear push token and has nothing to show once.
+    No response, page or log carries a clear push token or polling secret.

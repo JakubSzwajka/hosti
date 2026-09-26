@@ -5,6 +5,7 @@ import { openInBrowser } from "./browser.ts";
 import { ApiError, createClient } from "./client.ts";
 import { ConfigError, resolveConfig } from "./config.ts";
 import { COMMAND_TABLE, CommandError } from "./commands.ts";
+import { login, logout } from "./login.ts";
 import { PackError } from "./pack.ts";
 import { stderr, stdout } from "./output.ts";
 
@@ -39,9 +40,28 @@ export async function run(argv: string[]): Promise<number> {
     return 0;
   }
 
+  const { command } = invocation;
   try {
+    if (command === "login") {
+      await login({
+        target: invocation.target,
+        flags: invocation.flags,
+        out: stdout,
+        err: stderr,
+        env: process.env,
+        openUrl: (url) => openInBrowser(url, stderr),
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+        now: Date.now,
+      });
+      return 0;
+    }
+    if (command === "logout") {
+      logout({ out: stdout, err: stderr, env: process.env });
+      return 0;
+    }
+
     const config = resolveConfig(invocation.flags);
-    await COMMAND_TABLE[invocation.command]({
+    await COMMAND_TABLE[command]({
       client: createClient(config),
       flags: invocation.flags,
       target: invocation.target,

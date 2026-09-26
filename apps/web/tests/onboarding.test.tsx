@@ -74,7 +74,7 @@ afterAll(async () => {
 });
 
 describe("the hosti-publish skill file", () => {
-  it("has installable front matter and reads its instance from the environment", async () => {
+  it("has installable front matter and names no instance", async () => {
     const body = await skillText();
     expect(body).toMatch(/^---\n/);
     expect(body).toContain("name: hosti-publish");
@@ -82,9 +82,8 @@ describe("the hosti-publish skill file", () => {
     for (const trigger of ["publish", "host", "share", "report", "dashboard", "static"]) {
       expect(description.toLowerCase()).toContain(trigger);
     }
-    expect(body).not.toContain("http");
-    expect(body).toContain("$HOSTI_URL");
-    expect(body).toContain("HOSTI_TOKEN   a push token");
+    // The install command is the one URL the skill may carry.
+    expect(body.replaceAll(CLI_INSTALL_COMMAND, "")).not.toContain("http");
   });
 
   it("carries no push token, whatever tokens this instance holds", async () => {
@@ -92,21 +91,35 @@ describe("the hosti-publish skill file", () => {
     const body = await skillText();
     expect(body).not.toContain(minted.secret);
     expect(body).not.toMatch(/hosti_[A-Za-z0-9_-]{8,}/);
-    expect(body).toContain("$HOSTI_TOKEN");
+    expect(body).toContain("Never print the token");
   });
 
-  it("teaches curl, never the private CLI package", async () => {
+  it("installs the CLI, checks whoami and logs in through the browser", async () => {
     const body = await skillText();
-    expect(body).toContain("curl -X POST");
-    expect(body).not.toContain("hosti push");
-    expect(body).not.toContain("@hosti/cli");
+    expect(body).toContain(CLI_INSTALL_COMMAND);
+    expect(body).toContain("Node 24.21.0");
+    expect(body).toContain("hosti whoami");
+    expect(body).toContain("hosti login <catalog URL>");
+    expect(body).toContain("check that the page shows the same code");
+    expect(body).not.toContain("curl");
   });
 
-  it("names the three things the agent may not do", async () => {
+  it("covers push, share, rotate and open through the CLI", async () => {
     const body = await skillText();
-    expect(body).toContain("Do not rotate a share slug");
-    expect(body).toContain("Do not delete a bundle");
-    expect(body).toContain("Do not set a pin");
+    expect(body).toContain("hosti push ./out --slug");
+    expect(body).toContain("--mode link");
+    expect(body).toContain("--mode pin --pin");
+    expect(body).toContain("--mode private");
+    expect(body).toContain("hosti rotate");
+    expect(body).toContain("hosti open");
+  });
+
+  it("deletes only with the delete scope and the owner's word, and never invents a pin", async () => {
+    const body = await skillText();
+    expect(body).toContain("lists the delete scope");
+    expect(body).toContain("the owner asked you to delete that bundle");
+    expect(body).toContain("Never invent a pin");
+    expect(body).toContain("Rotate only when the owner asks");
   });
 });
 

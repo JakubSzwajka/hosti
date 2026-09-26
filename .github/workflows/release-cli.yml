@@ -1,0 +1,76 @@
+name: Release CLI
+
+on:
+  push:
+    tags: ["cli-v*"]
+
+# Creating the release and uploading hosti-cli.tgz is the only write.
+permissions:
+  contents: write
+
+# Two pushes of the same tag must not race to create one release.
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  release:
+    name: Test, pack and release the CLI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # .nvmrc pins the Node line, the same one the CLI's engines field asks for.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # cli-v0.2.0 must release the CLI whose package.json says 0.2.0.
+      - name: Check the tag matches the CLI version
+        run: |
+          version="$(node -p "require('./apps/cli/package.json').version")"
+          if [ "$GITHUB_REF_NAME" != "cli-v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match @hosti/cli $version"
+            exit 1
+          fi
+
+      - name: Typecheck the CLI
+        run: pnpm --filter @hosti/cli typecheck
+
+      - name: Test the CLI
+        run: pnpm --filter @hosti/cli test
+
+      # Packs the CLI, installs the tarball into a temporary prefix and runs it.
+      - name: Test the packed CLI
+        run: node --test tests/cli-package.test.mjs
+
+      - name: Pack hosti-cli.tgz
+        run: pnpm --filter @hosti/cli run pack:tgz "$RUNNER_TEMP"
+
+      # releases/latest/download/hosti-cli.tgz follows the release marked latest.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP/hosti-cli.tgz" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Hosti CLI ${GITHUB_REF_NAME#cli-v}" \
+            --latest \
+            --notes "Install with Node 24.21.0 or later:
+
+          \`\`\`bash
+          npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
+          hosti login https://your-hosti.example.com
+          \`\`\`"

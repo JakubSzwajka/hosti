@@ -7,21 +7,33 @@ Hosti's vocabulary and rules are defined in [CONTEXT.md](./CONTEXT.md).
 
 ## Deploy with Dokploy
 
-This repository and its GHCR package are private. `docker-compose.yml` runs
-`ghcr.io/jakubszwajka/hosti:latest`. The publish workflow builds that image
-from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
+The live instance is a Dokploy application, not a Compose stack:
 
-1. In Dokploy, add private registry credentials for `ghcr.io`. Without them,
-   the image pull is refused. Use your GitHub username and a GitHub token with
-   `read:packages`, not your account password.
-   Keep the token in Dokploy's registry credentials or Docker's config. Do not
-   put it in this repository or `.env`.
-2. Create a Compose application from this repository. The Compose service is
-   `web`. It mounts the named volume `hosti_data:/data`, where Hosti keeps both
-   bundles and `hosti.db`.
-3. Set these environment variables in the Compose application. `.env.schema`
-   lists and types the variables Hosti reads. It is the source of truth for the
-   checked-in environment example:
+| Setting | Value |
+| --- | --- |
+| Application | `hosti`, in project Hosti, environment production |
+| Machine | `hetzner-worker-dev`, placed by the Swarm constraint `node.labels.tier==dev` |
+| Source | GitHub, `JakubSzwajka/hosti`, branch `main`, auto deploy on |
+| Build | build type `dockerfile`, file `apps/web/Dockerfile`, context `.` |
+| Domain | `hosti.kubaszwajka.com`, HTTPS, routed to container port `3000` |
+| Data | named volume `hosti-data` mounted at `/data`: the bundles and `hosti.db` |
+| Backup | Dokploy volume backup of `hosti-data` to S3 every night, kept 14 days |
+
+Each push to `main` makes Dokploy rebuild the image from the Dockerfile and
+redeploy. Nothing waits on the GHCR image.
+
+To set up the same thing again:
+
+1. Create an application in Dokploy with GitHub as the source, this repository
+   and branch `main`. Turn on auto deploy.
+2. Set the build type to Dockerfile, the Dockerfile path to
+   `apps/web/Dockerfile` and the build context to `.`. The Dockerfile needs
+   the whole workspace, so the context is the repository root.
+3. Add a volume mount: named volume `hosti-data`, mount path `/data`. The image
+   already sets `HOSTI_DATA_DIR=/data` and `PORT=3000`.
+4. Set these environment variables. `.env.schema` lists and types the
+   variables Hosti reads. It is the source of truth for the checked-in
+   environment example:
 
    ```dotenv
    HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
@@ -29,90 +41,75 @@ from `apps/web/Dockerfile` on each push to main, so the VPS builds nothing.
    HOSTI_PUBLIC_URL=https://hosti.example.com
    ```
 
-   Wrap every secret value in single quotes. Two parsers read this text before
-   the container does: Dokploy's environment editor, then Compose reading the
-   `.env` it writes. Single quotes are the one form both pass through
-   unchanged. A password ending in `#` failed login when it was set unquoted
-   in Dokploy and worked as soon as it was single-quoted. Compose reads
-   `$name` in an unquoted value as a variable and substitutes it, usually
-   with nothing, so `secr$tone` arrives as `secr`. Double quotes do not
-   protect a `$`; `$$` does, but single quotes cover both cases. After
+   Wrap every secret value in single quotes. Dokploy's environment editor
+   parses this text before the container sees it, and for a Compose stack
+   Compose parses the `.env` Dokploy writes as well. Single quotes are the one
+   form both pass through unchanged. A password ending in `#` failed login when
+   it was set unquoted in Dokploy and worked as soon as it was single-quoted.
+   Compose reads `$name` in an unquoted value as a variable and substitutes
+   it, usually with nothing, so `secr$tone` arrives as `secr`. Double quotes
+   do not protect a `$`; `$$` does, but single quotes cover both cases. After
    changing a variable, redeploy so the container is recreated. A restart
    keeps the old environment. To check what the running container actually
-   holds, open the `web` service's Terminal in Dokploy and run
-   `node scripts/env-check.mjs` (also available as `pnpm env:digest` from
-   the repository root), which prints lengths and digest prefixes but never a
+   holds, open the application's Terminal in Dokploy and run
+   `node scripts/env-check.mjs` (also available as `pnpm env:digest` from the
+   repository root), which prints lengths and digest prefixes but never a
    secret.
 
-   Compose refuses to start if `HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is
-   missing. `HOSTI_PUBLIC_URL` has a Compose default of
-   `http://localhost:3000`, but a deployment must set it explicitly to the
-   exact HTTPS origin that will serve Hosti. Generate `HOSTI_SECRET` with
-   `openssl rand -hex 32`.
-4. Add an HTTPS domain in Dokploy and route it to service `web`, internal
-   container port `3000`. Compose has no host port binding. Hosti is reached
-   through the domain, not through port 3000 on the VPS.
-5. Deploy the Compose application, open the domain, and log in with
-   `HOSTI_OWNER_PASSWORD`. The empty catalog mints the first push token for
-   you and hands you the agent prompt to go with it. No container shell is
-   involved. See [Getting an agent pushing](#getting-an-agent-pushing).
+   `HOSTI_PUBLIC_URL` must be the exact HTTPS origin that serves Hosti. The
+   approval link an agent prints is built from it. Generate `HOSTI_SECRET`
+   with `openssl rand -hex 32`. Without the password and the secret, the
+   catalog serves no admin page.
+5. Add an HTTPS domain and route it to container port `3000`. Nothing is
+   published on the host.
+6. Deploy, open the domain, and log in with `HOSTI_OWNER_PASSWORD`. Connect an
+   agent as [Getting an agent pushing](#getting-an-agent-pushing) describes.
+   No container shell is involved.
 
-   If you would rather mint from a shell, the script still works. In Dokploy,
-   open the running `web` service's Terminal:
+   If you would rather make a token from a shell, the script still works. In
+   Dokploy, open the application's Terminal:
 
    ```bash
-   node scripts/new-token.mjs --name vps
+   node scripts/new-token.mjs --name vps                  # publish and share
+   node scripts/new-token.mjs --name vps --allow-delete   # and delete
    ```
 
-   From the VPS host shell instead, run this from a directory containing this
-   Compose file:
+   It prints the secret once. Hosti stores only the digest, in `hosti.db` on
+   the volume.
 
-   ```bash
-   docker compose exec web node scripts/new-token.mjs --name vps
-   ```
+Redeploys keep the `hosti-data` volume. Any action that removes the volume
+destroys every bundle and the database. Back `/data` up before you touch it by
+hand: a `tar` archive over `/data` captures both the bundles and the database.
 
-   Either way Hosti stores only the digest, in `hosti.db` on the volume.
+### Another host: the GHCR image with Compose
 
-The `latest` tag is the update channel. After a new image is published, redeploy
-the Compose application in Dokploy. The `web` service sets
-`pull_policy: always`, so that redeploy pulls the `latest` currently in GHCR
-instead of reusing a local image that still carries the same tag.
+`docker-compose.yml` runs `ghcr.io/jakubszwajka/hosti:latest` instead of
+building. The `Publish image` workflow builds that image from
+`apps/web/Dockerfile` on each push to main. The repository and its GHCR
+package are private, so the pull needs a GitHub token with `read:packages`,
+never your account password. In Dokploy that goes in the registry
+credentials; on a plain host run `docker login ghcr.io -u YOUR_GITHUB_USERNAME`
+first. Keep the token out of this repository and `.env`.
 
-Watch the timing. The GHCR image is built by the same push that may trigger
-Dokploy, and the `Publish image` action took about two minutes for commit
-`071c282`. An automatic deploy that starts before the action finishes pulls the
-previous `latest`, and `pull_policy` cannot change that. Until a webhook ties
-the two together, redeploy only after the action is green.
-
-If you manage it directly from the VPS host shell instead, run these commands
-from a directory containing this Compose file. Dokploy's registry credentials
-do not configure Docker on the host, so the host Docker daemon needs its own
-GHCR login before the pull:
+The Compose service is `web`. It mounts the named volume `hosti_data:/data`
+and fixes `HOSTI_DATA_DIR=/data` and `PORT=3000`. Only variables listed in its
+`environment` reach the container, so optional settings such as
+`HOSTI_KEEP_REVISIONS` must also be added there. Compose refuses to start if
+`HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is missing, and the quoting advice
+above applies to its `.env` too. `HOSTI_PUBLIC_URL` has a Compose default of
+`http://localhost:3000`, but a deployment must set it.
 
 ```bash
-docker login ghcr.io -u YOUR_GITHUB_USERNAME
-docker compose up -d
+docker compose up -d        # or, from the repository root: pnpm compose:up
+docker compose exec web node scripts/new-token.mjs --name vps
 ```
 
-At the password prompt, enter a GitHub token with `read:packages`, never your
-GitHub account password.
-
-`docker compose up -d` checks the registry on its own because of
-`pull_policy: always`. Run `docker compose pull` before it only when you want
-the pull as a separate, visible step.
-
-From the repository root on the host, `pnpm compose:up` runs
-`docker compose up -d --pull always`.
-
-Normal Dokploy redeploys preserve the named `hosti_data` volume. Any action
-that removes this volume destroys every bundle and the database. On the VPS
-host shell, `docker compose down` stops the application but keeps `hosti_data`;
-`docker compose down -v` also removes the volume. Back up `/data` separately. A
-`tar` archive over `/data` captures both the bundles and database.
-
-Compose fixes `HOSTI_DATA_DIR=/data` and `PORT=3000`. Only variables listed in
-the service's `environment` reach the container, so optional settings such as
-`HOSTI_KEEP_REVISIONS` must also be added there.
+The service sets `pull_policy: always`, so `docker compose up -d` asks the
+registry for the current `latest` rather than reusing a local image with the
+same tag. Watch the timing: the image is built by the same push that may
+trigger a deploy, and the action takes about two minutes. A deploy that starts
+before it finishes pulls the previous `latest`. `docker compose down` keeps
+`hosti_data`; `docker compose down -v` also removes it.
 
 ## Local development
 
@@ -139,7 +136,7 @@ keep local values in an ignored `.env.local`. Useful repository commands:
 pnpm build             # Next production build
 pnpm test              # ESLint config test, then workspace tests
 pnpm check             # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
-pnpm token:new -- --name laptop   # or mint it at /tokens in the browser
+pnpm token:new -- --name laptop   # a push token from the shell; add --allow-delete for delete
 pnpm env:check         # validate the declared environment schema with Varlock
 pnpm env:digest        # inspect configured values without printing secrets
 ```
@@ -161,7 +158,8 @@ install script.
 /b/garmin-q3             one bundle: preview, revisions, sharing, collection, delete
 /b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
 /upload                  drop an archive here; the drop zone posts to it
-/tokens                  mint a push token, copy the agent prompt, revoke a token
+/tokens                  the agent prompt, every push token with its scopes, revoke
+/connect/<id>            approve or deny one agent connection
 ```
 
 The session is a signed cookie, `hosti_admin`: HttpOnly, SameSite=Lax, Secure
@@ -177,29 +175,48 @@ derived from the session. No GET ever changes anything.
 ### Getting an agent pushing
 
 An empty catalog is one panel, and `/tokens` is the same panel with the list of
-existing tokens under it. The masthead links to it. Three things happen there:
+existing tokens under it. The masthead links to it. The panel leads with two
+commands for the agent to run:
 
-1. Type a name and mint a push token. The secret is shown once, on the page
-   the mint redirects to, and then it is gone. Hosti holds the SHA-256 digest
-   and nothing else, so nobody, including the owner, can read it back.
-2. Copy the agent prompt. It already carries this instance's URL and the token
-   you just minted, so it is ready to paste into an agent.
-3. Copy `npx skills add JakubSzwajka/hosti` if you would rather install the
-   skill by hand.
+```bash
+npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
+hosti login https://hosti.example.com
+```
 
-The secret waits in the server's memory for five minutes and the first read
-takes it away. A restart or a reload loses it, and the page then shows nothing
-to copy. That is deliberate: the alternative is writing the secret somewhere it
-outlives the one read.
+The second carries this instance's URL. Under them is an agent prompt that
+says the same thing, ready to paste, and `npx skills add JakubSzwajka/hosti`
+for the skill. Neither carries a token.
 
-The list under the panel shows every push token, when it was minted and when it
-last pushed, with a revoke on each. Revoking drops the digest, so that secret
-stops opening `/api/v1/` from the next request on. Revisions it already pushed
-keep its name, which is what the `pushed by` line on a bundle page reads.
+`hosti login` starts an agent connection. The agent makes a push token and a
+polling secret on its own machine and sends only their SHA-256 digests. It
+prints a link to `/connect/<id>` and a short code such as `KX4F-9QLM`. You open
+the link in your browser, log in if the browser has no session, check that the
+page shows the same code, and approve. The CLI picks up the answer and saves
+its login. The token never passes through your clipboard or the chat, and
+Hosti never holds it in the clear.
 
-Minting and revoking are catalog writes: admin session plus mutation token,
-exactly like setting a sharing state. Neither lives under `/api/v1/`, so no
-push token can mint another one.
+The approval page shows the token name, the code, the scopes the agent asked
+for and when the request runs out. `publish` and `share` are granted when
+asked. `delete` appears only when the agent ran `hosti login --allow-delete`,
+and its box starts unticked. You can grant less than was asked, never more.
+Approve and deny are catalog writes: admin session plus mutation token, like
+every other change the catalog makes, and no password field.
+
+A connection lives in server memory for ten minutes. A restart drops pending
+ones, and the agent then runs `hosti login` again.
+
+The list under the panel shows every push token, its scopes, when it was made
+and when it last pushed, with a revoke on each. Revoking drops the digest, so
+that secret stops opening `/api/v1/` from the next request on. Revisions it
+already pushed keep its name, which is what the `pushed by` line on a bundle
+page reads. Nothing under `/api/v1/` makes or revokes a token, so no push token
+can create another one.
+
+Approval takes no password when a session exists. A bundle's JavaScript runs on
+the catalog's origin (see [The origin risk](#the-origin-risk)), so while you
+are logged in, a bundle opened at `/v/` could start its own agent connection
+and approve it. That risk was accepted on 2026-09-26. The `/tokens` list is
+where an unexpected token shows up.
 
 ### The hosti-publish skill
 
@@ -211,15 +228,11 @@ npx skills add JakubSzwajka/hosti
 ```
 
 Hosti serves nothing to make that work, so no route has to answer an
-unauthenticated fetch. The file is the same text for every instance: it reads
-`HOSTI_URL` and `HOSTI_TOKEN` from the environment and asks the owner when
-either is missing. The prompt on `/tokens` is where this instance's URL and
-the minted token go.
-
-The skill teaches `curl`, not the CLI. `@hosti/cli` is a private workspace
-package, so an agent on somebody else's laptop has nothing to install. It
-covers pushing and sharing only, and it says outright that it must not rotate a
-share slug, delete a bundle or set a pin.
+unauthenticated fetch. The file is the same text for every instance. It drives
+the CLI: install it if `hosti` is missing, run `hosti whoami`, and if that
+fails, run `hosti login` with the URL the owner gives and wait for approval.
+It covers push, share, rotate and open. It deletes only when the token has
+`delete` and the owner asked. It never prints the token.
 
 ### Putting a bundle in from the browser
 
@@ -307,10 +320,47 @@ origin, because its sandbox denies `allow-same-origin`. A bundle opened through
 
 ## The CLI
 
-```bash
-export HOSTI_URL=http://127.0.0.1:3000
-export HOSTI_TOKEN=$(pnpm --silent run token:new -- --name laptop | sed -n 2p)
+Install it with Node 24.21.0 or later, then connect it to a catalog:
 
+```bash
+npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
+hosti login https://hosti.example.com
+```
+
+`hosti login` prints a link and a code, each on its own line, and tries to
+open the link in a browser. The owner opens it, checks the code and approves.
+The CLI then writes `{"url","token"}` to `~/.config/hosti.json` (or
+`$XDG_CONFIG_HOME/hosti.json`) with mode `0600`, and prints the token's name
+and scopes. It never prints the token. On a denied or expired connection, or
+one the server forgot, it exits 1 and says to run `hosti login` again.
+
+```bash
+hosti login https://hosti.example.com --name "ci runner"   # default: <user>@<hostname>
+hosti login https://hosti.example.com --allow-delete       # ask for delete too
+hosti whoami     # the URL, the token name and its scopes
+hosti logout     # forget the saved login; revoke the token on /tokens
+```
+
+`logout` only edits the local file. A push token cannot revoke itself, so the
+token keeps working until the owner revokes it on `/tokens`.
+
+A push token carries scopes, and the server checks them:
+
+| Scope | Allows |
+| --- | --- |
+| `publish` | list bundles, read one, push a revision (creating the bundle if new), prune |
+| `share` | set the sharing state to `private`, `link` or `pin`, set a pin, rotate the share link |
+| `delete` | delete a bundle, with its revisions and files |
+
+Every token has `publish`. `hosti login` asks for `publish` and `share`, and
+for `delete` only with `--allow-delete`. The owner grants `delete` only by
+ticking it. A command the token lacks the scope for answers 403 with
+`missing_scope`; the CLI prints the server's message on the last line and exits 1.
+Tokens made before scopes existed carry all three.
+
+Once logged in:
+
+```bash
 hosti push ./fixtures/multi-page --slug squad-2026 --title "Squad 2026"
 hosti share squad-2026 --mode link
 hosti share squad-2026 --mode pin --pin 4821
@@ -345,30 +395,43 @@ Nothing ever prints the digits of a pin, because Hosti holds a hash and cannot
 read one back. Digits the server refuses come back as its own message on the
 last line, exit code 1.
 
-The binary is `apps/cli`. It runs its TypeScript straight on Node, which strips
-the types itself on the version in `.nvmrc` (24.21.0), so there is no build
-step and nothing to compile. It talks HTTP only: it never opens the SQLite file.
+Settings resolve in this order, per setting: `--url` and `--token`, then
+`HOSTI_URL` and `HOSTI_TOKEN`, then the saved login in `~/.config/hosti.json`.
+`hosti login` and `hosti logout` warn when `HOSTI_URL` or `HOSTI_TOKEN` is set,
+because those override the saved login. Missing settings exit 2 and name what
+to set. A server that refuses exits 1 with its own message as the last line.
 
-To get `hosti` on the PATH, from the repository root:
+### Where the CLI comes from
+
+The source is `apps/cli`. In this checkout it runs its TypeScript straight on
+Node 24.21.0, which strips the types itself, so development and the tests need
+no build:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm --filter @hosti/cli link --global   # or: pnpm add --global ./apps/cli
-hosti ls                       # from anywhere now
+node apps/cli/src/index.ts --help
 ```
 
-Both routes symlink the global `hosti` at this checkout rather than copying it,
-so the repository has to stay where it is and an edit to `apps/cli/src` is live
-at once. There is no third route: `@hosti/cli` is a workspace package and is
-not published, so `pnpm add --global @hosti/cli` has nothing to fetch.
+Node refuses to strip types from files under `node_modules`, so the installed
+package is compiled JavaScript. `pnpm --filter @hosti/cli run pack:tgz` builds
+it with the CLI's own TypeScript 5.9.3 in a temporary directory and writes
+`apps/cli/hosti-cli.tgz`. Pass a directory to write it somewhere else. The
+packed CLI imports no workspace package at run time; its one dependency is
+`tar`. `tests/cli-package.test.mjs` packs it, installs the tarball offline into
+a temporary prefix and runs `hosti --help` from `node_modules`.
 
-`pnpm remove --global @hosti/cli` takes it off again.
+Pushing a tag `cli-v<version>` runs `.github/workflows/release-cli.yml`. It
+checks that the tag matches `apps/cli/package.json`, runs the CLI tests and the
+packaging test, packs `hosti-cli.tgz` and attaches it to a GitHub Release for
+that tag, marked latest. The install command above always fetches the latest
+release. It needs the repository to be public; while it is private, install
+from a local pack instead:
 
-Settings resolve in this order, per setting: `--url` and `--token`, then
-`HOSTI_URL` and `HOSTI_TOKEN`, then `~/.config/hosti.json` (or
-`$XDG_CONFIG_HOME/hosti.json`), a file of `{"url": "...", "token": "..."}`.
-Missing settings exit 2 and name what to set. A server that refuses exits 1 with
-its own message as the last line.
+```bash
+pnpm --filter @hosti/cli run pack:tgz
+npm install -g ./apps/cli/hosti-cli.tgz
+```
+
+The CLI talks HTTP only: it never opens the SQLite file.
 
 `push` takes a directory or one `.html` file. It leaves out `.git`,
 `node_modules`, `.DS_Store` and `._` sidecars, and it warns about references

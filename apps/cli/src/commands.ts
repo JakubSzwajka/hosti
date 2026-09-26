@@ -141,4 +141,11 @@ export async function prune(context: Context): Promise<void> {
   say(out, "removed", pruned.removed.length ? pruned.removed.join(", ") : "nothing");
 }
 
-export const COMMAND_TABLE = { push, ls, share, rotate, rm, open, prune } as const;
+export async function whoami(context: Context): Promise<void> {
+  const me = await context.client.whoami();
+  say(context.out, "url", context.base);
+  say(context.out, "token", me.name);
+  say(context.out, "scopes", me.scopes.join(", "));
+}
+
+export const COMMAND_TABLE = { whoami, push, ls, share, rotate, rm, open, prune } as const;

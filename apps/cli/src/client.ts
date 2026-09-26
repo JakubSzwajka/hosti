@@ -1,4 +1,7 @@
 import type {
+  AgentAuthorizationCreatedResponse,
+  AgentAuthorizationRequest,
+  AgentAuthorizationStatusResponse,
   BundleResponse,
   CatalogResponse,
   DeletedBundleResponse,
@@ -7,6 +10,7 @@ import type {
   PushResponse,
   SharingMode,
   SharingResponse,
+  WhoamiResponse,
 } from "@hosti/shared";
 import type { Config } from "./config.ts";
 
@@ -29,30 +33,67 @@ export type PushInput = {
   collection?: string;
 };
 
-export function createClient(config: Config) {
-  async function call<T>(pathname: string, init: RequestInit = {}): Promise<T> {
-    const headers = new Headers(init.headers);
-    headers.set("Authorization", `Bearer ${config.token}`);
+async function callApi<T>(
+  base: string,
+  pathname: string,
+  init: RequestInit = {},
+  bearer?: string,
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (bearer) headers.set("Authorization", `Bearer ${bearer}`);
 
-    let response: Response;
-    try {
-      response = await fetch(`${config.url}${pathname}`, { ...init, headers });
-    } catch (error) {
-      throw new ApiError(`Cannot reach ${config.url}: ${(error as Error).message}`);
-    }
-
-    const text = await response.text();
-    const body = text ? (JSON.parse(text) as unknown) : {};
-    if (!response.ok) {
-      const failure = body as ErrorResponse;
-      throw new ApiError(
-        failure.message ?? `${response.status} from ${pathname}`,
-        response.status,
-        failure.error ?? "http_error",
-      );
-    }
-    return body as T;
+  let response: Response;
+  try {
+    response = await fetch(`${base}${pathname}`, { ...init, headers });
+  } catch (error) {
+    throw new ApiError(`Cannot reach ${base}: ${(error as Error).message}`);
   }
+
+  const text = await response.text();
+  let body: unknown = {};
+  try {
+    body = text ? (JSON.parse(text) as unknown) : {};
+  } catch {
+    if (response.ok) throw new ApiError(`${base}${pathname} did not answer JSON`, response.status);
+  }
+  if (!response.ok) {
+    const failure = (body ?? {}) as Partial<ErrorResponse>;
+    throw new ApiError(
+      failure.message ?? `${response.status} from ${pathname}`,
+      response.status,
+      failure.error ?? "http_error",
+    );
+  }
+  return body as T;
+}
+
+export function createConnectionClient(base: string) {
+  return {
+    create(request: AgentAuthorizationRequest): Promise<AgentAuthorizationCreatedResponse> {
+      return callApi<AgentAuthorizationCreatedResponse>(base, "/api/v1/agent-authorizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+    },
+
+    /** The polling secret travels only in the Authorization header, never in the URL. */
+    poll(id: string, pollingSecret: string): Promise<AgentAuthorizationStatusResponse> {
+      return callApi<AgentAuthorizationStatusResponse>(
+        base,
+        `/api/v1/agent-authorizations/${encodeURIComponent(id)}`,
+        {},
+        pollingSecret,
+      );
+    },
+  };
+}
+
+export type ConnectionClient = ReturnType<typeof createConnectionClient>;
+
+export function createClient(config: Config) {
+  const call = <T>(pathname: string, init: RequestInit = {}): Promise<T> =>
+    callApi<T>(config.url, pathname, init, config.token);
 
   return {
     push(input: PushInput): Promise<PushResponse> {
@@ -64,6 +105,10 @@ export function createClient(config: Config) {
         headers,
         body: new Uint8Array(input.body),
       });
+    },
+
+    whoami(): Promise<WhoamiResponse> {
+      return call<WhoamiResponse>("/api/v1/whoami");
     },
 
     catalog(): Promise<CatalogResponse> {
