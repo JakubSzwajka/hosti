@@ -80,6 +80,27 @@ describe("where the settings come from", () => {
     }
   });
 
+  it("never echoes the file's contents when it fails to parse", async () => {
+    const broken = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-broken-token-"));
+    const secret = "hosti_super-secret-token-do-not-print-me";
+    const file = path.join(broken, "hosti.json");
+    // Node's JSON.parse message would quote input right around the syntax error.
+    await fs.writeFile(file, `{ "token": "${secret}", broken`, "utf8");
+    try {
+      let caught: unknown;
+      try {
+        resolveConfig({}, { XDG_CONFIG_HOME: broken });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ConfigError);
+      expect((caught as Error).message).toBe(`${file} is not valid JSON`);
+      expect((caught as Error).message).not.toContain(secret);
+    } finally {
+      await fs.rm(broken, { recursive: true, force: true });
+    }
+  });
+
   it("looks in ~/.config when no XDG home is set", () => {
     expect(configFilePath({})).toBe(path.join(os.homedir(), ".config/hosti.json"));
   });

@@ -24,8 +24,9 @@ export function readConfigFile(file: string): FileConfig {
   try {
     const parsed = JSON.parse(text) as FileConfig;
     return typeof parsed === "object" && parsed !== null ? parsed : {};
-  } catch (error) {
-    throw new ConfigError(`${file} is not valid JSON: ${(error as Error).message}`);
+  } catch {
+    // Never echo the parser's message: it can quote the file's raw text, including a token.
+    throw new ConfigError(`${file} is not valid JSON`);
   }
 }
 

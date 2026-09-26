@@ -307,12 +307,16 @@ crop rather than as a broken page.
 
 A bundle runs its own JavaScript on the same origin as the catalog, so a script
 inside a bundle you forgot about can `fetch('/')` with the owner cookie attached
-and read the catalog back. Slice 1 accepts that read. What it does not accept is
-that same script writing: mutations need a per-session token that is rendered
-into the page, never stored in a readable cookie, and the push API stays on
-bearer tokens that no browser holds. The real fix is serving `/v/` from a second
-hostname, and that is the first thing to revisit before Hosti hosts anything
-someone else generated.
+and read the catalog back. That read reaches the admin pages too, and those
+pages render the per-session mutation token into the HTML, so the script can
+read that token and use it to write. Concretely, while you are logged in, a
+bundle script could start its own agent connection and approve it without
+asking you (accepted 2026-09-26; see [Getting an agent pushing](#getting-an-agent-pushing)).
+The push API is not reachable this way: it takes a bearer token that no
+browser holds, so a bundle script cannot forge a push on its own. The real fix
+is serving `/v/` from a second hostname, and that is the first thing to
+revisit before Hosti hosts anything someone else generated. Until then, check
+`/tokens` for a token you did not mint.
 
 The preview frame is the one place a bundle already runs boxed off from this
 origin, because its sandbox denies `allow-same-origin`. A bundle opened through

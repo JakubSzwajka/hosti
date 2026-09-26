@@ -13,7 +13,6 @@ const DISALLOWED_NAME_CHARACTERS = /[^A-Za-z0-9_\- ]/g;
 
 const DEFAULT_POLL_SECONDS = 2;
 const MIN_POLL_SECONDS = 1;
-const MAX_POLL_SECONDS = 30;
 
 const AGAIN = "Run hosti login again to ask once more.";
 
@@ -79,7 +78,8 @@ export function normalizeServerUrl(raw: string): string {
 function pollSeconds(asked: unknown): number {
   const seconds =
     typeof asked === "number" && Number.isFinite(asked) ? asked : DEFAULT_POLL_SECONDS;
-  return Math.min(MAX_POLL_SECONDS, Math.max(MIN_POLL_SECONDS, seconds));
+  // The server's requested delay is a minimum, not a target: honor a slow request in full.
+  return Math.max(MIN_POLL_SECONDS, seconds);
 }
 
 function clock(iso: string): string {
@@ -106,7 +106,11 @@ async function waitForAnswer(
   let warnedUnreachable = false;
 
   for (;;) {
-    await context.sleep(interval * 1000);
+    const remainingMs = Number.isFinite(expiresAt) ? expiresAt - context.now() : Infinity;
+    if (remainingMs <= 0) {
+      throw new CommandError(`The connection expired before anyone approved it. ${AGAIN}`);
+    }
+    await context.sleep(Math.min(interval * 1000, remainingMs));
 
     let answer: AgentAuthorizationStatusResponse;
     try {
@@ -122,14 +126,15 @@ async function waitForAnswer(
       if (error.status !== 0 && error.status < 500) throw error;
       if (!warnedUnreachable) say(context.err, "retrying", error.message);
       warnedUnreachable = true;
-      if (Number.isFinite(expiresAt) && context.now() >= expiresAt) {
-        throw new CommandError(`The connection expired before anyone approved it. ${AGAIN}`);
-      }
       continue;
     }
 
     switch (answer.status) {
       case "approved":
+        // Never save a token for a connection that reached its expiresAt while we waited.
+        if (Number.isFinite(expiresAt) && context.now() > expiresAt) {
+          throw new CommandError(`The connection expired before anyone approved it. ${AGAIN}`);
+        }
         return answer;
       case "denied":
         throw new CommandError(`The owner denied this connection. ${AGAIN}`);
@@ -138,9 +143,6 @@ async function waitForAnswer(
       case "pending":
         interval = pollSeconds(answer.pollAfterSeconds);
         if (answer.expiresAt) expiresAt = Date.parse(answer.expiresAt);
-        if (Number.isFinite(expiresAt) && context.now() >= expiresAt) {
-          throw new CommandError(`The connection expired before anyone approved it. ${AGAIN}`);
-        }
         break;
       default:
         throw new CommandError(

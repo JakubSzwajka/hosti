@@ -76,12 +76,13 @@ describe("polling", () => {
     expect(sleeps).toEqual([4000, 5000, 3000]);
   });
 
-  it("never polls faster than once a second or slower than every thirty", async () => {
+  it("never polls faster than once a second, with no slower cap", async () => {
     const { context, sleeps } = harness([pending(0), pending(600), approved], {
       pollAfterSeconds: 0.1,
     });
     await login(context);
-    expect(sleeps).toEqual([1000, 1000, 30000]);
+    // 600 s honored in full, capped only by the 598 s left of the ten-minute lifetime.
+    expect(sleeps).toEqual([1000, 1000, 598000]);
   });
 
   it("gives up once the connection expires, and saves nothing", async () => {
@@ -91,6 +92,16 @@ describe("polling", () => {
     expect(failure).toBeInstanceOf(CommandError);
     expect((failure as Error).message).toMatch(/expired.*hosti login again/);
     expect(sleeps).toHaveLength(10);
+    await expect(fs.stat(path.join(configHome, "hosti.json"))).rejects.toThrow();
+  });
+
+  it("refuses to save an approval that lands after the connection expired", async () => {
+    // step:400 lands the clock well past expiresAt by the time the single poll answers.
+    const { context, sleeps } = harness([approved], { pollAfterSeconds: 2, step: 400 });
+    const failure = await login(context).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(CommandError);
+    expect((failure as Error).message).toMatch(/expired.*hosti login again/);
+    expect(sleeps).toHaveLength(1);
     await expect(fs.stat(path.join(configHome, "hosti.json"))).rejects.toThrow();
   });
 

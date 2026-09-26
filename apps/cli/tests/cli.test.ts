@@ -100,4 +100,24 @@ describe("the exit code an agent reads", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("There is nothing at /tmp/hosti-nope");
   });
+
+  it("never prints a token from a config file it cannot parse", async () => {
+    const secret = "hosti_super-secret-token-do-not-print-me";
+    const brokenHome = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-cli-broken-"));
+    try {
+      // Node's JSON.parse message would quote input right around the syntax error.
+      await fs.writeFile(
+        path.join(brokenHome, "hosti.json"),
+        `{ "token": "${secret}", broken`,
+        "utf8",
+      );
+      const result = await hosti(["ls"], { XDG_CONFIG_HOME: brokenHome });
+      expect(result.code).toBe(2);
+      expect(result.stderr).not.toContain(secret);
+      expect(result.stdout).not.toContain(secret);
+      expect(result.stderr.trim().split("\n").at(-1)).toContain("is not valid JSON");
+    } finally {
+      await fs.rm(brokenHome, { recursive: true, force: true });
+    }
+  });
 });
