@@ -1,7 +1,14 @@
 import { expect, it } from "@effect/vitest";
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import { Effect } from "effect";
-import { NOW, seedVersion3, withDatabase, withTempDirectory } from "./migration.test-support";
+import { openDatabaseAt } from "./index";
+import {
+  NOW,
+  seedVersion2,
+  seedVersion3,
+  withDatabase,
+  withTempDirectory,
+} from "./migration.test-support";
 
 it.effect("gives every push token from schema 3 all three scopes", () =>
   withTempDirectory((dataDir, schemaSql) => {
@@ -85,5 +92,42 @@ it.effect("refuses a push token row with no scopes", () =>
         ).toThrow(/NOT NULL/),
       ),
     );
+  }),
+);
+
+it.effect("stays on schema 2 with its data intact when the v4 step fails", () =>
+  withTempDirectory((dataDir, schemaSql) => {
+    const file = `${dataDir}/hosti.db`;
+    return Effect.gen(function* () {
+      yield* Effect.sync(() => {
+        seedVersion2(file);
+        // Forces toVersion4's unconditional CREATE TABLE to fail partway through.
+        const seeded = new Database(file);
+        seeded.exec("CREATE TABLE push_tokens_v4 (id INTEGER PRIMARY KEY);");
+        seeded.close();
+      });
+
+      const error = yield* Effect.flip(openDatabaseAt(file, schemaSql));
+      expect(error).toMatchObject({ _tag: "CatalogError" });
+
+      const after = yield* Effect.sync(() => new Database(file));
+      const version = yield* Effect.sync(() =>
+        after.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get(),
+      );
+      const tokenNames = yield* Effect.sync(() =>
+        after.prepare("SELECT name FROM push_tokens ORDER BY name").all(),
+      );
+      const revisionColumns = yield* Effect.sync(() =>
+        (after.prepare("PRAGMA table_info(revisions)").all() as { name: string }[]).map(
+          (row) => row.name,
+        ),
+      );
+      yield* Effect.sync(() => after.close());
+
+      // Still at v2: the v2->v3 step (which added pushed_by) rolled back along with v4.
+      expect(version).toEqual({ value: "2" });
+      expect(revisionColumns).not.toContain("pushed_by");
+      expect(tokenNames).toEqual([{ name: "ci" }, { name: "laptop" }]);
+    });
   }),
 );

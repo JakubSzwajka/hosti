@@ -43,9 +43,14 @@ function schemaVersion(database: Database.Database): number {
 }
 
 function migrate(database: Database.Database): void {
-  if (schemaVersion(database) < 2) database.transaction(toVersion2)(database);
-  if (schemaVersion(database) < 3) database.transaction(toVersion3)(database);
-  if (schemaVersion(database) < SCHEMA_VERSION) database.transaction(toVersion4)(database);
+  // One transaction for the whole chain: a failing step must not leave an earlier step committed.
+  if (schemaVersion(database) < SCHEMA_VERSION) {
+    database.transaction(() => {
+      if (schemaVersion(database) < 2) toVersion2(database);
+      if (schemaVersion(database) < 3) toVersion3(database);
+      if (schemaVersion(database) < SCHEMA_VERSION) toVersion4(database);
+    })();
+  }
 }
 
 function toVersion2(database: Database.Database): void {

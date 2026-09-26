@@ -3,6 +3,7 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { Catalog } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
+import { makeAgentConnectionStore, type TokenStore } from "./agent-connections";
 import { Identity, IdentityCrypto } from "./index";
 
 let sequence = 0;
@@ -12,17 +13,24 @@ export function fakeSha256(value: string): string {
   return hex.padEnd(64, "0").slice(0, 64);
 }
 
-const fakeCryptoLayer = IdentityCrypto.layer({
-  encodeBase64Url: (value) => value,
-  decodeBase64Url: (value) => value,
-  hmacSha256Base64Url: (secret, message) => Effect.succeed(`${secret}:${message}`),
-  sha256Hex: (value) => Effect.succeed(fakeSha256(value)),
-  randomBytesHex: (size) => Effect.succeed(String(sequence++).padStart(size * 2, "0")),
-  randomBytesBase64Url: (size) => Effect.succeed(`id-${size}-${sequence++}`.padEnd(32, "x")),
-  randomInt: (max) => Effect.succeed(sequence++ % max),
-  deriveScryptBase64Url: (value) => Effect.succeed(value),
-  constantTimeEquals: (left, right) => Effect.succeed(left === right),
-});
+export function fakeCryptoService(): IdentityCrypto["Service"] {
+  return {
+    encodeBase64Url: (value) => value,
+    decodeBase64Url: (value) => value,
+    hmacSha256Base64Url: (secret, message) => Effect.succeed(`${secret}:${message}`),
+    sha256Hex: (value) => Effect.succeed(fakeSha256(value)),
+    randomBytesHex: (size) => Effect.succeed(String(sequence++).padStart(size * 2, "0")),
+    randomBytesBase64Url: (size) => Effect.succeed(`id-${size}-${sequence++}`.padEnd(32, "x")),
+    randomInt: (max) => Effect.succeed(sequence++ % max),
+    deriveScryptBase64Url: (value) => Effect.succeed(value),
+    constantTimeEquals: (left, right) => Effect.succeed(left === right),
+  };
+}
+
+const fakeCryptoLayer = IdentityCrypto.layer(fakeCryptoService());
+
+export const directAgentConnectionStore = (tokens: TokenStore) =>
+  makeAgentConnectionStore({ crypto: fakeCryptoService(), tokens });
 
 const catalogPlatform = Layer.mergeAll(NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer);
 

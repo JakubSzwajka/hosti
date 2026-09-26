@@ -1,7 +1,14 @@
 import { describe, expect, it } from "@effect/vitest";
-import { Effect } from "effect";
+import { CatalogError } from "@hosti/catalog";
+import { Deferred, Effect, Fiber } from "effect";
 import { CONNECTION_LIFETIME_MS, Identity } from "./index";
-import { fakeSha256, freshIdentity, NOW, request } from "./agent-connections.test-support";
+import {
+  directAgentConnectionStore,
+  fakeSha256,
+  freshIdentity,
+  NOW,
+  request,
+} from "./agent-connections.test-support";
 
 describe("approving and denying", () => {
   it.effect("grants only what was asked for, publish always, and writes one token row", () =>
@@ -65,6 +72,59 @@ describe("approving and denying", () => {
       expect(yield* identity.denyAgentConnection("made-up-id-000000", NOW)).toBeNull();
       expect(yield* identity.listPushTokens).toEqual([]);
     }).pipe(Effect.provide(freshIdentity)),
+  );
+
+  it.effect(
+    "hides an in-flight approval from pollers and a second approval until the write settles",
+    () =>
+      Effect.gen(function* () {
+        const startedSlow = yield* Deferred.make<void>();
+        const slow = yield* Deferred.make<unknown, CatalogError>();
+        const startedFailing = yield* Deferred.make<void>();
+        const failing = yield* Deferred.make<unknown, CatalogError>();
+        const store = yield* directAgentConnectionStore({
+          readTokenName: (value) => Effect.succeed(String(value)),
+          pushTokenDigestExists: () => Effect.succeed(false),
+          activatePushToken: (input) =>
+            input.name === "failing"
+              ? Deferred.succeed(startedFailing, undefined).pipe(
+                  Effect.andThen(Deferred.await(failing)),
+                )
+              : Deferred.succeed(startedSlow, undefined).pipe(Effect.andThen(Deferred.await(slow))),
+        });
+
+        const succeeds = yield* store.create(request("slow"), NOW);
+        const fails = yield* store.create(request("failing"), NOW);
+
+        // The write is still in flight: a poller and a second approval both see "pending".
+        const approveFiber = yield* Effect.forkChild(store.approve(succeeds.id, ["share"], NOW));
+        yield* Deferred.await(startedSlow);
+        expect(yield* store.poll(succeeds.id, "poll-slow", NOW)).toMatchObject({
+          status: "pending",
+        });
+        const secondApproval = yield* store.approve(succeeds.id, ["share"], NOW);
+        expect(secondApproval?.status).toBe("pending");
+
+        yield* Deferred.succeed(slow, { id: 1, name: "slow", scopes: ["publish", "share"] });
+        const approved = yield* Fiber.join(approveFiber);
+        expect(approved?.status).toBe("approved");
+        expect(yield* store.poll(succeeds.id, "poll-slow", NOW)).toMatchObject({
+          status: "approved",
+        });
+
+        // A write that fails restores the connection to "pending", visible to pollers again.
+        const failFiber = yield* Effect.forkChild(store.approve(fails.id, [], NOW));
+        yield* Deferred.await(startedFailing);
+        expect(yield* store.poll(fails.id, "poll-failing", NOW)).toMatchObject({
+          status: "pending",
+        });
+        yield* Deferred.fail(failing, new CatalogError({ operation: "insert", message: "boom" }));
+        const failure = yield* Effect.flip(Fiber.join(failFiber));
+        expect(failure).toMatchObject({ _tag: "CatalogError" });
+        expect(yield* store.poll(fails.id, "poll-failing", NOW)).toMatchObject({
+          status: "pending",
+        });
+      }),
   );
 
   it.effect("leaves the connection pending when the token row cannot be written", () =>

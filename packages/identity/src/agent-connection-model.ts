@@ -25,7 +25,7 @@ export type Held = {
   pollingDigest: string;
   requestedScopes: PushScope[];
   grantedScopes: PushScope[] | null;
-  status: "pending" | "approved" | "denied";
+  status: "pending" | "activating" | "approved" | "denied";
   expiresAt: number;
 };
 
@@ -64,6 +64,8 @@ export function isoFromMillis(ms: number): string {
 }
 
 export function statusAt(held: Held, now: number): AgentConnectionStatus {
+  // An approval mid-write reports as "pending" so a second approval sees it as unsettled.
+  if (held.status === "activating") return "pending";
   if (held.status === "pending" && now >= held.expiresAt) return "expired";
   return held.status;
 }

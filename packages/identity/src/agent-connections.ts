@@ -23,7 +23,7 @@ import { type IdentityDatabaseError, IdentityInputError } from "./errors";
 import { TOKEN_EXISTS_MESSAGE } from "./push-tokens";
 import { orderScopes, readRequestedScopes } from "./scopes";
 
-type TokenStore = {
+export type TokenStore = {
   readTokenName(value: unknown): Effect.Effect<string, IdentityInputError>;
   pushTokenDigestExists(
     digest: string,
@@ -38,7 +38,7 @@ type TokenStore = {
 type Claim =
   | { kind: "unknown" }
   | { kind: "settled"; shown: AgentConnectionView }
-  | { kind: "claimed"; previous: Held; approved: Held };
+  | { kind: "claimed"; previous: Held; activating: Held };
 
 function currentTime(supplied?: number): Effect.Effect<number> {
   return supplied === undefined ? Clock.currentTimeMillis : Effect.succeed(supplied);
@@ -168,11 +168,14 @@ export function makeAgentConnectionStore(dependencies: {
       CatalogError | IdentityDatabaseError | IdentityInputError | IdentityCryptoError
     > {
       const now = yield* currentTime(suppliedNow);
-      // Claim the entry in one step, so two approvals cannot both write a row.
+      // Claim into "activating" in one step: it still polls as "pending" (see statusAt), so a second approval can't beat the write.
       const claimed = yield* Ref.modify(state, (stored): readonly [Claim, Map<string, Held>] => {
         const next = withoutDropped(stored, now);
         const held = next.get(id);
         if (!held) return [{ kind: "unknown" }, next];
+        if (held.status === "activating") {
+          return [{ kind: "settled", shown: view(held, now) }, next];
+        }
         if (statusAt(held, now) !== "pending") {
           return [{ kind: "settled", shown: view(held, now) }, next];
         }
@@ -180,21 +183,29 @@ export function makeAgentConnectionStore(dependencies: {
           "publish",
           ...grant.filter((scope) => held.requestedScopes.includes(scope)),
         ]);
-        const approved: Held = { ...held, status: "approved", grantedScopes: granted };
-        next.set(id, approved);
-        return [{ kind: "claimed", previous: held, approved }, next];
+        const activating: Held = { ...held, status: "activating", grantedScopes: granted };
+        next.set(id, activating);
+        return [{ kind: "claimed", previous: held, activating }, next];
       });
       if (claimed.kind === "unknown") return null;
       if (claimed.kind === "settled") return claimed.shown;
 
-      const { previous, approved } = claimed;
+      const { previous, activating } = claimed;
+      const approved: Held = { ...activating, status: "approved" };
       yield* tokens
         .activatePushToken({
-          name: approved.tokenName,
-          tokenDigest: approved.tokenDigest,
-          scopes: approved.grantedScopes ?? [],
+          name: activating.tokenName,
+          tokenDigest: activating.tokenDigest,
+          scopes: activating.grantedScopes ?? [],
         })
         .pipe(
+          Effect.tap(() =>
+            Ref.update(state, (stored) => {
+              const next = new Map(stored);
+              next.set(id, approved);
+              return next;
+            }),
+          ),
           Effect.tapError(() =>
             Ref.update(state, (stored) => {
               const next = new Map(stored);
