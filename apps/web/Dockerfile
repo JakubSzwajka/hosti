@@ -29,6 +29,10 @@ COPY apps/web apps/web
 RUN pnpm --filter @hosti/web build
 
 FROM base AS runtime
+# "Create release" passes the full commit sha; /api/health reports its first 12
+# characters so the deploy can tell the new container from the old one.
+ARG APP_COMMIT=unknown
+ENV APP_COMMIT=$APP_COMMIT
 ENV NODE_ENV=production \
   HOSTI_DATA_DIR=/data \
   PORT=3000 \
