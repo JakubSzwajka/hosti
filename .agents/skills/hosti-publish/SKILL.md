@@ -8,48 +8,70 @@ description: Publish a static site to a Hosti catalog and share it. Use when ask
 Hosti is a self-hosted catalog for static bundles. A bundle is a folder of
 files with an index.html at its root. Pushing it gives it a URL.
 
-This skill covers two jobs: push a bundle, and share it. Nothing else.
+You work through the `hosti` command. This skill covers pushing a bundle,
+sharing it, rotating its link and opening it. It covers deleting only under
+the rule in step 9.
 
-## 1. Read the settings
+## 1. Get the CLI
 
-    HOSTI_URL     the base URL of the instance, no trailing slash
-    HOSTI_TOKEN   a push token, which starts with hosti_
+Check for it:
 
-Both come from the environment. If either is missing, ask the owner for it and
-stop until you have it. Do not guess a URL and do not mint a token.
+    hosti --help
 
-Never print the token. Never write it into a file, a script or a commit
-message. Never put its value in a command you show the owner: write
-$HOSTI_TOKEN and let the shell expand it, so the transcript keeps the name and
-not the secret.
+If the command is missing, install it. It needs Node 24.21.0 or later, so
+check `node --version` first:
 
-## 2. Check the folder before you push
+    npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
 
-index.html must sit at the root of the pushed tree, not one directory down. A
-tree with exactly one root .html file and no index.html has that file stored as
-index.html, which is how a single-page bundle arrives.
+## 2. Check the login
+
+    hosti whoami
+
+This prints the catalog's URL, the push token's name and its scopes. It never
+prints the token. If it works, go to step 3.
+
+If it fails, connect to the catalog. You need the catalog's URL. If you do not
+know it, ask the owner and stop until you have it. Do not guess one.
+
+    hosti login <catalog URL>
+
+The command prints a link and a short code, each on its own line. Then it
+waits for the owner, for up to ten minutes. Tell the owner at once:
+
+- open the link in the browser where they use the catalog
+- check that the page shows the same code
+- approve
+
+Your shell may show nothing until a command ends. If so, run the login in the
+background and read its output while it waits:
+
+    hosti login <catalog URL> > /tmp/hosti-login.log 2>&1 &
+    cat /tmp/hosti-login.log
+
+When the owner approves, the command saves the login and prints the token's
+name and scopes. If the owner denies it, or it runs out of time, it exits 1
+and says so. Ask the owner before you try again.
+
+A token can publish and share. It can delete only if you ran
+`hosti login --allow-delete` and the owner ticked delete on the page. Ask for
+delete only when the owner wants you to delete bundles.
+
+Never print the token. Never read it out of the config file, and never put it
+in a file, a script, a command or a commit message. If HOSTI_URL or HOSTI_TOKEN
+is set in the environment, it wins over the saved login.
+
+## 3. Check the folder before you push
+
+index.html must sit at the root of the folder you push, not one directory
+down. A folder with exactly one root .html file and no index.html has that file
+stored as index.html, which is how a single-page bundle arrives.
 
 Get this wrong and the push is refused with:
 
-    400 {"error":"no_entry_file","message":"No index.html at the root of the pushed tree. Found: docs/, notes.txt"}
+    No index.html at the root of the pushed tree. Found: docs/, notes.txt
 
 Read the "Found:" list. It names what was at the root, which is usually one
-directory you should have pushed the inside of.
-
-## 3. Catch absolute references
-
-A link written /assets/x.css asks for the root of the domain. The root of the
-domain is the catalog, not the bundle, so that link 404s once the bundle is
-served under /v/<slug>/. Links inside a bundle must be relative: assets/x.css,
-or ../assets/x.css.
-
-The push API accepts absolute links silently. Nothing downstream warns about
-them, so this check is yours:
-
-    grep -rnE '(src|href)="/[^/]' ./out
-
-Fix what it finds, or tell the owner which files will break and let them
-decide. Do not rewrite their files without saying so.
+directory you should have pushed instead.
 
 ## 4. Pick a slug
 
@@ -57,84 +79,94 @@ Lowercase letters, digits and dashes, 1 to 64 characters. It is the last part
 of the URL, so make it read like the thing: garmin-q3, sleep-brief,
 squad-2026.
 
-A bad slug is refused with:
+A slug may already hold a bundle. Pushing to it again is not an error: it adds
+the next revision, and that revision becomes the one people see at the same
+link. So look first:
 
-    400 {"error":"bad_slug","message":"A bundle slug is lowercase letters, digits and dashes, 1 to 64 characters"}
+    hosti ls
+
+If the slug is taken, tell the owner you are about to replace what is live
+there, and say what is there now. Do not silently overwrite a bundle somebody
+is reading.
 
 ## 5. Push
 
-Pack the folder as a gzipped tar with paths relative to the folder itself, then
-post it:
+    hosti push ./out --slug squad-2026 --title "Squad 2026"
 
-    tar czf /tmp/bundle.tgz -C ./out .
-    curl -X POST "$HOSTI_URL/api/v1/bundles/<slug>/revisions" \
-      -H "Authorization: Bearer $HOSTI_TOKEN" \
-      -H "X-Hosti-Title: Squad 2026" \
-      --data-binary @/tmp/bundle.tgz
+--title sets the name the owner reads in the catalog. Without it the bundle is
+named after its slug. --collection reports puts the bundle in a named
+collection. Both are optional, and a later push cannot clear them.
 
-The -C matters. Packing the parent directory puts out/index.html in the tree
-and there is then no index.html at the root.
+The push warns about links written from the root of the domain, like
+/assets/x.css. Those break once the bundle is served under its own path. Links
+inside a bundle must be relative: assets/x.css or ../assets/x.css. Fix what it
+names, or tell the owner which files will break and let them decide. Do not
+rewrite their files without saying so. --allow-absolute skips the check.
 
-X-Hosti-Title sets the name the owner reads in the catalog. Without it the
-bundle is named after its slug. X-Hosti-Collection puts the bundle in a named
-collection, such as reports. Both are optional, and neither can be cleared by
-a later push; only the owner clears them in the catalog.
+The push prints the revision and the sharing state. A new bundle arrives
+private, and the output ends with its admin page. Give the owner that link
+exactly as printed. It is where they preview the bundle, and it needs their
+own login, so it is not a link they can pass on.
 
-A push answers 201:
-
-    {"bundle":"squad-2026","revision":1,
-     "adminUrl":"$HOSTI_URL/b/squad-2026",
-     "sharing":{"mode":"private","shareSlug":"squad-2026","hasPin":false},
-     "shareUrl":null}
-
-401 means the token is wrong or revoked. Ask the owner for a fresh one rather
-than retrying.
-
-## 6. Pushing the same slug again is not an error
-
-It creates the next revision of that bundle and that revision becomes the one
-people see. The old share URL keeps working and now shows the new content.
-
-So check whether the slug is already taken before you reuse one. If it is, tell
-the owner you are about to replace what is live there, and say what is there
-now. Do not silently overwrite a bundle somebody is reading.
-
-## 7. Report the admin URL
-
-Give the owner adminUrl from the response, exactly as it came back. That is
-the page where they preview the bundle, set its collection, set a pin and
-delete it. It needs their own admin session, so it is not a link they can pass
-on.
-
-## 8. Share only when asked
+## 6. Share only when asked
 
 A push never changes who can open a bundle. Every bundle lands private and
 stays private until somebody says otherwise. Ask first.
 
 Open it to anyone holding the link:
 
-    curl -X PUT "$HOSTI_URL/api/v1/bundles/<slug>/sharing" \
-      -H "Authorization: Bearer $HOSTI_TOKEN" \
-      -H "Content-Type: application/json" -d '{"mode":"link"}'
+    hosti share squad-2026 --mode link
+
+Put it behind a pin the owner gave you:
+
+    hosti share squad-2026 --mode pin --pin <the owner's digits>
 
 Shut it again:
 
-    curl -X PUT "$HOSTI_URL/api/v1/bundles/<slug>/sharing" \
-      -H "Authorization: Bearer $HOSTI_TOKEN" \
-      -H "Content-Type: application/json" -d '{"mode":"private"}'
+    hosti share squad-2026 --mode private
 
-Both answer with shareUrl. Print it. When the mode is private, shareUrl is
-null and nothing answers at that address.
+Each prints the state and, unless it is private, the share URL. Give the owner
+that URL.
 
-## 9. What this skill must not do
+A pin is four to eight digits, and only the owner picks them.
+Never invent a pin. Never repeat the digits back in your reply. The CLI does
+not print them.
 
-Three actions are the owner's, never yours, even when the token would let you:
+## 7. Rotate only when asked
 
-Do not rotate a share slug. A rotate kills the address for everyone already
-holding it, and you cannot know who that is.
+    hosti rotate squad-2026
 
-Do not delete a bundle. A delete takes its files and every revision with it.
+This gives the bundle a new share URL. The old one stops working for everyone
+who holds it, and you cannot know who that is. Rotate only when the owner asks
+for it. Then give them the new URL.
 
-Do not set a pin. A pin is four to eight digits the owner types, and Hosti
-never invents one. If the owner wants a pin, tell them to set it on the
-bundle's own page in the catalog, at $HOSTI_URL/b/<slug>.
+## 8. Open
+
+    hosti open squad-2026
+
+The last line is the link to hand over: the share URL, or the owner's admin
+page while the bundle is private. --open also opens it in a browser.
+
+## 9. Delete only with scope and word
+
+Delete a bundle only when both are true:
+
+- `hosti whoami` lists the delete scope
+- the owner asked you to delete that bundle
+
+A delete takes the files and every revision with it.
+
+    hosti rm squad-2026 --yes
+
+If the token lacks the scope, the command exits 1 and its last line says how
+the owner can grant it. Tell the owner. Do not ask for a new login on your own.
+
+## 10. When a command fails
+
+Every command prints the server's reason on its last line and exits non-zero.
+Read that line before you do anything else.
+
+- "A valid push token is required": the token is gone or revoked. Run step 2
+  again.
+- "lacks the ... scope": the token cannot do this. Tell the owner.
+- "Cannot reach": the catalog is down or the URL is wrong. Tell the owner.

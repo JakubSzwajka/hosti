@@ -106,7 +106,7 @@ describe("the gate", () => {
     const csp = response.headers.get("content-security-policy") ?? "";
     expect(csp).toContain("default-src 'none'");
     expect(csp).not.toContain("unsafe-eval");
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 });
 

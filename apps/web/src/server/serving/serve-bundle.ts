@@ -14,6 +14,12 @@ const PREFIX = "/v/";
 
 type ParsedRequest = { shareSlug: string; requestPath: string; sharePrefix: string };
 
+function withNoStore(response: Response): Response {
+  // A shared cache once kept serving a stale locked-link 404 after unlock.
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
+
 export function parseBundleUrl(url: string): ParsedRequest | null {
   const pathname = new URL(url).pathname;
   if (!pathname.startsWith(PREFIX)) return null;
@@ -36,7 +42,7 @@ export function parseBundleUrl(url: string): ParsedRequest | null {
 
 export async function serveBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
-  if (!parsed) return hostiNotFound();
+  if (!parsed) return withNoStore(hostiNotFound());
 
   const link = runCatalogSync((catalog) => catalog.resolveShare(parsed.shareSlug));
   const pinHash = link?.pinHash ?? null;
@@ -52,27 +58,31 @@ export async function serveBundleRequest(request: Request): Promise<Response> {
       canRenderGate: wantsPage(request),
     }),
   );
-  if (access.kind === "not-found") return hostiNotFound();
-  if (access.kind === "gate-required") return lockedResponse(request, parsed);
-  if (!link) return hostiNotFound();
+  if (access.kind === "not-found") return withNoStore(hostiNotFound());
+  if (access.kind === "gate-required") return withNoStore(lockedResponse(request, parsed));
+  if (!link) return withNoStore(hostiNotFound());
 
   const root = await runStoragePromise((storage) =>
     storage.currentRevisionRoot(bundlesDir(), link.bundleSlug),
   );
-  if (!root) return hostiNotFound();
+  if (!root) return withNoStore(hostiNotFound());
 
-  return serveFromRevision(request, root, {
-    prefix: parsed.sharePrefix,
-    requestPath: parsed.requestPath,
-  });
+  return withNoStore(
+    await serveFromRevision(request, root, {
+      prefix: parsed.sharePrefix,
+      requestPath: parsed.requestPath,
+    }),
+  );
 }
 
 export async function unlockBundleRequest(request: Request): Promise<Response> {
   const parsed = parseBundleUrl(request.url);
-  if (!parsed || parsed.requestPath !== UNLOCK_PATH) return hostiNotFound();
+  if (!parsed || parsed.requestPath !== UNLOCK_PATH) return withNoStore(hostiNotFound());
 
   const link = runCatalogSync((catalog) => catalog.resolveShare(parsed.shareSlug));
-  if (!link) return hostiNotFound();
+  if (!link) return withNoStore(hostiNotFound());
 
-  return unlockResponse(request, parsed, { bundleId: link.bundleId, pinHash: link.pinHash });
+  return withNoStore(
+    await unlockResponse(request, parsed, { bundleId: link.bundleId, pinHash: link.pinHash }),
+  );
 }

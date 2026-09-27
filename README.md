@@ -19,8 +19,12 @@ The live instance is a Dokploy application, not a Compose stack:
 | Data | named volume `hosti-data` mounted at `/data`: the bundles and `hosti.db` |
 | Backup | Dokploy volume backup of `hosti-data` to S3 every night, kept 14 days |
 
-Each push to `main` makes Dokploy rebuild the image from the Dockerfile and
-redeploy. Nothing waits on the GHCR image.
+Each push to `main` is meant to make Dokploy rebuild the image from the
+Dockerfile and redeploy. Auto deploy is configured, but a push to `main` on
+2026-09-26 and 2026-09-27 did not trigger a deploy; the GitHub webhook to
+Dokploy is likely not wired correctly. Until that is fixed, deploy by hand in
+the Dokploy UI (the application's Deploy button) or through its API after
+every push to `main`.
 
 To set up the same thing again:
 
@@ -78,7 +82,8 @@ To set up the same thing again:
    the volume.
 
 Redeploys keep the `hosti-data` volume. Any action that removes the volume
-destroys every bundle and the database. Back `/data` up before you touch it by
+destroys every bundle and the database. Remember to trigger the deploy by
+hand until auto deploy is fixed (see above). Back `/data` up before you touch it by
 hand: a `tar` archive over `/data` captures both the bundles and the database.
 
 ### Another host: the GHCR image with Compose
@@ -649,6 +654,12 @@ anything else         the bundle's 404.html, else Hosti's own 404
 
 Links inside a bundle must be relative. A link written `/assets/chart.js` asks
 for the root of the domain, which is the catalog, and it will 404.
+
+Every response from `/v/` carries `Cache-Control: private, no-store`, whether
+it is a served file, a redirect, the pin gate, an unlock answer or a 404. A
+shared cache in front of Hosti, such as Cloudflare, must never hold one of
+these responses: a 404 for a still-locked asset cached before an unlock once
+kept answering after the owner unlocked the link.
 
 ## On disk
 

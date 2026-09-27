@@ -3,7 +3,7 @@
 ## Where things stand
 
 The "CLI install and browser-approved login" spec
-(`.pi/specs/2026-09-26_hosti-cli-browser-login/`) is built and committed.
+(`.pi/specs/2026-09-26_hosti-cli-browser-login/`) is built and deployed.
 
 1. Server, `0d4f653`: push token scopes and schema 4, agent connections in
    server memory, the `/connect/<id>` approval page, the
@@ -17,38 +17,74 @@ The "CLI install and browser-approved login" spec
    and CONTEXT.md, README.md and this file.
 3. Review fixes, `be7f75a`: the approval activation race and migration
    atomicity found in review of `fb874b0`.
-4. Further review fixes, in this lane's working tree, not yet committed:
-   `hosti login` now checks the connection's `expiresAt` before every poll and
-   before saving an `approved` answer, and caps each sleep at the time left;
-   `pollAfterSeconds` no longer clamps to a 30 s ceiling, only a 1 s floor; a
-   malformed `~/.config/hosti.json` reports a fixed "is not valid JSON"
-   message instead of echoing Node's parser text (which could quote a token
-   sitting next to the syntax error); and README.md's origin-risk section no
-   longer claims bundle JavaScript cannot write catalog mutations — it can
-   read the mutation token off an admin page and, while the owner is logged
-   in, use it to start and approve its own agent connection.
+4. Further review fixes, `7c6a49f`: `hosti login` now checks the connection's
+   `expiresAt` before every poll and before saving an `approved` answer, and
+   caps each sleep at the time left; `pollAfterSeconds` no longer clamps to a
+   30 s ceiling, only a 1 s floor; a malformed `~/.config/hosti.json` reports a
+   fixed "is not valid JSON" message instead of echoing Node's parser text; and
+   README.md's origin-risk section stopped claiming bundle JavaScript cannot
+   write catalog mutations.
+5. Password fixture, `6143d1a`: `apps/web/tests/env-check.test.ts` stopped
+   using the real temporary prod owner password as its fixture, replacing it
+   with a dummy value.
+6. This close-out commit: every `/v/` response now carries
+   `Cache-Control: private, no-store` (see below), the dead
+   `apps/web/src/app/b/[slug]/sections.tsx` is deleted, and README.md and this
+   file are brought up to date.
 
-The app is deployed to `hosti.kubaszwajka.com` from `main`, currently running
-with a temporary test owner password set for the operator's manual end-to-end
-run of the login flow. Rotate `HOSTI_OWNER_PASSWORD` in Dokploy once that
-manual run is done.
+The repository is **public**. Release `cli-v0.1.0` is published on GitHub with
+the built `hosti-cli.tgz` attached, marked latest. Both documented install
+paths work end to end:
 
-## What is left
+```bash
+npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
+npx skills add JakubSzwajka/hosti
+```
 
-- The repository is private, so the release install command in README.md
-  (`npm install -g https://.../releases/latest/download/hosti-cli.tgz`) does
-  not work yet, and no `cli-v*` tag has been pushed. Until a release exists,
-  install from a locally packed tarball: `pnpm --filter @hosti/cli run
-  pack:tgz`.
-- Accepted risk, 2026-09-26: approval takes no password when a session
-  exists. A bundle's JavaScript runs on the catalog's origin, can read the
-  per-session mutation token off an admin page, and could use it to start and
-  approve its own agent connection while the owner is logged in. Serving
-  `/v/` from a second origin is the planned fix. Until then, check `/tokens`
-  for a token nobody minted on purpose.
-- `apps/web/src/app/b/[slug]/sections.tsx` is dead code. Nothing imports it.
-  It was left in place on purpose.
-- The "users and agent authorization" spec
+The app is deployed to `hosti.kubaszwajka.com` from `main`.
+
+## The `/v/` cache fix
+
+Observed on prod, 2026-09-27, behind Cloudflare: a request for
+`/v/pin-test/assets/style.css` made before the link was unlocked got Hosti's
+404, sent with no `Cache-Control` header. Cloudflare cached that 404 for 4
+hours (`cf-cache-status: HIT`), so the owner, having since unlocked the link,
+kept getting the same stale 404 for a real asset.
+
+The fix: every response `serveBundleRequest` and `unlockBundleRequest` return
+under `/v/<slug>/...` — a served file, a directory index, a redirect
+(`/v/x` -> `/v/x/`), the pin gate page, an unlock POST answer (wrong pin,
+right pin), and every 404 (Hosti's own, and a bundle's `404.html`) — now
+carries `Cache-Control: private, no-store`, overriding whatever the inner
+helper set. A shared cache must never hold any of it, unlocked assets
+included, because the file behind a share slug can change from 404 to 200 the
+moment someone types the right pin. `apps/web/tests/serving-cache-control.test.ts`
+asserts the header on all of those cases at the route-handler level. The
+`/b/<slug>/preview/` routes, which share `serveFromRevision`, were left alone;
+their own headers are unaffected because the header override is applied at
+the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
+
+## What is left, outside this repository
+
+- **Rotate the temporary prod owner password.** `HOSTI_OWNER_PASSWORD` in
+  Dokploy is still the value set for the operator's manual end-to-end run of
+  the login flow. That value (not repeated here) sat in this repository's git
+  history, in `apps/web/tests/env-check.test.ts`, before commit `6143d1a`.
+  Because the repository is now public, treat that old value as burned: it
+  must never be reused anywhere, and the live password needs a fresh value in
+  Dokploy.
+- **Wire the Dokploy GitHub webhook.** Auto deploy is turned on for the
+  `hosti` application, but pushes to `main` on 2026-09-26 and 2026-09-27 did
+  not trigger a deploy. The webhook from GitHub to Dokploy is the suspect.
+  Until it is fixed, deploy by hand in the Dokploy UI or through its API after
+  every push (see README.md's Dokploy section).
+- **Accepted origin risk.** A bundle's JavaScript still runs on the catalog's
+  origin and can read an admin page's mutation token while the owner is
+  logged in (accepted 2026-09-26; see README.md's "The origin risk"). Serving
+  `/v/` from a second origin is the planned fix and remains undone. This
+  close-out only stops a stale cache from leaking one 404 across an unlock; it
+  does not change which origin `/v/` is served from.
+- **Parked spec.** The "users and agent authorization" spec
   (`.pi/specs/2026-09-21_hosti-users-agent-authorization/`) is parked and
   unbuilt.
 
