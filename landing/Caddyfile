@@ -1,0 +1,40 @@
+# The landing page for hosti.kubaszwajka.com, served on :80.
+# TLS ends at Dokploy's Traefik, so the container speaks plain HTTP.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	respond /healthz 200
+
+	# The app moved to hosti-private. Old share, approval and API links on this
+	# domain keep working through a permanent redirect that keeps path and query.
+	@app path /api/* /b/* /c/* /v/* /connect/* /login* /logout* /tokens* /upload*
+	redir @app https://hosti-private.kubaszwajka.com{uri} 308
+
+	# The files have no content hash, so even the long cache stays at one day.
+	@page path / /index.html
+	@assets path /styles/* /icon.svg
+	header @page Cache-Control "public, max-age=300"
+	header @assets Cache-Control "public, max-age=86400"
+
+	file_server
+
+	handle_errors {
+		# Drop the cache headers set above so a 404 is never kept.
+		header -Server
+		header Cache-Control "no-store"
+		header Content-Type "text/plain; charset=utf-8"
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
+}
