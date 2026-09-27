@@ -10,6 +10,8 @@
   --pop-wash: #e4f0f1;
   --danger: #8a2b14;
   --selection: #bfe0e3;
+  --white: #ffffff;
+  --ink-hover: #1b2123;
   --gap: 22px;
   --gap-lg: 34px;
   --radius: 10px;
@@ -19,16 +21,32 @@
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 }
 
-/* The mock bundle in the hero is someone else's page, so it is deliberately
-   off Hosti's palette. */
-.bundle-content {
-  --bundle-bg: #fff8ed;
-  --bundle-ink: #1a2730;
-  --bundle-muted: #68747a;
-  --bundle-line: #d8d4c9;
-  --bundle-accent: #e76445;
-  --bundle-accent-soft: #f6d3c6;
-  --bundle-blue: #2d6179;
+/* The mini pages in the catalog glimpse are other people's bundles, so they
+   are deliberately off Hosti's palette. */
+.mini {
+  --report-bg: #fff8ed;
+  --report-ink: #1a2730;
+  --report-line: #d8d4c9;
+  --report-blue: #2d6179;
+  --report-accent: #e76445;
+  --coverage-bg: #ffffff;
+  --coverage-ink: #1c2b22;
+  --coverage-track: #e5ece8;
+  --coverage-good: #2f8f5b;
+  --coverage-low: #d49a1f;
+  --deck-bg: #1d2b4f;
+  --deck-ink: #ffffff;
+  --deck-rule: #ff8a3d;
+  --latency-bg: #10181f;
+  --latency-ink: #c2d0d8;
+  --latency-grid: #26343f;
+  --latency-trace: #f2b441;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t: 0ms;
+  }
 }
 
 *,
@@ -121,78 +139,4 @@ a:hover {
 
 svg {
   display: block;
-}
-
-.display {
-  font-family: var(--font-serif);
-  font-size: clamp(34px, 5.6vw, 54px);
-  font-weight: 900;
-  line-height: 1.1;
-  letter-spacing: -0.025em;
-}
-
-.headline {
-  font-family: var(--font-serif);
-  font-size: 22px;
-  font-weight: 900;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.title {
-  font-family: var(--font-serif);
-  font-size: 25px;
-  font-weight: 900;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.meta {
-  font-size: 13.5px;
-  color: var(--muted);
-}
-
-.label {
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.4;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-code,
-kbd,
-samp,
-pre,
-.mono {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.5;
-  letter-spacing: 0.015em;
-  font-feature-settings:
-    "liga" 0,
-    "calt" 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.teal {
-  color: var(--pop);
-}
-
-.skip {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-}
-
-.skip:focus {
-  left: 12px;
-  top: 12px;
-  z-index: 2;
 }

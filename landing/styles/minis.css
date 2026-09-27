@@ -1,0 +1,214 @@
+/* mini pages: hand-made stand-ins for the bundle a card runs.
+   Words carry class .w so a phone row can drop them and keep the shapes. */
+.mini {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+}
+
+.mini-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.mini small {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.mini .ln {
+  display: block;
+  height: 6px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.18;
+}
+
+.mini-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* weekly report */
+.mini-report {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 6px;
+  padding: 10px 14px 24px;
+  background: var(--report-bg);
+  color: var(--report-ink);
+}
+
+.mini-report .mini-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--report-line);
+}
+
+.mini-report .mini-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.mini-report .ln:nth-of-type(1) {
+  width: 92%;
+}
+
+.mini-report .ln:nth-of-type(2) {
+  width: 78%;
+}
+
+.mini-report .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  border-bottom: 1px solid var(--report-line);
+}
+
+.mini-report .bars span {
+  flex: 1;
+  height: 42%;
+  background: linear-gradient(to top, var(--report-blue) 0 66%, var(--report-accent) 66% 100%);
+}
+
+.mini-report .bars span:nth-child(2) {
+  height: 68%;
+}
+
+.mini-report .bars span:nth-child(3) {
+  height: 54%;
+}
+
+.mini-report .bars span:nth-child(4) {
+  height: 86%;
+}
+
+.mini-report .bars span:nth-child(5) {
+  height: 61%;
+}
+
+.mini-report .bars span:nth-child(6) {
+  height: 76%;
+}
+
+/* test coverage */
+.mini-coverage {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 12px 14px;
+  background: var(--coverage-bg);
+  color: var(--coverage-ink);
+}
+
+.mini-coverage .mini-title {
+  margin-bottom: 2px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.mini-coverage .row {
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-coverage .meter {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--coverage-track);
+}
+
+.mini-coverage .meter span {
+  display: block;
+  width: 88%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--coverage-good);
+}
+
+.mini-coverage .row:nth-of-type(2) .meter span {
+  width: 74%;
+}
+
+.mini-coverage .row:nth-of-type(3) .meter span {
+  width: 91%;
+}
+
+.mini-coverage .row:nth-of-type(4) .meter span {
+  width: 52%;
+  background: var(--coverage-low);
+}
+
+.mini-coverage .row:nth-of-type(5) .meter span {
+  width: 80%;
+}
+
+/* slide deck */
+.mini-deck {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px 30px;
+  background: var(--deck-bg);
+  color: var(--deck-ink);
+}
+
+.mini-deck .mini-title {
+  font-size: max(15px, 10cqw);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.mini-deck .rule {
+  display: block;
+  width: 42px;
+  height: 5px;
+  margin-top: 10px;
+  background: var(--deck-rule);
+}
+
+.mini-deck small {
+  align-self: flex-end;
+}
+
+/* latency chart */
+.mini-latency {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  padding: 12px 14px 26px;
+  background: var(--latency-bg);
+  color: var(--latency-ink);
+}
+
+.mini-latency .mini-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mini-latency svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mini-latency .grid {
+  fill: none;
+  stroke: var(--latency-grid);
+  stroke-width: 1;
+}
+
+.mini-latency .trace {
+  fill: none;
+  stroke: var(--latency-trace);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
