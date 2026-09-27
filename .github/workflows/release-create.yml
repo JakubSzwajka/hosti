@@ -30,7 +30,8 @@ permissions:
 # The CLI install URL releases/latest/download/hosti-cli.tgz must keep pointing at a cli-v* release.
 env:
   DOCKERFILE: apps/web/Dockerfile
-  DOCKER_CONTEXT: .
+  # Not DOCKER_CONTEXT: Docker reads that name as its context selector.
+  BUILD_CONTEXT: .
   RELEASE_MARK_LATEST: "false"
   HEALTH_PATH: /api/health
 
@@ -87,7 +88,7 @@ jobs:
       - if: ${{ !inputs.dry_run }}
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: ${{ env.DOCKER_CONTEXT }}
+          context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.DOCKERFILE }}
           push: true
           build-args: APP_COMMIT=${{ github.sha }}
