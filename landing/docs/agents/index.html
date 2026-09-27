@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="The hosti-publish skill, agent connections, push tokens and scopes, and pushing over HTTP." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ecf2f3" />
+    <title>agents · hosti docs</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap" />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/landing.css" />
+    <link rel="stylesheet" href="/styles/docs.css" />
+    <link rel="stylesheet" href="/styles/docs-prose.css" />
+    <link rel="stylesheet" href="/styles/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <nav class="header-nav" aria-label="site">
+        <a class="header-link" href="/docs/">docs</a>
+        <a class="header-link" href="https://github.com/JakubSzwajka/hosti">source on github</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <nav class="docs-nav" aria-label="docs">
+        <p class="docs-nav-label">docs</p>
+        <ol>
+          <li><a href="/docs/">what hosti is</a></li>
+          <li><a href="/docs/self-host/">self-host</a></li>
+          <li><a href="/docs/cli/">the cli</a></li>
+          <li><a href="/docs/sharing/">sharing</a></li>
+          <li><a href="/docs/agents/" aria-current="page">agents</a></li>
+        </ol>
+      </nav>
+
+      <main id="main" class="docs-main">
+        <article class="prose">
+          <h1>Agents</h1>
+          <p class="lede">An agent publishes through the <code>hosti</code> CLI with a push token the owner approved. The <code>hosti-publish</code> skill tells it how.</p>
+
+          <h2>The hosti-publish skill</h2>
+          <p>The skill is one file in the Hosti repository, <code>skills/hosti-publish/SKILL.md</code>. An agent on any machine installs it by repository name:</p>
+          <pre><code>npx skills add JakubSzwajka/hosti</code></pre>
+          <p>Your catalog serves nothing for this, and the file is the same text for every instance. It holds no URL and no token. The CLI's saved login carries both.</p>
+          <p>The skill walks the agent through these steps:</p>
+          <ol>
+            <li>Run <code>hosti --help</code>, and install the CLI if it is missing.</li>
+            <li>Run <code>hosti whoami</code>. If that fails, ask the owner for the catalog's URL, never guess one, and run <code>hosti login &lt;catalog URL&gt;</code>.</li>
+            <li>Check that <code>index.html</code> sits at the root of the folder.</li>
+            <li>Pick a slug: lowercase letters, digits and dashes, 1 to 64 characters. Run <code>hosti ls</code> first, and tell the owner before replacing what is live at a taken slug.</li>
+            <li>Push, and hand the owner the admin link exactly as printed.</li>
+            <li>Share, only when asked. A pin comes from the owner. The agent never invents one and never repeats the digits back.</li>
+            <li>Rotate, only when asked.</li>
+            <li>Open, to print the link to hand over.</li>
+            <li>Delete, only when <code>hosti whoami</code> lists the <code>delete</code> scope and the owner asked for that bundle.</li>
+            <li>When a command fails, read its last line before doing anything else.</li>
+          </ol>
+          <p>The skill never prints the token, never reads it out of the config file, and never puts it in a file, a script, a command or a commit message.</p>
+
+          <h2>Connecting an agent</h2>
+          <p>The catalog's <code>/tokens</code> page, and the empty catalog, show the two commands an agent runs, with your instance's URL filled in:</p>
+          <pre><code>npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz
+hosti login https://hosti.example</code></pre>
+          <p>Under them is an agent prompt that says the same thing, ready to paste. Neither carries a token.</p>
+          <p><code>hosti login</code> starts an agent connection:</p>
+          <pre><code>agent  POST /api/v1/agent-authorizations
+       sends two digests, gets an id,
+       a code and an approval link
+  |
+owner  opens /connect/&lt;id&gt;, checks the
+       code, ticks scopes, approves
+  |
+agent  polls until approved, then saves
+       the login:
+  GET /api/v1/agent-authorizations/&lt;id&gt;</code></pre>
+          <p>The approval page shows the token name, the code, the scopes the agent asked for, and when the request runs out. <code>publish</code> and <code>share</code> are granted when asked. <code>delete</code> appears only when the agent ran <code>hosti login --allow-delete</code>, and its box starts unticked. You can grant less than was asked, never more.</p>
+          <p>A connection lives in server memory for ten minutes. A restart drops pending ones, and the agent then runs <code>hosti login</code> again. Approving needs no password when your browser already has a session.</p>
+
+          <h2>Push tokens</h2>
+          <p>A push token is a bearer secret an agent or the CLI uses to write. The agent makes it and sends only its digest, so Hosti never holds it in the clear and has nothing to show you. It never passes through your clipboard or the chat.</p>
+          <p>The <code>/tokens</code> list shows every push token, its scopes, when it was made and when it last pushed, with a revoke on each. Revoking drops the digest, so that token stops opening <code>/api/v1/</code> from the next request on. Revisions it already pushed keep its name on the bundle's <code>pushed by</code> line. Nothing under <code>/api/v1/</code> makes or revokes a token, so no push token can create another one.</p>
+
+          <h3>Scopes</h3>
+          <dl>
+            <div>
+              <dt><code>publish</code></dt>
+              <dd>List bundles, read one, push a revision (creating the bundle if new), prune. Every token has it.</dd>
+            </div>
+            <div>
+              <dt><code>share</code></dt>
+              <dd>Set the sharing state to <code>private</code>, <code>link</code> or <code>pin</code>, set a pin, rotate the share link.</dd>
+            </div>
+            <div>
+              <dt><code>delete</code></dt>
+              <dd>Delete a bundle, with its revisions and files. Granted only when the agent asked for it and the owner ticked it.</dd>
+            </div>
+          </dl>
+          <p>A command the token lacks the scope for answers 403 <code>missing_scope</code>. The CLI prints the server's message on the last line and exits 1. Tokens made before scopes existed carry all three.</p>
+
+          <h3>A token from a shell</h3>
+          <p>The owner can also make a push token on the server. It prints the secret once, and Hosti stores only the digest:</p>
+          <pre><code>docker compose exec web node scripts/new-token.mjs --name vps                  # publish and share
+docker compose exec web node scripts/new-token.mjs --name vps --allow-delete   # and delete</code></pre>
+          <p>From a checkout of the repository, <code>pnpm token:new -- --name laptop</code> does the same.</p>
+
+          <h2>Pushing over HTTP</h2>
+          <p>The CLI is a thin client over these routes. Every one takes <code>Authorization: Bearer &lt;push token&gt;</code>, and cookies never open them.</p>
+          <pre><code>POST   /api/v1/bundles/&lt;slug&gt;/revisions        publish   push a gzipped tarball
+GET    /api/v1/bundles                         publish   list bundles
+GET    /api/v1/bundles/&lt;slug&gt;                  publish   one bundle and its sharing state
+POST   /api/v1/bundles/&lt;slug&gt;/prune            publish   prune on demand
+PUT    /api/v1/bundles/&lt;slug&gt;/sharing          share     set the state
+POST   /api/v1/bundles/&lt;slug&gt;/sharing/rotate   share     mint a fresh share slug
+DELETE /api/v1/bundles/&lt;slug&gt;                  delete    the bundle, files and all
+GET    /api/v1/whoami                          any       the token's name and scopes</code></pre>
+          <p>A push by hand:</p>
+          <pre><code>tar czf /tmp/b.tgz -C ./out .
+curl -X POST https://hosti.example/api/v1/bundles/squad-2026/revisions \
+  -H "Authorization: Bearer $HOSTI_PUSH_TOKEN" \
+  -H "X-Hosti-Title: Squad 2026" \
+  --data-binary @/tmp/b.tgz</code></pre>
+          <p>It answers 201 with the revision number, the admin URL and the sharing state. <code>X-Hosti-Collection</code> sets a collection. Its name cannot be <code>-</code>, hold a slash, or run over 64 characters. A push naming <code>-</code> is refused 400 <code>bad_collection</code> before a byte reaches the disk.</p>
+          <p>A refused push leaves no partial directory and does not move <code>current</code>. The refusal names what went wrong, for example:</p>
+          <pre><code>No index.html at the root of the pushed tree. Found: docs/, notes.txt</code></pre>
+        </article>
+
+        <nav class="docs-pager" aria-label="previous and next page">
+          <a class="prev" href="/docs/sharing/"><small>previous</small><span>sharing</span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <a class="footer-link" href="/docs/">docs</a>
+      <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
+      <span class="footer-license">MIT license</span>
+      <p class="register">one VPS, one domain, one person</p>
+    </footer>
+  </body>
+</html>

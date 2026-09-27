@@ -1,0 +1,149 @@
+/* docs frame: the landing header and footer around a nav and one prose column */
+.docs-shell {
+  display: grid;
+  width: min(1080px, calc(100% - 64px));
+  min-width: 0;
+  margin-inline: auto;
+  padding-block: var(--gap-lg) 56px;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+/* the docs nav: every page, the current one marked */
+.docs-nav {
+  position: sticky;
+  top: 20px;
+  min-width: 0;
+}
+
+.docs-nav-label {
+  padding-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.docs-nav ol {
+  display: grid;
+  gap: 2px;
+}
+
+.docs-nav a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 15px;
+  text-decoration: none;
+  transition:
+    color var(--t) ease,
+    border-color var(--t) ease;
+}
+
+.docs-nav a:hover {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.docs-nav a[aria-current="page"] {
+  border-color: var(--line);
+  background: var(--card);
+  font-weight: 500;
+}
+
+.docs-main {
+  min-width: 0;
+}
+
+/* next and previous page, at the foot of the column */
+.docs-pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 68ch;
+  margin-top: 56px;
+  padding-top: var(--gap);
+  border-top: 1px solid var(--line);
+}
+
+.docs-pager a {
+  display: inline-flex;
+  min-height: 44px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  text-decoration: none;
+  transition: border-color var(--t) ease;
+}
+
+.docs-pager a:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.docs-pager .next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.docs-pager small {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.docs-pager span {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+@media (max-width: 900px) {
+  .docs-shell {
+    width: 100%;
+    padding-inline: 20px;
+    padding-block: 24px 40px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .docs-nav {
+    position: static;
+  }
+
+  .docs-nav ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .docs-nav a {
+    border-color: var(--line);
+    background: var(--card);
+    font-size: 15px;
+  }
+
+  .docs-nav a[aria-current="page"] {
+    border-color: var(--ink);
+  }
+}
+
+@media (max-width: 560px) {
+  .docs-pager a {
+    flex: 1 1 100%;
+  }
+
+  .docs-pager .next {
+    text-align: left;
+  }
+}

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Run hosti on one VPS: the Docker image, Compose, environment variables, the data volume and backups." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ecf2f3" />
+    <title>self-host · hosti docs</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap" />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/landing.css" />
+    <link rel="stylesheet" href="/styles/docs.css" />
+    <link rel="stylesheet" href="/styles/docs-prose.css" />
+    <link rel="stylesheet" href="/styles/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <nav class="header-nav" aria-label="site">
+        <a class="header-link" href="/docs/">docs</a>
+        <a class="header-link" href="https://github.com/JakubSzwajka/hosti">source on github</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <nav class="docs-nav" aria-label="docs">
+        <p class="docs-nav-label">docs</p>
+        <ol>
+          <li><a href="/docs/">what hosti is</a></li>
+          <li><a href="/docs/self-host/" aria-current="page">self-host</a></li>
+          <li><a href="/docs/cli/">the cli</a></li>
+          <li><a href="/docs/sharing/">sharing</a></li>
+          <li><a href="/docs/agents/">agents</a></li>
+        </ol>
+      </nav>
+
+      <main id="main" class="docs-main">
+        <article class="prose">
+          <h1>Self-host hosti</h1>
+          <p class="lede">Hosti runs as one container on one VPS. One named volume at <code>/data</code> holds both the bundles and the SQLite database, and a reverse proxy in front gives it HTTPS.</p>
+
+          <h2>The image</h2>
+          <p>Each release publishes an image to GitHub's container registry:</p>
+          <pre><code>ghcr.io/jakubszwajka/hosti:latest    the newest release
+ghcr.io/jakubszwajka/hosti:v0.1.0    one release, pinned</code></pre>
+          <p>A merge to <code>main</code> builds no image and moves no tag. Only a release moves <code>latest</code>. The image runs Node as the <code>node</code> user, listens on port <code>3000</code> and declares <code>/data</code> as a volume. It already sets <code>HOSTI_DATA_DIR=/data</code> and <code>PORT=3000</code>.</p>
+          <p>If the package is private, the pull needs a GitHub token with <code>read:packages</code>, never your account password. Log in first with <code>docker login ghcr.io -u YOUR_GITHUB_USERNAME</code>, and keep the token out of the repository and out of <code>.env</code>.</p>
+
+          <h2>Compose</h2>
+          <p>The repository's <code>docker-compose.yml</code> is a working deployment: one service, <code>web</code>, and one named volume. Without its comments and its healthcheck it reads:</p>
+          <pre><code>services:
+  web:
+    image: ghcr.io/jakubszwajka/hosti:latest
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      HOSTI_DATA_DIR: /data
+      HOSTI_PUBLIC_URL: ${HOSTI_PUBLIC_URL:-http://localhost:3000}
+      HOSTI_OWNER_PASSWORD: ${HOSTI_OWNER_PASSWORD:?set HOSTI_OWNER_PASSWORD in .env}
+      HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
+      PORT: "3000"
+    expose:
+      - "3000"
+    volumes:
+      - hosti_data:/data
+
+volumes:
+  hosti_data:</code></pre>
+          <p>Put the settings in a <code>.env</code> file next to it:</p>
+          <pre><code>HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
+HOSTI_SECRET='replace-with-output-from-openssl-rand-hex-32'
+HOSTI_PUBLIC_URL=https://hosti.example</code></pre>
+          <p>Make the secret with <code>openssl rand -hex 32</code>. Then start it:</p>
+          <pre><code>docker compose up -d</code></pre>
+          <p>Compose refuses to start while <code>HOSTI_OWNER_PASSWORD</code> or <code>HOSTI_SECRET</code> is missing. Because of <code>pull_policy: always</code>, every <code>docker compose up -d</code> asks the registry for the current <code>latest</code>. Pin a version tag such as <code>:v0.1.0</code> to stay on one release.</p>
+
+          <div class="note">
+            <p><strong>Single-quote every secret.</strong> Compose reads <code>$name</code> in an unquoted value as a variable and puts its value in, usually nothing, so <code>secr$tone</code> arrives as <code>secr</code>. Double quotes do not protect a <code>$</code>. A password ending in <code>#</code> has also failed login when set unquoted. Single quotes cover both cases.</p>
+          </div>
+
+          <h2>HTTPS and the reverse proxy</h2>
+          <p>The service publishes no host port. It only exposes port <code>3000</code> to the Docker network. Point a reverse proxy on the same network, such as Traefik or Caddy, at service <code>web</code> on port <code>3000</code>, and give it an HTTPS domain.</p>
+          <p><code>HOSTI_PUBLIC_URL</code> must be that exact HTTPS origin, for example <code>https://hosti.example</code>. The approval link an agent prints is built from it.</p>
+
+          <h2>First login</h2>
+          <p>Open the domain and log in at <code>/login</code> with <code>HOSTI_OWNER_PASSWORD</code>. Without the password and the secret, <code>/login</code> names the missing value and the catalog serves no admin page.</p>
+          <p>The session is a signed cookie, <code>hosti_admin</code>, good for 30 days. The login form takes five wrong passwords per caller per fifteen minutes, then locks that caller out for ten. The count lives in memory, so a restart clears it.</p>
+          <p>Next, connect an agent. The agents page in the docs nav walks through it.</p>
+
+          <h2>Environment variables</h2>
+          <p>The repository's <code>.env.schema</code> lists and types every variable Hosti reads. Only variables listed in the Compose service's <code>environment</code> reach the container, so add an optional one there as well as to <code>.env</code>.</p>
+          <dl>
+            <div>
+              <dt><code>HOSTI_OWNER_PASSWORD</code></dt>
+              <dd>The owner password for <code>/login</code>. Compose requires it.</dd>
+            </div>
+            <div>
+              <dt><code>HOSTI_SECRET</code></dt>
+              <dd>Signs the admin session, the pin unlock cookie and the catalog's preview grants. Setting a pin needs it. Compose requires it. Rotating it ends every outstanding preview grant.</dd>
+            </div>
+            <div>
+              <dt><code>HOSTI_PUBLIC_URL</code></dt>
+              <dd>The exact public HTTPS origin. Compose defaults it to <code>http://localhost:3000</code>, but a deployment must set it.</dd>
+            </div>
+            <div>
+              <dt><code>HOSTI_KEEP_REVISIONS</code></dt>
+              <dd>How many revisions a push keeps per bundle. Defaults to <code>5</code>. A value below 1 is read as 1, and anything that is not a number falls back to 5. The current revision is never deleted. Not in the Compose file by default.</dd>
+            </div>
+            <div>
+              <dt><code>HOSTI_DATA_DIR</code></dt>
+              <dd>Where bundles and <code>hosti.db</code> live. Defaults to <code>./data</code>; the image sets <code>/data</code>.</dd>
+            </div>
+            <div>
+              <dt><code>PORT</code></dt>
+              <dd>The port the server listens on. <code>3000</code> in the image and in Compose.</dd>
+            </div>
+            <div>
+              <dt><code>APP_COMMIT</code></dt>
+              <dd>A build argument. <code>/api/health</code> reports its first 12 characters, or <code>unknown</code> when it is empty.</dd>
+            </div>
+          </dl>
+          <p>After you change a variable, recreate the container. A restart keeps the old environment. To see what the running container holds without printing a secret, run:</p>
+          <pre><code>docker compose exec web node scripts/env-check.mjs</code></pre>
+          <p>It prints lengths and digest prefixes, never a value.</p>
+
+          <h2>Health</h2>
+          <p><code>GET /api/health</code> answers without login. The Compose healthcheck calls it inside the container every 10 seconds.</p>
+          <pre><code>{"status":"ok","commit":"0123456789ab"}</code></pre>
+
+          <h2>The data volume</h2>
+          <p>Everything Hosti keeps is under <code>/data</code>:</p>
+          <pre><code>$HOSTI_DATA_DIR/
+  hosti.db
+  bundles/squad-2026/
+    current -&gt; r2
+    r1/index.html
+    r2/index.html</code></pre>
+          <p><code>hosti.db</code> holds the metadata, push token digests included. Each revision is a directory, and <code>current</code> is a symlink that a push flips only after the new revision unpacked and passed the entry-file check.</p>
+          <p><code>docker compose down</code> keeps <code>hosti_data</code>. <code>docker compose down -v</code> removes it, and with it every bundle and the database.</p>
+
+          <h2>Backups</h2>
+          <p>A <code>tar</code> archive over <code>/data</code> captures both the bundles and the database. Take one before you touch the volume by hand. These docs do not give a backup schedule or a restore procedure.</p>
+
+          <h2>Upgrades</h2>
+          <p>With <code>latest</code>, <code>docker compose up -d</code> moves you to the newest release. There is no separate migration step: Hosti checks the schema version when it opens <code>hosti.db</code> and upgrades the file in place, forward only. An older image would then start against a newer schema, so going back means restoring a backup, not only running the older image. Take a fresh backup of <code>/data</code> before you move to a new release.</p>
+
+          <h2>Build it yourself</h2>
+          <p>The image is built from <code>apps/web/Dockerfile</code> with the repository root as the build context, because the Dockerfile needs the whole workspace. An image built without the <code>APP_COMMIT</code> build argument reports <code>unknown</code> as its commit on <code>/api/health</code>.</p>
+        </article>
+
+        <nav class="docs-pager" aria-label="previous and next page">
+          <a class="prev" href="/docs/"><small>previous</small><span>what hosti is</span></a>
+          <a class="next" href="/docs/cli/"><small>next</small><span>the cli</span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <a class="footer-link" href="/docs/">docs</a>
+      <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
+      <span class="footer-license">MIT license</span>
+      <p class="register">one VPS, one domain, one person</p>
+    </footer>
+  </body>
+</html>
