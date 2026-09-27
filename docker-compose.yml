@@ -1,10 +1,11 @@
 # A deployment example: one service, one named volume. The volume holds both
 # the bundles and the SQLite file, so a backup is `tar` over /data.
 #
-# Nothing is built here. The image is the one the publish workflow pushes from
-# main. The service sets `pull_policy: always`, so every `docker compose up`
-# asks the registry for the current `latest` instead of reusing whatever the
-# local daemon already has under that tag.
+# Nothing is built here. `latest` is the newest release: "Create release" moves
+# it when it tags a version, and a merge to main does not. The service sets
+# `pull_policy: always`, so every `docker compose up` asks the registry for the
+# current `latest` instead of reusing whatever the local daemon already has
+# under that tag. Pin a version tag such as `:v0.1.0` to stay on one release.
 services:
   web:
     image: ghcr.io/jakubszwajka/hosti:latest
@@ -29,7 +30,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
         ]
       interval: 10s
       timeout: 5s

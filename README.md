@@ -26,6 +26,12 @@ Dokploy is likely not wired correctly. Until that is fixed, deploy by hand in
 the Dokploy UI (the application's Deploy button) or through its API after
 every push to `main`.
 
+This is moving to gated releases: a merge to `main` will deploy nothing, and
+prod will change only when someone runs "Create release" or "Deploy prod" in
+GitHub Actions. The workflows are in the repository; switching the Dokploy
+application to the released image is still to do. See
+[docs/release.md](docs/release.md).
+
 To set up the same thing again:
 
 1. Create an application in Dokploy with GitHub as the source, this repository
@@ -89,10 +95,12 @@ hand: a `tar` archive over `/data` captures both the bundles and the database.
 ### Another host: the GHCR image with Compose
 
 `docker-compose.yml` runs `ghcr.io/jakubszwajka/hosti:latest` instead of
-building. The `Publish image` workflow builds that image from
-`apps/web/Dockerfile` on each push to main. The repository and its GHCR
-package are private, so the pull needs a GitHub token with `read:packages`,
-never your account password. In Dokploy that goes in the registry
+building. `latest` is the newest release. The "Create release" workflow moves
+it when it tags a version; a push to `main` builds no image and moves no tag.
+Each release also gets its own tag, such as `:v0.1.0`, and you can pin that
+instead. See [docs/release.md](docs/release.md). If the GHCR package is
+private, the pull needs a GitHub token with `read:packages`, never your
+account password. In Dokploy that goes in the registry
 credentials; on a plain host run `docker login ghcr.io -u YOUR_GITHUB_USERNAME`
 first. Keep the token out of this repository and `.env`.
 
@@ -111,9 +119,8 @@ docker compose exec web node scripts/new-token.mjs --name vps
 
 The service sets `pull_policy: always`, so `docker compose up -d` asks the
 registry for the current `latest` rather than reusing a local image with the
-same tag. Watch the timing: the image is built by the same push that may
-trigger a deploy, and the action takes about two minutes. A deploy that starts
-before it finishes pulls the previous `latest`. `docker compose down` keeps
+same tag. Its healthcheck calls `/api/health`, which answers without login and
+reports the commit the image was built from. `docker compose down` keeps
 `hosti_data`; `docker compose down -v` also removes it.
 
 ## Local development

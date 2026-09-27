@@ -43,6 +43,12 @@ npx skills add JakubSzwajka/hosti
 
 The app is deployed to `hosti.kubaszwajka.com` from `main`.
 
+Branch `feat/gated-release` adds the gated release workflows ("Publish image",
+"Create release", "Deploy prod"), `scripts/ci`, and `GET /api/health`, which
+reports the image's commit. It removes the old `publish-image.yml`, which
+pushed `:latest` on every push to `main`; `latest` now moves only on a
+release. See [docs/release.md](docs/release.md).
+
 ## The `/v/` cache fix
 
 Observed on prod, 2026-09-27, behind Cloudflare: a request for
@@ -73,11 +79,15 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
   Because the repository is now public, treat that old value as burned: it
   must never be reused anywhere, and the live password needs a fresh value in
   Dokploy.
-- **Wire the Dokploy GitHub webhook.** Auto deploy is turned on for the
-  `hosti` application, but pushes to `main` on 2026-09-26 and 2026-09-27 did
-  not trigger a deploy. The webhook from GitHub to Dokploy is the suspect.
-  Until it is fixed, deploy by hand in the Dokploy UI or through its API after
-  every push (see README.md's Dokploy section).
+- **Finish the gated release onboarding.** The repository half is on
+  `feat/gated-release`. Left: merge it, set the repo secrets and variables
+  (`APP_URL` is `https://hosti.kubaszwajka.com`), cut `v0.1.0` with the deploy
+  off, switch the Dokploy `hosti` application to the pinned image with
+  auto deploy off, run "Deploy prod", and update the fleet map. The release
+  skill's devops mode has the steps. Until then, deploy by hand in the Dokploy
+  UI or through its API after every push (see README.md's Dokploy section);
+  the GitHub webhook to Dokploy never triggered a deploy, and the gated
+  profile replaces it.
 - **Accepted origin risk.** A bundle's JavaScript still runs on the catalog's
   origin and can read an admin page's mutation token while the owner is
   logged in (accepted 2026-09-26; see README.md's "The origin risk"). Serving

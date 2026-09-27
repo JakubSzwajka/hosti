@@ -1,0 +1,135 @@
+name: Publish image
+
+# hosti copy of the gated release profile. The reference lives in
+# JakubSzwajka/drunk-cat-stack; keep this copy in step by hand. docs/release.md
+# lists where it differs.
+#
+# Bakes one commit into an immutable, deployable prod image. This is a BUILD, not a
+# release: it pushes only `ghcr.io/<owner>/<repo>:prod-sha-<12>` (the repository
+# name, lowercased) and moves no
+# mutable tag. "Create release" calls it, then aliases what it built with the
+# version.
+#
+# Nothing triggers it on push or pull_request. workflow_dispatch is the escape
+# hatch: bake an arbitrary main commit by hand (`ref`), for example to bisect a
+# production regression. A dispatched build moves no alias.
+#
+# `ref` is declared on both triggers rather than read opportunistically off one: the
+# `inputs` context is shared between them, and an undeclared name would silently
+# resolve to empty instead of failing loudly.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Commit to build (branch, tag or SHA). Empty = the caller's commit. Must be on main."
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit to build (branch, tag or SHA). Empty = the ref this run was dispatched on. Must be on main."
+        required: false
+        type: string
+
+# No concurrency group. The only tag this pushes is immutable and commit-derived, so
+# two builds can never contend for it; releases already serialize on `hosti-release`.
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  publish-image:
+    name: Publish image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha12: ${{ steps.image.outputs.sha12 }}
+    steps:
+      # Full history so an arbitrary dispatched ref can be checked against main.
+      # An empty `ref` falls back to the commit this run is for — the release commit
+      # when called from "Create release".
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Prepare image metadata
+        id: image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          # Resolved from the checkout, not GITHUB_SHA: a dispatched `ref` builds a
+          # different commit than the one the run was started on.
+          sha="$(git rev-parse HEAD)"
+
+          # Only ever bake reviewed, merged code. "Deploy prod" applies the same rule
+          # to a release tag; enforcing it here means an off-main commit never gets
+          # an image that looks deployable.
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "Commit ${sha} is not an ancestor of origin/main; refusing to build a prod image." >&2
+            exit 1
+          fi
+
+          # The image is named after the repository; GHCR requires lowercase.
+          image="${REGISTRY}/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          short_sha="${sha:0:12}"
+
+          # One immutable tag and nothing else. The version alias is added by
+          # "Create release" once the release is real.
+          {
+            echo "sha=${sha}"
+            echo "sha12=${short_sha}"
+            echo "tags=${image}:prod-sha-${short_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Building prod-sha-${short_sha}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # apps/web/Dockerfile, context `.`: the build needs the whole workspace. The one
+      # build arg is the commit, which /api/health reports so "Deploy prod" can tell
+      # the new container from the old. The image carries no configuration, so the
+      # same bits run wherever Dokploy's runtime env points.
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.tags }}
+          build-args: |
+            APP_COMMIT=${{ steps.image.outputs.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
+
+      - name: Summarize
+        env:
+          SHA12: ${{ steps.image.outputs.sha12 }}
+        shell: bash
+        run: |
+          {
+            echo "### Image built"
+            echo ""
+            echo "Commit \`${SHA12}\` is now deployable as \`prod-sha-${SHA12}\`."
+            echo ""
+            echo "No mutable tag was moved. To ship it, run **Create release**; to deploy"
+            echo "an already-tagged commit, run **Deploy prod** with its \`vX.Y.Z\`."
+          } >> "$GITHUB_STEP_SUMMARY"

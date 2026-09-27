@@ -1,0 +1,187 @@
+name: Deploy prod
+
+# hosti copy of the gated release profile. The reference lives in
+# JakubSzwajka/drunk-cat-stack; keep this copy in step by hand. docs/release.md
+# lists where it differs.
+#
+# Deploys a *released version* to prod. The unit of release is a `vX.Y.Z` Git tag
+# created by "Create release"; this workflow resolves that tag to its commit and
+# deploys the immutable `prod-sha-<12>` image that "Publish image" built for it.
+#
+# Nothing triggers it on push. Two entry points, one job:
+#   workflow_call     — "Create release" chains into a deploy right after tagging.
+#   workflow_dispatch — redeploy, or roll back to any earlier vX.Y.Z, by hand.
+#     A rollback only re-points Dokploy at an older image; nothing is rebuilt.
+#
+# GATE: the manual "Create release" / "Deploy prod" dispatch is the ONLY thing
+# standing between a merge and production (including any database migration the
+# app runs on start). Private repos on
+# GitHub Free get no environment reviewers, so this workflow uses repo-level
+# secrets and variables and no `environment:`.
+#
+# Repo config it reads:
+#   secrets   DOKPLOY_API_KEY, SLACK_DEPLOY_WEBHOOK
+#   variables DOKPLOY_BASE_URL, DOKPLOY_APPLICATION_ID, APP_URL
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release tag to deploy, e.g. v0.2.0
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to deploy or roll back to (e.g. v0.2.0). Empty = newest release tag.
+        required: false
+        type: string
+
+# Serialize prod rollouts; never cancel one mid-flight.
+concurrency:
+  group: hosti-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy:
+    name: Deploy to prod
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      # Full history + tags: the version has to be resolved to a commit, and that
+      # commit checked against main. Scripts run from the default branch, never
+      # from the release commit — this job holds the Dokploy key.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version to a commit
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          version="${INPUT_VERSION:-}"
+          if [ -z "$version" ]; then
+            version="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+            if [ -z "$version" ]; then
+              echo "No vX.Y.Z release tag exists yet. Run 'Create release' first." >&2
+              exit 1
+            fi
+            echo "No version given; deploying the newest release tag."
+          fi
+
+          if ! git rev-parse -q --verify "refs/tags/${version}" >/dev/null; then
+            echo "Tag ${version} does not exist." >&2
+            exit 1
+          fi
+
+          sha="$(git rev-parse "refs/tags/${version}^{commit}")"
+
+          # A release must be something that actually landed on main. Without this,
+          # a tag pushed at an arbitrary commit would deploy code that was never
+          # reviewed or merged.
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "Commit ${sha} for ${version} is not an ancestor of origin/main." >&2
+            exit 1
+          fi
+
+          sha12="${sha:0:12}"
+          image="${REGISTRY}/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+
+          {
+            echo "VERSION=${version}"
+            echo "COMMIT_SHA=${sha}"
+            echo "SHA12=${sha12}"
+            echo "IMAGE=${image}:prod-sha-${sha12}"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "version=${version}"
+            echo "sha=${sha}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Deploying ${version} (${sha12})"
+
+      # Before any mutation: a bad runtime env fails the job without leaving a
+      # dangling deployment behind. It rejects task-scoped Swarm hostnames, which
+      # resolve until the referenced container is replaced and then take the app
+      # down for good.
+      - name: Preflight Dokploy runtime env
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          : "${APP_ID:?DOKPLOY_APPLICATION_ID repo variable is required}"
+          bash scripts/ci/preflight-dokploy-env.sh "$APP_ID" "hosti prod"
+
+      # Sets the app's dockerImage to the immutable prod-sha ref, deploys, and
+      # polls deployment.all until the new deployment is done.
+      - name: Deploy to Dokploy
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+        shell: bash
+        run: bash scripts/ci/dokploy-deploy.sh "$APP_ID" "$IMAGE" "${VERSION} (prod-sha-${SHA12})"
+
+      # A 200 alone could come from the old container, which keeps serving until
+      # the new one passes the Swarm healthcheck (60 s start period). So wait, up to
+      # 5 minutes, for a 200 whose `commit` is the one being deployed. An image
+      # built before "Publish image" passed APP_COMMIT reports no commit, so a
+      # rollback to such a version fails here even when the rollout worked.
+      - name: Smoke test /api/health serves the new commit
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          SMOKE_TIMEOUT: "300"
+          SMOKE_DELAY: "6"
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          : "${APP_URL:?APP_URL repo variable is required}"
+          bash scripts/ci/smoke-commit.sh "$APP_URL" "$COMMIT_SHA"
+
+      - name: Summarize
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        shell: bash
+        run: |
+          {
+            echo "### Prod deploy — ${VERSION}"
+            echo ""
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Commit | \`${COMMIT_SHA}\` |"
+            echo "| Image tag | \`prod-sha-${SHA12}\` |"
+            echo "| App | ${APP_URL} |"
+            echo "| Image | \`${IMAGE}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # One step for both outcomes: always() plus job.status, so a cancelled run
+      # alerts too. The script no-ops on an empty webhook; continue-on-error covers
+      # the rest.
+      - name: Notify #deploys
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
+          TAG: ${{ steps.resolve.outputs.version || 'unresolved' }}
+          COMMIT_SHA: ${{ steps.resolve.outputs.sha }}
+          APP_URL: ${{ vars.APP_URL }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: bash scripts/ci/slack-notify.sh "$JOB_STATUS"
