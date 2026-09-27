@@ -8,7 +8,9 @@
     "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "noEmit": true
+    "noEmit": true,
+    // The CLI is plain Node code, not Effect, so the inherited Effect diagnostics stay off here.
+    "plugins": [{ "name": "@effect/language-service", "diagnostics": false }]
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }

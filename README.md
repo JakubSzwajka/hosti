@@ -429,7 +429,7 @@ node apps/cli/src/index.ts --help
 
 Node refuses to strip types from files under `node_modules`, so the installed
 package is compiled JavaScript. `pnpm --filter @hosti/cli run pack:tgz` builds
-it with the CLI's own TypeScript 5.9.3 in a temporary directory and writes
+it with the CLI's own TypeScript 7.0.2 in a temporary directory and writes
 `apps/cli/hosti-cli.tgz`. Pass a directory to write it somewhere else. The
 packed CLI imports no workspace package at run time; its one dependency is
 `tar`. `tests/cli-package.test.mjs` packs it, installs the tarball offline into
