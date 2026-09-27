@@ -41,13 +41,25 @@ npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/ho
 npx skills add JakubSzwajka/hosti
 ```
 
-The app is deployed to `hosti.kubaszwajka.com` from `main`.
+The app is served at `hosti-private.kubaszwajka.com`, by the Dokploy
+application `hosti`. `HOSTI_PUBLIC_URL` and the repo variable `APP_URL` are
+that origin, so new share and approval links use it.
+`hosti.kubaszwajka.com` is now the static landing page, served by its own
+Dokploy application, `hosti-landing`, built from `landing/Dockerfile` on
+`main` with auto deploy off and deployed by hand. Its Caddy sends a 308 to
+`hosti-private` for `/api`, `/b`, `/c`, `/v`, `/connect`, `/login`,
+`/logout`, `/tokens` and `/upload`, so old share and approval links keep
+working. On 2026-09-27 the app sat briefly at `hosti-priv.kubaszwajka.com`;
+that domain is removed.
 
-Branch `feat/gated-release` adds the gated release workflow, one file named
-"Create release" that builds, tags, releases and deploys, and
-`GET /api/health`, which reports the image's commit. It removes the old `publish-image.yml`, which
+Gated release onboarding is done. PR #15 added the "Create release" workflow,
+one file that builds, tags, releases and deploys, and `GET /api/health`, which
+reports the image's commit. It removed the old `publish-image.yml`, which
 pushed `:latest` on every push to `main`; `latest` now moves only on a
-release. See [docs/release.md](docs/release.md).
+release. On 2026-09-27 the Dokploy `hosti` application moved to the pinned
+image `ghcr.io/jakubszwajka/hosti:prod-sha-a7488f87868d` with auto deploy
+off, and `v0.1.0` (`a7488f8`) was deployed through "Create release". See
+[docs/release.md](docs/release.md).
 
 ## The `/v/` cache fix
 
@@ -79,15 +91,14 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
   Because the repository is now public, treat that old value as burned: it
   must never be reused anywhere, and the live password needs a fresh value in
   Dokploy.
-- **Finish the gated release onboarding.** The repository half is on
-  `feat/gated-release`. Left: merge it, set the repo secrets and variables
-  (`APP_URL` is `https://hosti.kubaszwajka.com`), switch the Dokploy `hosti`
-  application to a Docker image source with auto deploy off, dry-run and then
-  run "Create release" to ship `v0.1.0`, and update the fleet map. The release
-  skill's devops mode has the steps. Until then, deploy by hand in the Dokploy
-  UI or through its API after every push (see README.md's Dokploy section);
-  the GitHub webhook to Dokploy never triggered a deploy, and the gated
-  profile replaces it.
+- **CLI logins on the old domain.** The CLI has no built-in default server
+  URL, and the 308 cannot carry a login: `fetch` drops `Authorization` on a
+  cross-origin redirect. Anyone logged in against `hosti.kubaszwajka.com`
+  must set `url` in `~/.config/hosti.json`, or `HOSTI_URL`, to
+  `https://hosti-private.kubaszwajka.com`. The token stays valid.
+- **Release `v0.2.0` is next.** It carries Next 16 and TypeScript 7 (#17),
+  the landing hero (#18) and its image (#19). The landing page itself ships
+  by a hand deploy of `hosti-landing`, not by "Create release".
 - **Accepted origin risk.** A bundle's JavaScript still runs on the catalog's
   origin and can read an admin page's mutation token while the owner is
   logged in (accepted 2026-09-26; see README.md's "The origin risk"). Serving
