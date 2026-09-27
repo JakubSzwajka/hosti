@@ -25,7 +25,7 @@ Put private helpers under `src/internal/`. Export named items through `src/index
 
 Add the package dependency to `@hosti/web`, then create the caller under `apps/web/src/use-cases/`. Import through the package name, never by a relative path into `packages/`.
 
-Use `Effect.fn` for reusable use-cases. Let typed errors flow through the error channel. Use-cases must not import `src/app` routes or `src/server` modules. `apps/web/tsconfig.effect.json` typechecks use-cases with the patched TypeScript 7 compiler. Keep React components, routes, and Next.js framework code out of that project because Next.js 15.5.25 requires TypeScript 5.9.3.
+Use `Effect.fn` for reusable use-cases. Let typed errors flow through the error channel. Use-cases must not import `src/app` routes or `src/server` modules. `apps/web/tsconfig.effect.json` typechecks use-cases with the patched TypeScript 7 compiler. Keep React components, routes, and Next.js framework code out of that project, because the main web pass turns the Effect diagnostics off for them.
 
 ## 4. Map errors in delivery
 
@@ -46,4 +46,4 @@ pnpm check
 pnpm test
 ```
 
-`pnpm check` runs TypeScript 5.9.3 on the web framework, CLI, and shared projects. It also runs the patched TypeScript 7 compiler on Effect packages and the web use-cases, with the full Effect diagnostics block at `error`. Fix diagnostics in code. Never lower a diagnostic to make a check pass.
+`pnpm check` runs the patched TypeScript 7 compiler everywhere. The web framework and CLI projects turn the Effect diagnostics off. Effect packages, `packages/shared`, and the web use-cases run with the full Effect diagnostics block at `error`. Fix diagnostics in code. Never lower a diagnostic to make a check pass.

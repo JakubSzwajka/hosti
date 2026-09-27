@@ -11,6 +11,9 @@ minimumReleaseAgeExclude:
   - effect@4.0.0-rc.117
   - "@effect/vitest@4.0.0-rc.117"
 
+# The comment plugin's @typescript-eslint/parser peers on TypeScript below 6.1.
+# Giving the plugin its own TypeScript 6.0.3 satisfies that peer inside its subtree.
+# The root and every workspace package, apps/web included, use TypeScript 7.0.2.
 packageExtensions:
   eslint-plugin-codebase-ai-rules:
     dependencies:

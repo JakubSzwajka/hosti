@@ -20,7 +20,7 @@
   "devDependencies": {
     "@hosti/shared": "workspace:0.1.0",
     "@types/node": "22.20.3",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "vitest": "3.2.7"
   },
   "engines": {

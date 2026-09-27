@@ -1,7 +1,8 @@
 import path from "node:path";
 
 export function dataDir(): string {
-  return path.resolve(process.env.HOSTI_DATA_DIR ?? "./data");
+  // Without the ignore hint, Turbopack traces the whole project into the standalone output.
+  return path.resolve(/* turbopackIgnore: true */ process.env.HOSTI_DATA_DIR ?? "./data");
 }
 
 export function bundlesDir(): string {

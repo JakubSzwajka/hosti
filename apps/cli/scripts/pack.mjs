@@ -11,7 +11,14 @@ const TARBALL = "hosti-cli.tgz";
 
 function pack(destination) {
   const manifest = JSON.parse(fs.readFileSync(path.join(CLI_ROOT, "package.json"), "utf8"));
-  const tsc = createRequire(path.join(CLI_ROOT, "package.json")).resolve("typescript/bin/tsc");
+  // TypeScript 7 does not export ./bin/tsc, so find it through the package manifest.
+  const typescriptManifest = createRequire(path.join(CLI_ROOT, "package.json")).resolve(
+    "typescript/package.json",
+  );
+  const tsc = path.join(
+    path.dirname(typescriptManifest),
+    JSON.parse(fs.readFileSync(typescriptManifest, "utf8")).bin.tsc,
+  );
 
   // Node will not strip types under node_modules, so compile into a staging dir outside the checkout.
   const staging = fs.mkdtempSync(path.join(os.tmpdir(), "hosti-cli-pack-"));

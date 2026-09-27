@@ -1,6 +1,8 @@
 .pi/specs/
 node_modules/
 .next/
+# Next.js writes this per command; its docs say not to track it.
+next-env.d.ts
 .env
 .env.local
 .env.*.local
