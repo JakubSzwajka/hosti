@@ -27,9 +27,9 @@ the Dokploy UI (the application's Deploy button) or through its API after
 every push to `main`.
 
 This is moving to gated releases: a merge to `main` will deploy nothing, and
-prod will change only when someone runs "Create release" or "Deploy prod" in
-GitHub Actions. The workflows are in the repository; switching the Dokploy
-application to the released image is still to do. See
+prod will change only when someone runs "Create release" in GitHub Actions.
+That one workflow is in the repository; switching the Dokploy application to
+the released image is still to do. See
 [docs/release.md](docs/release.md).
 
 To set up the same thing again:

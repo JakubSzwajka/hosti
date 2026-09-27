@@ -1,24 +1,8 @@
 name: Create release
 
-# hosti copy of the gated release profile. The reference lives in
-# JakubSzwajka/drunk-cat-stack; keep this copy in step by hand. docs/release.md
-# lists where it differs.
-#
-# Cuts a versioned release out of whatever has accumulated on main, then deploys it.
-#
-# A merge to main ships nothing and builds nothing. This workflow is the release,
-# end to end: it builds the prod image for the commit ("Publish image"), picks the
-# next semver, writes release notes from the commit subjects since the last
-# release, creates the `vX.Y.Z` tag and GitHub Release, aliases the image with the
-# version, and hands the version to "Deploy prod".
-#
-# Running this workflow IS the approval: private repos on GitHub Free get no
-# environment reviewers, and an app that migrates its database on start changes
-# production the moment it deploys.
-# Use `dry_run` to see what a release contains before committing to it.
-#
-# The Git tag is the source of truth for the version; the package.json `version`
-# fields are not maintained and mean nothing.
+# The whole release in one file: build, tag, GitHub Release, deploy to Dokploy.
+# Nothing runs on push. Running this workflow on main is the approval.
+# Roll back: gh workflow run "Create release" -f redeploy=vX.Y.Z
 on:
   workflow_dispatch:
     inputs:
@@ -27,244 +11,158 @@ on:
         type: choice
         options: [patch, minor, major]
         default: patch
-        required: true
-      version:
-        description: "Explicit version instead of a bump (e.g. v1.0.0). Overrides the choice above."
-        type: string
-        required: false
-      deploy:
-        description: Deploy to prod after tagging
-        type: boolean
-        default: true
       dry_run:
-        description: Preview the version and release notes without building, tagging or deploying
+        description: Print the next version and commits; build, tag and deploy nothing
         type: boolean
         default: false
+      redeploy:
+        description: "Existing vX.Y.Z to deploy again (rollback). Skips build and tag."
+        type: string
+        default: ""
 
 concurrency:
-  group: hosti-release
+  group: ${{ github.event.repository.name }}-release
   cancel-in-progress: false
 
 permissions:
   contents: read
 
+# The CLI install URL releases/latest/download/hosti-cli.tgz must keep pointing at a cli-v* release.
 env:
-  REGISTRY: ghcr.io
+  DOCKERFILE: apps/web/Dockerfile
+  DOCKER_CONTEXT: .
+  RELEASE_MARK_LATEST: "false"
+  HEALTH_PATH: /api/health
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  # Build first, tag second: a tag can never become public without the image
-  # behind it, because a failed build stops the release before it is tagged.
-  #
-  # Skipped on dry_run: a preview should cost nothing.
-  build:
-    name: Build release image
-    if: ${{ github.ref == 'refs/heads/main' && !inputs.dry_run }}
-    permissions:
-      contents: read
-      packages: write
-    uses: ./.github/workflows/release.yml
-    secrets: inherit
-
-  tag:
-    name: Tag and publish release
+  build-and-tag:
+    if: inputs.redeploy == ''
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    needs: build
-    # Releases come from main only — a release cut from a feature branch would tag a
-    # commit that is not on main, which Deploy prod refuses anyway. `always()` is
-    # what lets a dry run through: `build` is skipped there, and a skipped dependency
-    # would otherwise skip this job too.
-    if: ${{ always() && github.ref == 'refs/heads/main' && (inputs.dry_run || needs.build.result == 'success') }}
+    timeout-minutes: 30
     permissions:
       contents: write
       packages: write
     outputs:
       version: ${{ steps.version.outputs.version }}
-      sha12: ${{ steps.version.outputs.sha12 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
-      - name: Compute next version
+      - name: Next version
         id: version
         env:
           BUMP: ${{ inputs.bump }}
-          EXPLICIT: ${{ inputs.version }}
-        shell: bash
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          set -Eeuo pipefail
-
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "Run this workflow on main." >&2; exit 1; }
           prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
-          first_release=false
-          if [ -z "$prev" ]; then
-            prev="v0.0.0"
-            first_release=true
-          fi
-
-          if [ -n "${EXPLICIT}" ]; then
-            next="${EXPLICIT}"
-            case "$next" in
-              v[0-9]*.[0-9]*.[0-9]*) ;;
-              *) echo "version must look like v1.2.3, got '${next}'" >&2; exit 1 ;;
-            esac
-          else
-            IFS='.' read -r major minor patch <<< "${prev#v}"
-            case "$BUMP" in
-              major) major=$((major + 1)); minor=0; patch=0 ;;
-              minor) minor=$((minor + 1)); patch=0 ;;
-              patch) patch=$((patch + 1)) ;;
-              *) echo "unknown bump '${BUMP}'" >&2; exit 1 ;;
-            esac
-            next="v${major}.${minor}.${patch}"
-          fi
-
+          IFS=. read -r major minor patch <<< "${prev:-v0.0.0}"
+          major="${major#v}"
+          case "$BUMP" in
+            major) next="v$((major + 1)).0.0" ;;
+            minor) next="v${major}.$((minor + 1)).0" ;;
+            *) next="v${major}.${minor}.$((patch + 1))" ;;
+          esac
           if git rev-parse -q --verify "refs/tags/${next}" >/dev/null; then
-            echo "Tag ${next} already exists." >&2
-            exit 1
+            echo "Tag ${next} already exists." >&2; exit 1
           fi
-
-          {
-            echo "version=${next}"
-            echo "previous=${prev}"
-            echo "first_release=${first_release}"
-            echo "sha12=${GITHUB_SHA:0:12}"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "${prev} -> ${next} at ${GITHUB_SHA:0:12}"
-
-      # The notes go to a file and stay there. Commit subjects are untrusted text
-      # as far as the shell is concerned — one backtick or $(…) in a PR title would
-      # execute if this were interpolated into a later `run:` block.
-      - name: Build release notes
-        env:
-          PREVIOUS: ${{ steps.version.outputs.previous }}
-          FIRST_RELEASE: ${{ steps.version.outputs.first_release }}
-          VERSION: ${{ steps.version.outputs.version }}
-          SHA12: ${{ steps.version.outputs.sha12 }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          # Non-merge commit subjects are the notes. The first release has no
-          # predecessor to diff against, so cap it at recent history rather than
-          # replaying the entire repo.
-          if [ "$FIRST_RELEASE" = "true" ]; then
-            entries="$(git log --no-merges --max-count=50 --pretty='- %s')"
-            range_note="_First release — showing the 50 most recent commits._"
-          else
-            entries="$(git log --no-merges --pretty='- %s' "${PREVIOUS}..HEAD")"
-            range_note="[Full diff](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREVIOUS}...${VERSION})"
+          { echo "version=${next}"; echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"; echo "sha12=${GITHUB_SHA:0:12}"; } >> "$GITHUB_OUTPUT"
+          if [ "$DRY_RUN" = "true" ]; then
+            { echo "Dry run: ${prev:-none} -> ${next}. Nothing built, tagged or deployed."; echo
+              git log --no-merges --pretty='- %s' ${prev:+"${prev}..HEAD"}; } | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-
-          if [ -z "$entries" ]; then
-            echo "Nothing has landed since ${PREVIOUS}; there is nothing to release." >&2
-            exit 1
-          fi
-
-          {
-            echo "## What's in this release"
-            echo ""
-            printf '%s\n' "$entries"
-            echo ""
-            printf '%s\n' "$range_note"
-            echo ""
-            echo "Image: \`prod-sha-${SHA12}\` (aliased as \`${VERSION}\`)"
-          } > /tmp/release-notes.md
-
-          cat /tmp/release-notes.md
-
-      - name: Preview (dry run)
-        if: ${{ inputs.dry_run }}
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          PREVIOUS: ${{ steps.version.outputs.previous }}
-        shell: bash
-        run: |
-          {
-            echo "### Dry run — nothing was built, tagged or deployed"
-            echo ""
-            echo "Next version: \`${VERSION}\` (from \`${PREVIOUS}\`)"
-            echo ""
-            cat /tmp/release-notes.md
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Log in to GHCR
-        if: ${{ !inputs.dry_run }}
+      - if: ${{ !inputs.dry_run }}
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: ${{ !inputs.dry_run }}
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create tag
-        if: ${{ !inputs.dry_run }}
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$VERSION" -m "Release ${VERSION}"
-          git push origin "refs/tags/${VERSION}"
-
-      # Convenience aliases only — deploys always target the immutable prod-sha tag.
-      # imagetools re-points a tag at the existing manifest; nothing is rebuilt, so
-      # the released bits are byte-identical to what the build job produced.
-      # `prod-latest` and `latest` move here, at release time, so they always mean
-      # "the newest release", never an unreleased build.
-      - name: Alias image with the version
-        if: ${{ !inputs.dry_run }}
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          SHA12: ${{ steps.version.outputs.sha12 }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          base="${REGISTRY}/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
-
-          docker buildx imagetools create \
-            --tag "${base}:${VERSION}" \
-            --tag "${base}:prod-latest" \
-            --tag "${base}:latest" \
-            "${base}:prod-sha-${SHA12}"
-
-      - name: Publish GitHub Release
+      # Build before tag: a failed build never leaves a tag or release behind.
+      - if: ${{ !inputs.dry_run }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ env.DOCKER_CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: true
+          build-args: APP_COMMIT=${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ${{ steps.version.outputs.image }}:prod-sha-${{ steps.version.outputs.sha12 }}
+            ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+            ${{ steps.version.outputs.image }}:latest
+      - name: Tag and publish the GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
         run: |
-          set -Eeuo pipefail
-          # hosti: never mark an app release latest. The CLI install URL
-          # releases/latest/download/hosti-cli.tgz must keep pointing at a cli-v* release.
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --latest=false \
-            --notes-file /tmp/release-notes.md
-          {
-            echo "### Released ${VERSION}"
-            echo ""
-            cat /tmp/release-notes.md
-          } >> "$GITHUB_STEP_SUMMARY"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release ${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+          gh release create "$VERSION" --title "$VERSION" --generate-notes --latest="$RELEASE_MARK_LATEST"
 
-  # Chained rather than triggered: a tag pushed with GITHUB_TOKEN does not start
-  # another workflow run, so "Deploy prod" is called directly.
-  #
-  # A called workflow can never hold more permission than the calling job grants it,
-  # so this call re-grants what deploy-prod.yml's job asks for. Keep them in step:
-  # widening the callee's permissions without widening these fails the whole
-  # workflow at parse time.
   deploy:
-    name: Deploy release to prod
-    needs: tag
-    if: ${{ inputs.deploy && !inputs.dry_run }}
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy-prod.yml
-    with:
-      version: ${{ needs.tag.outputs.version }}
-    secrets: inherit
+    needs: build-and-tag
+    if: ${{ !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Resolve version to commit
+        env:
+          VERSION: ${{ inputs.redeploy || needs.build-and-tag.outputs.version }}
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "Run this workflow on main." >&2; exit 1; }
+          case "$VERSION" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "Not a vX.Y.Z tag: '${VERSION}'" >&2; exit 1 ;; esac
+          sha="$(git rev-parse -q --verify "refs/tags/${VERSION}^{commit}")" || { echo "Tag ${VERSION} does not exist." >&2; exit 1; }
+          git merge-base --is-ancestor "$sha" HEAD || { echo "${VERSION} is not on main." >&2; exit 1; }
+          { echo "VERSION=${VERSION}"; echo "SHA12=${sha:0:12}"
+            echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:prod-sha-${sha:0:12}"; } >> "$GITHUB_ENV"
+      - name: Deploy to Dokploy
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+        run: |
+          post() {
+            curl -fsS -X POST "${DOKPLOY_BASE_URL%/}/api/$1" -d "$2" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" -H 'content-type: application/json' >/dev/null
+          }
+          post application.update "$(jq -nc --arg id "$APP_ID" --arg img "$IMAGE" '{applicationId: $id, dockerImage: $img}')"
+          post application.deploy "$(jq -nc --arg id "$APP_ID" --arg t "${VERSION} (prod-sha-${SHA12})" '{applicationId: $id, title: $t}')"
+      # The old container keeps answering 200 until the new one is healthy, so wait for the new commit.
+      - name: Wait for the new commit on health
+        env:
+          URL: ${{ vars.APP_URL }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            seen="$(curl -fsS --max-time 10 "${URL%/}${HEALTH_PATH}" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true)"
+            echo "commit ${seen:-none}, want ${SHA12}"
+            [ "$seen" = "$SHA12" ] && exit 0
+            sleep 10
+          done
+          echo "${URL%/}${HEALTH_PATH} never served commit ${SHA12} with HTTP 200." >&2; exit 1
+      - name: Notify Discord
+        if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+          STATUS: ${{ job.status }}
+        run: |
+          [ -n "$WEBHOOK" ] || exit 0
+          outcome="❌ ${GITHUB_REPOSITORY#*/} prod deploy failed"
+          [ "$STATUS" = "success" ] && outcome="✅ ${GITHUB_REPOSITORY#*/} prod deploy succeeded"
+          text="${outcome} — ${VERSION:-unknown} (${SHA12:-unknown}) — ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -nc --arg c "$text" '{content: $c}' \
+            | curl -fsS -X POST -H 'content-type: application/json' -d @- "$WEBHOOK" >/dev/null 2>&1 \
+            || echo "Discord notify failed; ignoring." >&2

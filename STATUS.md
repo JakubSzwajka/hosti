@@ -43,9 +43,9 @@ npx skills add JakubSzwajka/hosti
 
 The app is deployed to `hosti.kubaszwajka.com` from `main`.
 
-Branch `feat/gated-release` adds the gated release workflows ("Publish image",
-"Create release", "Deploy prod"), `scripts/ci`, and `GET /api/health`, which
-reports the image's commit. It removes the old `publish-image.yml`, which
+Branch `feat/gated-release` adds the gated release workflow, one file named
+"Create release" that builds, tags, releases and deploys, and
+`GET /api/health`, which reports the image's commit. It removes the old `publish-image.yml`, which
 pushed `:latest` on every push to `main`; `latest` now moves only on a
 release. See [docs/release.md](docs/release.md).
 
@@ -81,9 +81,9 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
   Dokploy.
 - **Finish the gated release onboarding.** The repository half is on
   `feat/gated-release`. Left: merge it, set the repo secrets and variables
-  (`APP_URL` is `https://hosti.kubaszwajka.com`), cut `v0.1.0` with the deploy
-  off, switch the Dokploy `hosti` application to the pinned image with
-  auto deploy off, run "Deploy prod", and update the fleet map. The release
+  (`APP_URL` is `https://hosti.kubaszwajka.com`), switch the Dokploy `hosti`
+  application to a Docker image source with auto deploy off, dry-run and then
+  run "Create release" to ship `v0.1.0`, and update the fleet map. The release
   skill's devops mode has the steps. Until then, deploy by hand in the Dokploy
   UI or through its API after every push (see README.md's Dokploy section);
   the GitHub webhook to Dokploy never triggered a deploy, and the gated
