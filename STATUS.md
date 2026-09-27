@@ -41,13 +41,19 @@ npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/ho
 npx skills add JakubSzwajka/hosti
 ```
 
-The app is deployed to `hosti.kubaszwajka.com` from `main`.
+The app is served at `hosti-priv.kubaszwajka.com`. The old domain,
+`hosti.kubaszwajka.com`, stays attached to the same Dokploy application,
+because existing CLI logins point at it. `HOSTI_PUBLIC_URL` is the new origin,
+so new share and approval links use it.
 
-Branch `feat/gated-release` adds the gated release workflow, one file named
-"Create release" that builds, tags, releases and deploys, and
-`GET /api/health`, which reports the image's commit. It removes the old `publish-image.yml`, which
+Gated release onboarding is done. PR #15 added the "Create release" workflow,
+one file that builds, tags, releases and deploys, and `GET /api/health`, which
+reports the image's commit. It removed the old `publish-image.yml`, which
 pushed `:latest` on every push to `main`; `latest` now moves only on a
-release. See [docs/release.md](docs/release.md).
+release. On 2026-09-27 the Dokploy `hosti` application moved to the pinned
+image `ghcr.io/jakubszwajka/hosti:prod-sha-a7488f87868d` with auto deploy
+off, and `v0.1.0` (`a7488f8`) was deployed through "Create release". See
+[docs/release.md](docs/release.md).
 
 ## The `/v/` cache fix
 
@@ -79,15 +85,9 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
   Because the repository is now public, treat that old value as burned: it
   must never be reused anywhere, and the live password needs a fresh value in
   Dokploy.
-- **Finish the gated release onboarding.** The repository half is on
-  `feat/gated-release`. Left: merge it, set the repo secrets and variables
-  (`APP_URL` is `https://hosti.kubaszwajka.com`), switch the Dokploy `hosti`
-  application to a Docker image source with auto deploy off, dry-run and then
-  run "Create release" to ship `v0.1.0`, and update the fleet map. The release
-  skill's devops mode has the steps. Until then, deploy by hand in the Dokploy
-  UI or through its API after every push (see README.md's Dokploy section);
-  the GitHub webhook to Dokploy never triggered a deploy, and the gated
-  profile replaces it.
+- **The old domain.** `hosti.kubaszwajka.com` is still attached so existing
+  CLI logins keep working. Whether and when to drop it is the owner's call;
+  do not remove it while a CLI login still points at it.
 - **Accepted origin risk.** A bundle's JavaScript still runs on the catalog's
   origin and can read an admin page's mutation token while the owner is
   logged in (accepted 2026-09-26; see README.md's "The origin risk"). Serving

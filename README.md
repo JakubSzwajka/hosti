@@ -13,24 +13,23 @@ The live instance is a Dokploy application, not a Compose stack:
 | --- | --- |
 | Application | `hosti`, in project Hosti, environment production |
 | Machine | `hetzner-worker-dev`, placed by the Swarm constraint `node.labels.tier==dev` |
-| Source | GitHub, `JakubSzwajka/hosti`, branch `main`, auto deploy on |
-| Build | build type `dockerfile`, file `apps/web/Dockerfile`, context `.` |
-| Domain | `hosti.kubaszwajka.com`, HTTPS, routed to container port `3000` |
+| Source | Docker image `ghcr.io/jakubszwajka/hosti:prod-sha-<12>`, pinned by each release, auto deploy off |
+| Pull login | per-app GHCR username and password on the application, not a Dokploy registry |
+| Build | none in Dokploy. "Create release" builds `apps/web/Dockerfile` with context `.` |
+| Domain | `hosti-priv.kubaszwajka.com`, HTTPS, routed to container port `3000`. `HOSTI_PUBLIC_URL` is this origin |
+| Old domain | `hosti.kubaszwajka.com` stays attached to the same app, because existing CLI logins point at it |
 | Data | named volume `hosti-data` mounted at `/data`: the bundles and `hosti.db` |
 | Backup | Dokploy volume backup of `hosti-data` to S3 every night, kept 14 days |
 
-Each push to `main` is meant to make Dokploy rebuild the image from the
-Dockerfile and redeploy. Auto deploy is configured, but a push to `main` on
-2026-09-26 and 2026-09-27 did not trigger a deploy; the GitHub webhook to
-Dokploy is likely not wired correctly. Until that is fixed, deploy by hand in
-the Dokploy UI (the application's Deploy button) or through its API after
-every push to `main`.
+Releases are gated. A merge to `main` deploys nothing. Prod changes only when
+someone runs "Create release" in GitHub Actions. That workflow builds the
+image, tags `vX.Y.Z`, and points the Dokploy application at the new
+`prod-sha-<12>` image. The first release, `v0.1.0`, went out this way on
+2026-09-27. See [docs/release.md](docs/release.md).
 
-This is moving to gated releases: a merge to `main` will deploy nothing, and
-prod will change only when someone runs "Create release" in GitHub Actions.
-That one workflow is in the repository; switching the Dokploy application to
-the released image is still to do. See
-[docs/release.md](docs/release.md).
+The steps below set up a plain source-built application. To put a new one on
+gated releases, follow them, then switch it to the released image the way
+[docs/release.md](docs/release.md) describes.
 
 To set up the same thing again:
 
@@ -88,8 +87,7 @@ To set up the same thing again:
    the volume.
 
 Redeploys keep the `hosti-data` volume. Any action that removes the volume
-destroys every bundle and the database. Remember to trigger the deploy by
-hand until auto deploy is fixed (see above). Back `/data` up before you touch it by
+destroys every bundle and the database. Back `/data` up before you touch it by
 hand: a `tar` archive over `/data` captures both the bundles and the database.
 
 ### Another host: the GHCR image with Compose

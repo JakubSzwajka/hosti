@@ -106,10 +106,28 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Secret | `DISCORD_DEPLOY_WEBHOOK` | A plain Discord #deploys channel webhook URL. Empty means no post. |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
 | Variable | `DOKPLOY_APPLICATION_ID` | The `hosti` application. |
-| Variable | `APP_URL` | `https://hosti.kubaszwajka.com`. The health check target. |
+| Variable | `APP_URL` | `https://hosti-priv.kubaszwajka.com`. The health check target. |
 
 All five sit at repo level, with no `environment:`. The Dokploy application
 needs a Docker image source that can pull from GHCR.
+
+## Onboarding: done
+
+Hosti went onto the gated release profile on 2026-09-27:
+
+1. [x] PR #15 merged the workflow and the health route (`a7488f8`).
+2. [x] "Create release" cut `v0.1.0` from `a7488f8` before any Dokploy secret
+   existed, so its deploy job stopped at "Deploy to Dokploy" and made no call.
+3. [x] The five names above were set.
+4. [x] The Dokploy `hosti` application moved to the Docker image
+   `ghcr.io/jakubszwajka/hosti:prod-sha-a7488f87868d`, with a per-app GHCR
+   pull login and auto deploy off.
+5. [x] `-f redeploy=v0.1.0` deployed it. Health reported `a7488f87868d`, and
+   #deploys got the success line.
+
+The prod domain is `hosti-priv.kubaszwajka.com`. The old domain,
+`hosti.kubaszwajka.com`, stays attached to the same application, because
+existing CLI logins point at it. The health check uses the new one.
 
 ## The health contract
 
