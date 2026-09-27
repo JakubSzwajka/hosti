@@ -106,7 +106,7 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Secret | `DISCORD_DEPLOY_WEBHOOK` | A plain Discord #deploys channel webhook URL. Empty means no post. |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
 | Variable | `DOKPLOY_APPLICATION_ID` | The `hosti` application. |
-| Variable | `APP_URL` | `https://hosti-priv.kubaszwajka.com`. The health check target. |
+| Variable | `APP_URL` | `https://hosti-private.kubaszwajka.com`. The health check target. |
 
 All five sit at repo level, with no `environment:`. The Dokploy application
 needs a Docker image source that can pull from GHCR.
@@ -125,9 +125,14 @@ Hosti went onto the gated release profile on 2026-09-27:
 5. [x] `-f redeploy=v0.1.0` deployed it. Health reported `a7488f87868d`, and
    #deploys got the success line.
 
-The prod domain is `hosti-priv.kubaszwajka.com`. The old domain,
-`hosti.kubaszwajka.com`, stays attached to the same application, because
-existing CLI logins point at it. The health check uses the new one.
+The prod domain is `hosti-private.kubaszwajka.com`, and the health check uses
+it. `hosti.kubaszwajka.com` is the landing page, a separate Dokploy
+application, `hosti-landing`. This workflow never deploys it: the page has no
+`/api/health` commit to wait for, so it is deployed by hand in Dokploy. See
+[landing/README.md](../landing/README.md).
+
+`v0.2.0` is the next release. It carries Next 16 and TypeScript 7 (#17), the
+landing hero (#18) and its image (#19).
 
 ## The health contract
 

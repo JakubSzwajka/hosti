@@ -41,10 +41,16 @@ npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/ho
 npx skills add JakubSzwajka/hosti
 ```
 
-The app is served at `hosti-priv.kubaszwajka.com`. The old domain,
-`hosti.kubaszwajka.com`, stays attached to the same Dokploy application,
-because existing CLI logins point at it. `HOSTI_PUBLIC_URL` is the new origin,
-so new share and approval links use it.
+The app is served at `hosti-private.kubaszwajka.com`, by the Dokploy
+application `hosti`. `HOSTI_PUBLIC_URL` and the repo variable `APP_URL` are
+that origin, so new share and approval links use it.
+`hosti.kubaszwajka.com` is now the static landing page, served by its own
+Dokploy application, `hosti-landing`, built from `landing/Dockerfile` on
+`main` with auto deploy off and deployed by hand. Its Caddy sends a 308 to
+`hosti-private` for `/api`, `/b`, `/c`, `/v`, `/connect`, `/login`,
+`/logout`, `/tokens` and `/upload`, so old share and approval links keep
+working. On 2026-09-27 the app sat briefly at `hosti-priv.kubaszwajka.com`;
+that domain is removed.
 
 Gated release onboarding is done. PR #15 added the "Create release" workflow,
 one file that builds, tags, releases and deploys, and `GET /api/health`, which
@@ -85,9 +91,14 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
   Because the repository is now public, treat that old value as burned: it
   must never be reused anywhere, and the live password needs a fresh value in
   Dokploy.
-- **The old domain.** `hosti.kubaszwajka.com` is still attached so existing
-  CLI logins keep working. Whether and when to drop it is the owner's call;
-  do not remove it while a CLI login still points at it.
+- **CLI logins on the old domain.** The CLI has no built-in default server
+  URL, and the 308 cannot carry a login: `fetch` drops `Authorization` on a
+  cross-origin redirect. Anyone logged in against `hosti.kubaszwajka.com`
+  must set `url` in `~/.config/hosti.json`, or `HOSTI_URL`, to
+  `https://hosti-private.kubaszwajka.com`. The token stays valid.
+- **Release `v0.2.0` is next.** It carries Next 16 and TypeScript 7 (#17),
+  the landing hero (#18) and its image (#19). The landing page itself ships
+  by a hand deploy of `hosti-landing`, not by "Create release".
 - **Accepted origin risk.** A bundle's JavaScript still runs on the catalog's
   origin and can read an admin page's mutation token while the owner is
   logged in (accepted 2026-09-26; see README.md's "The origin risk"). Serving

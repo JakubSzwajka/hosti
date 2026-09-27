@@ -16,8 +16,7 @@ The live instance is a Dokploy application, not a Compose stack:
 | Source | Docker image `ghcr.io/jakubszwajka/hosti:prod-sha-<12>`, pinned by each release, auto deploy off |
 | Pull login | per-app GHCR username and password on the application, not a Dokploy registry |
 | Build | none in Dokploy. "Create release" builds `apps/web/Dockerfile` with context `.` |
-| Domain | `hosti-priv.kubaszwajka.com`, HTTPS, routed to container port `3000`. `HOSTI_PUBLIC_URL` is this origin |
-| Old domain | `hosti.kubaszwajka.com` stays attached to the same app, because existing CLI logins point at it |
+| Domain | `hosti-private.kubaszwajka.com`, HTTPS, routed to container port `3000`. `HOSTI_PUBLIC_URL` is this origin |
 | Data | named volume `hosti-data` mounted at `/data`: the bundles and `hosti.db` |
 | Backup | Dokploy volume backup of `hosti-data` to S3 every night, kept 14 days |
 
@@ -123,11 +122,23 @@ reports the commit the image was built from. `docker compose down` keeps
 
 ### The landing page
 
-`hosti.kubaszwajka.com` is planned to become a static landing page, with the
-app moving to `hosti-private.kubaszwajka.com`. `landing/Dockerfile` builds a
-Caddy image for it, with `landing/` as the build context. It sends a 308 for
-the app's paths, so old share and approval links still reach the app. See
-[landing/README.md](landing/README.md).
+`hosti.kubaszwajka.com` is the static landing page. The app lives at
+`hosti-private.kubaszwajka.com`. The landing page is its own Dokploy
+application, `hosti-landing`, next to `hosti`:
+
+| Setting | Value |
+| --- | --- |
+| Source | GitHub, this repository, branch `main`, auto deploy off |
+| Build | Dockerfile `landing/Dockerfile`, build context `landing/`. A Caddy image |
+| Domain | `hosti.kubaszwajka.com`, HTTPS |
+| Deploy | by hand in Dokploy, not "Create release": the page has no `/api/health` commit to wait for |
+
+Its Caddy sends a 308 to `hosti-private.kubaszwajka.com` for the app's paths,
+so old share and approval links still reach the app. A redirect does not help
+the CLI, because `fetch` drops `Authorization` on a cross-origin redirect. A
+CLI logged in against `hosti.kubaszwajka.com` must point `url` in
+`~/.config/hosti.json`, or `HOSTI_URL`, at `https://hosti-private.kubaszwajka.com`.
+The token stays valid. See [landing/README.md](landing/README.md).
 
 ## Local development
 
