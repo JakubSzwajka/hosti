@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { checkEnvironment, digestPrefix, inspectSecret } from "../scripts/env-check.mjs";
 
 const CLEAN_ENV = {
-  HOSTI_OWNER_PASSWORD: "Kuba32oko!@#",
+  HOSTI_OWNER_PASSWORD: "abcd12efg!@#",
   HOSTI_SECRET: "a".repeat(64),
   HOSTI_DATA_DIR: "/data",
   HOSTI_PUBLIC_URL: "https://hosti.example.com",
