@@ -123,6 +123,14 @@ same tag. Its healthcheck calls `/api/health`, which answers without login and
 reports the commit the image was built from. `docker compose down` keeps
 `hosti_data`; `docker compose down -v` also removes it.
 
+### The landing page
+
+`hosti.kubaszwajka.com` is planned to become a static landing page, with the
+app moving to `hosti-private.kubaszwajka.com`. `landing/Dockerfile` builds a
+Caddy image for it, with `landing/` as the build context. It sends a 308 for
+the app's paths, so old share and approval links still reach the app. See
+[landing/README.md](landing/README.md).
+
 ## Local development
 
 Run the source directly when you need Hosti on localhost:
