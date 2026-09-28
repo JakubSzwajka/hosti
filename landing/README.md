@@ -4,6 +4,33 @@ The static page for `hosti.kubaszwajka.com`: `index.html`, `styles/` and
 `icon.svg`. There is no build step. The Hosti app itself runs at
 `hosti-private.kubaszwajka.com`.
 
+## Analytics
+
+Only this public landing page records automatic pageviews in the self-hosted
+Umami website for `hosti.kubaszwajka.com`. The single tracker in `index.html`
+restricts collection to that domain, respects Do Not Track, and removes query
+strings and hashes from recorded URLs. It sends no visitor identifiers or
+custom events. The private Hosti app, catalog and shared bundles are outside
+this scope.
+
+To change the tracker, edit that one script tag and keep the website ID and
+scope explicit. Check it with the focused regression test:
+
+```bash
+node --test tests/landing-analytics.test.mjs
+```
+
+Before handing off a change, run the repository checks with the pinned toolchain:
+
+```bash
+mise exec -- pnpm check
+mise exec -- pnpm test
+```
+
+For a local browser check, build and serve the static image, then confirm the
+browser Network panel loads `https://analytics.niuluc.me/script.js` and that the
+page has no horizontal overflow at 390px or 1440px wide.
+
 ## Image
 
 [Dockerfile](Dockerfile) copies the site files into a pinned Caddy image, and
