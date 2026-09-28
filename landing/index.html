@@ -1,3 +1,4 @@
+<!-- biome-ignore-all lint/style/noExcessiveLinesPerFile: the rolling catalog repeats its cards as static markup, since the page has no script or build step -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -14,6 +15,7 @@
     <link rel="stylesheet" href="styles/landing.css" />
     <link rel="stylesheet" href="styles/catalog.css" />
     <link rel="stylesheet" href="styles/minis.css" />
+    <link rel="stylesheet" href="styles/minis-more.css" />
     <link rel="stylesheet" href="styles/responsive.css" />
   </head>
   <body>
@@ -46,107 +48,580 @@
         <figcaption class="sheet-head">
           <span aria-hidden="true">catalog</span>
           <span aria-hidden="true">newest first</span>
-          <span class="sr-only">A catalog, newest first, with four bundles. Weekly report, week 39: shared by link. API test coverage: private. Q4 planning deck: shared behind a pin. Ingest latency: private.</span>
+          <span class="sr-only">A catalog of bundles, newest first. The four newest: Weekly report, week 39: shared by link. API test coverage: private. Q4 planning deck: shared behind a pin. Ingest latency: private.</span>
         </figcaption>
 
-        <ol class="catalog-grid" aria-hidden="true">
-          <li class="card card-live">
-            <div class="card-window">
-              <p class="window-bar"><span class="where">/b/weekly-report-w39/</span><span>r3</span></p>
-              <div class="thumb">
-                <div class="mini mini-report">
-                  <p class="mini-head"><b class="w mini-title">Weekly report</b><small class="w">week 39</small></p>
-                  <span class="ln"></span>
-                  <span class="ln"></span>
-                  <span class="bars"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+        <div class="catalog-roll">
+          <!-- The copies repeat the first list so the column loops without a seam. -->
+          <div class="catalog-track">
+            <ol class="catalog-grid" aria-hidden="true">
+              <li class="card card-live">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/weekly-report-w39/</span><span>r3</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-report">
+                      <p class="mini-head"><b class="w mini-title">Weekly report</b><small class="w">week 39</small></p>
+                      <span class="ln"></span>
+                      <span class="ln"></span>
+                      <span class="bars"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>4 files</span><span>212 KB</span></p>
+                  </div>
                 </div>
-                <p class="shot-facts"><span class="entry">index.html</span><span>4 files</span><span>212 KB</span></p>
-              </div>
-            </div>
-            <div class="card-body">
-              <span class="frame-no">01</span>
-              <div class="card-name">
-                <p class="card-title">Weekly report, week 39</p>
-                <p class="card-slug">weekly-report-w39</p>
-              </div>
-            </div>
-            <div class="card-share">
-              <p class="addr-url"><span>hosti.example</span><wbr /><span>/v/weekly-report-w39/</span></p>
-              <p class="addr-say">anyone holding the URL can open it</p>
-            </div>
-            <div class="card-foot"><span class="flag" data-s="link">link</span><span class="card-date">27 Sep</span></div>
-          </li>
+                <div class="card-body">
+                  <span class="frame-no">01</span>
+                  <div class="card-name">
+                    <p class="card-title">Weekly report, week 39</p>
+                    <p class="card-slug">weekly-report-w39</p>
+                  </div>
+                </div>
+                <div class="card-share">
+                  <p class="addr-url"><span>hosti.example</span><wbr /><span>/v/weekly-report-w39/</span></p>
+                  <p class="addr-say">anyone holding the URL can open it</p>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="link">link</span><span class="card-date">27 Sep</span></div>
+              </li>
 
-          <li class="card">
-            <div class="card-window">
-              <p class="window-bar"><span class="where">/b/api-test-coverage/</span><span>r12</span></p>
-              <div class="thumb">
-                <div class="mini mini-coverage">
-                  <b class="w mini-title">coverage / api</b>
-                  <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
-                  <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
-                  <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
-                  <span class="row"><span class="ln"></span><span class="meter"><span data-low></span></span></span>
-                  <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/api-test-coverage/</span><span>r12</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-coverage">
+                      <b class="w mini-title">coverage / api</b>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span data-low></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>9 files</span><span>1.4 MB</span></p>
+                  </div>
                 </div>
-                <p class="shot-facts"><span class="entry">index.html</span><span>9 files</span><span>1.4 MB</span></p>
-              </div>
-            </div>
-            <div class="card-body">
-              <span class="frame-no">02</span>
-              <div class="card-name">
-                <p class="card-title">API test coverage</p>
-                <p class="card-slug">api-test-coverage</p>
-              </div>
-            </div>
-            <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">26 Sep</span></div>
-          </li>
+                <div class="card-body">
+                  <span class="frame-no">02</span>
+                  <div class="card-name">
+                    <p class="card-title">API test coverage</p>
+                    <p class="card-slug">api-test-coverage</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">26 Sep</span></div>
+              </li>
 
-          <li class="card">
-            <div class="card-window">
-              <p class="window-bar"><span class="where">/b/q4-planning-deck/</span><span>r2</span></p>
-              <div class="thumb">
-                <div class="mini mini-deck">
-                  <div><b class="w mini-title">Q4 planning</b><span class="rule"></span></div>
-                  <small class="w">1 / 14</small>
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/q4-planning-deck/</span><span>r2</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-deck">
+                      <div><b class="w mini-title">Q4 planning</b><span class="rule"></span></div>
+                      <small class="w">1 / 14</small>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>23 files</span><span>3.1 MB</span></p>
+                  </div>
                 </div>
-                <p class="shot-facts"><span class="entry">index.html</span><span>23 files</span><span>3.1 MB</span></p>
-              </div>
-            </div>
-            <div class="card-body">
-              <span class="frame-no">03</span>
-              <div class="card-name">
-                <p class="card-title">Q4 planning deck</p>
-                <p class="card-slug">q4-planning-deck</p>
-              </div>
-            </div>
-            <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">25 Sep</span></div>
-          </li>
+                <div class="card-body">
+                  <span class="frame-no">03</span>
+                  <div class="card-name">
+                    <p class="card-title">Q4 planning deck</p>
+                    <p class="card-slug">q4-planning-deck</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">25 Sep</span></div>
+              </li>
 
-          <li class="card">
-            <div class="card-window">
-              <p class="window-bar"><span class="where">/b/ingest-latency/</span><span>r5</span></p>
-              <div class="thumb">
-                <div class="mini mini-latency">
-                  <p class="mini-head"><b class="w mini-title">ingest p95</b><small class="w">7 days</small></p>
-                  <svg viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true">
-                    <path class="grid" d="M0 60 H200 M0 40 H200 M0 20 H200" />
-                    <polyline class="trace" points="0,48 20,44 40,50 60,38 80,41 100,26 120,34 140,22 160,30 180,18 200,24" />
-                  </svg>
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/ingest-latency/</span><span>r5</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-latency">
+                      <p class="mini-head"><b class="w mini-title">ingest p95</b><small class="w">7 days</small></p>
+                      <svg viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="grid" d="M0 60 H200 M0 40 H200 M0 20 H200" />
+                        <polyline class="trace" points="0,48 20,44 40,50 60,38 80,41 100,26 120,34 140,22 160,30 180,18 200,24" />
+                      </svg>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>3 files</span><span>96 KB</span></p>
+                  </div>
                 </div>
-                <p class="shot-facts"><span class="entry">index.html</span><span>3 files</span><span>96 KB</span></p>
-              </div>
-            </div>
-            <div class="card-body">
-              <span class="frame-no">04</span>
-              <div class="card-name">
-                <p class="card-title">Ingest latency</p>
-                <p class="card-slug">ingest-latency</p>
-              </div>
-            </div>
-            <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">24 Sep</span></div>
-          </li>
-        </ol>
+                <div class="card-body">
+                  <span class="frame-no">04</span>
+                  <div class="card-name">
+                    <p class="card-title">Ingest latency</p>
+                    <p class="card-slug">ingest-latency</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">24 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/changelog-v2-4/</span><span>r9</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-changelog">
+                      <p class="mini-head"><b class="w mini-title">Changelog</b><small class="w">v2.4.0</small></p>
+                      <span class="log"><small class="w tag" data-k="added">added</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="changed">changed</small><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>2 files</span><span>38 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">05</span>
+                  <div class="card-name">
+                    <p class="card-title">Changelog, v2.4</p>
+                    <p class="card-slug">changelog-v2-4</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">23 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/checkout-e2e-run/</span><span>r31</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-e2e">
+                      <p class="mini-head"><b class="w mini-title">e2e / checkout</b><small class="w">141 passed</small></p>
+                      <span class="cells"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-fail></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-skip></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>61 files</span><span>4.8 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">06</span>
+                  <div class="card-name">
+                    <p class="card-title">Checkout e2e run</p>
+                    <p class="card-slug">checkout-e2e-run</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">22 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/incident-review-0919/</span><span>r4</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-incident">
+                      <p class="mini-head"><b class="w mini-title">Incident review</b><small class="w">resolved</small></p>
+                      <span class="event" data-alert><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>5 files</span><span>140 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">07</span>
+                  <div class="card-name">
+                    <p class="card-title">Incident review, 19 Sep</p>
+                    <p class="card-slug">incident-review-0919</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">21 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/web-bundle-size/</span><span>r7</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-treemap">
+                      <p class="mini-head"><b class="w mini-title">web / dist</b><small class="w">812 KB</small></p>
+                      <span class="blocks"><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>7 files</span><span>820 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">08</span>
+                  <div class="card-name">
+                    <p class="card-title">Web bundle size</p>
+                    <p class="card-slug">web-bundle-size</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">20 Sep</span></div>
+              </li>
+            </ol>
+
+            <ol class="catalog-grid catalog-copy" aria-hidden="true">
+              <li class="card card-live">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/weekly-report-w39/</span><span>r3</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-report">
+                      <p class="mini-head"><b class="w mini-title">Weekly report</b><small class="w">week 39</small></p>
+                      <span class="ln"></span>
+                      <span class="ln"></span>
+                      <span class="bars"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>4 files</span><span>212 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">01</span>
+                  <div class="card-name">
+                    <p class="card-title">Weekly report, week 39</p>
+                    <p class="card-slug">weekly-report-w39</p>
+                  </div>
+                </div>
+                <div class="card-share">
+                  <p class="addr-url"><span>hosti.example</span><wbr /><span>/v/weekly-report-w39/</span></p>
+                  <p class="addr-say">anyone holding the URL can open it</p>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="link">link</span><span class="card-date">27 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/api-test-coverage/</span><span>r12</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-coverage">
+                      <b class="w mini-title">coverage / api</b>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span data-low></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>9 files</span><span>1.4 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">02</span>
+                  <div class="card-name">
+                    <p class="card-title">API test coverage</p>
+                    <p class="card-slug">api-test-coverage</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">26 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/q4-planning-deck/</span><span>r2</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-deck">
+                      <div><b class="w mini-title">Q4 planning</b><span class="rule"></span></div>
+                      <small class="w">1 / 14</small>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>23 files</span><span>3.1 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">03</span>
+                  <div class="card-name">
+                    <p class="card-title">Q4 planning deck</p>
+                    <p class="card-slug">q4-planning-deck</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">25 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/ingest-latency/</span><span>r5</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-latency">
+                      <p class="mini-head"><b class="w mini-title">ingest p95</b><small class="w">7 days</small></p>
+                      <svg viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="grid" d="M0 60 H200 M0 40 H200 M0 20 H200" />
+                        <polyline class="trace" points="0,48 20,44 40,50 60,38 80,41 100,26 120,34 140,22 160,30 180,18 200,24" />
+                      </svg>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>3 files</span><span>96 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">04</span>
+                  <div class="card-name">
+                    <p class="card-title">Ingest latency</p>
+                    <p class="card-slug">ingest-latency</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">24 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/changelog-v2-4/</span><span>r9</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-changelog">
+                      <p class="mini-head"><b class="w mini-title">Changelog</b><small class="w">v2.4.0</small></p>
+                      <span class="log"><small class="w tag" data-k="added">added</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="changed">changed</small><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>2 files</span><span>38 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">05</span>
+                  <div class="card-name">
+                    <p class="card-title">Changelog, v2.4</p>
+                    <p class="card-slug">changelog-v2-4</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">23 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/checkout-e2e-run/</span><span>r31</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-e2e">
+                      <p class="mini-head"><b class="w mini-title">e2e / checkout</b><small class="w">141 passed</small></p>
+                      <span class="cells"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-fail></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-skip></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>61 files</span><span>4.8 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">06</span>
+                  <div class="card-name">
+                    <p class="card-title">Checkout e2e run</p>
+                    <p class="card-slug">checkout-e2e-run</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">22 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/incident-review-0919/</span><span>r4</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-incident">
+                      <p class="mini-head"><b class="w mini-title">Incident review</b><small class="w">resolved</small></p>
+                      <span class="event" data-alert><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>5 files</span><span>140 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">07</span>
+                  <div class="card-name">
+                    <p class="card-title">Incident review, 19 Sep</p>
+                    <p class="card-slug">incident-review-0919</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">21 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/web-bundle-size/</span><span>r7</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-treemap">
+                      <p class="mini-head"><b class="w mini-title">web / dist</b><small class="w">812 KB</small></p>
+                      <span class="blocks"><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>7 files</span><span>820 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">08</span>
+                  <div class="card-name">
+                    <p class="card-title">Web bundle size</p>
+                    <p class="card-slug">web-bundle-size</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">20 Sep</span></div>
+              </li>
+            </ol>
+
+            <ol class="catalog-grid catalog-copy" aria-hidden="true">
+              <li class="card card-live">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/weekly-report-w39/</span><span>r3</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-report">
+                      <p class="mini-head"><b class="w mini-title">Weekly report</b><small class="w">week 39</small></p>
+                      <span class="ln"></span>
+                      <span class="ln"></span>
+                      <span class="bars"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>4 files</span><span>212 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">01</span>
+                  <div class="card-name">
+                    <p class="card-title">Weekly report, week 39</p>
+                    <p class="card-slug">weekly-report-w39</p>
+                  </div>
+                </div>
+                <div class="card-share">
+                  <p class="addr-url"><span>hosti.example</span><wbr /><span>/v/weekly-report-w39/</span></p>
+                  <p class="addr-say">anyone holding the URL can open it</p>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="link">link</span><span class="card-date">27 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/api-test-coverage/</span><span>r12</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-coverage">
+                      <b class="w mini-title">coverage / api</b>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span data-low></span></span></span>
+                      <span class="row"><span class="ln"></span><span class="meter"><span></span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>9 files</span><span>1.4 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">02</span>
+                  <div class="card-name">
+                    <p class="card-title">API test coverage</p>
+                    <p class="card-slug">api-test-coverage</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">26 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/q4-planning-deck/</span><span>r2</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-deck">
+                      <div><b class="w mini-title">Q4 planning</b><span class="rule"></span></div>
+                      <small class="w">1 / 14</small>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>23 files</span><span>3.1 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">03</span>
+                  <div class="card-name">
+                    <p class="card-title">Q4 planning deck</p>
+                    <p class="card-slug">q4-planning-deck</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">25 Sep</span></div>
+              </li>
+
+              <li class="card">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/ingest-latency/</span><span>r5</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-latency">
+                      <p class="mini-head"><b class="w mini-title">ingest p95</b><small class="w">7 days</small></p>
+                      <svg viewBox="0 0 200 70" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="grid" d="M0 60 H200 M0 40 H200 M0 20 H200" />
+                        <polyline class="trace" points="0,48 20,44 40,50 60,38 80,41 100,26 120,34 140,22 160,30 180,18 200,24" />
+                      </svg>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>3 files</span><span>96 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">04</span>
+                  <div class="card-name">
+                    <p class="card-title">Ingest latency</p>
+                    <p class="card-slug">ingest-latency</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">24 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/changelog-v2-4/</span><span>r9</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-changelog">
+                      <p class="mini-head"><b class="w mini-title">Changelog</b><small class="w">v2.4.0</small></p>
+                      <span class="log"><small class="w tag" data-k="added">added</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="fixed">fixed</small><span class="ln"></span></span>
+                      <span class="log"><small class="w tag" data-k="changed">changed</small><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>2 files</span><span>38 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">05</span>
+                  <div class="card-name">
+                    <p class="card-title">Changelog, v2.4</p>
+                    <p class="card-slug">changelog-v2-4</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">23 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/checkout-e2e-run/</span><span>r31</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-e2e">
+                      <p class="mini-head"><b class="w mini-title">e2e / checkout</b><small class="w">141 passed</small></p>
+                      <span class="cells"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-fail></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span data-skip></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>61 files</span><span>4.8 MB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">06</span>
+                  <div class="card-name">
+                    <p class="card-title">Checkout e2e run</p>
+                    <p class="card-slug">checkout-e2e-run</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">22 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/incident-review-0919/</span><span>r4</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-incident">
+                      <p class="mini-head"><b class="w mini-title">Incident review</b><small class="w">resolved</small></p>
+                      <span class="event" data-alert><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                      <span class="event"><span class="ln"></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>5 files</span><span>140 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">07</span>
+                  <div class="card-name">
+                    <p class="card-title">Incident review, 19 Sep</p>
+                    <p class="card-slug">incident-review-0919</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="pin">pin</span><span class="card-date">21 Sep</span></div>
+              </li>
+
+              <li class="card card-more">
+                <div class="card-window">
+                  <p class="window-bar"><span class="where">/b/web-bundle-size/</span><span>r7</span></p>
+                  <div class="thumb">
+                    <div class="mini mini-treemap">
+                      <p class="mini-head"><b class="w mini-title">web / dist</b><small class="w">812 KB</small></p>
+                      <span class="blocks"><span></span><span></span><span></span><span></span><span></span></span>
+                    </div>
+                    <p class="shot-facts"><span class="entry">index.html</span><span>7 files</span><span>820 KB</span></p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <span class="frame-no">08</span>
+                  <div class="card-name">
+                    <p class="card-title">Web bundle size</p>
+                    <p class="card-slug">web-bundle-size</p>
+                  </div>
+                </div>
+                <div class="card-foot"><span class="flag" data-s="private">private</span><span class="card-date">20 Sep</span></div>
+              </li>
+            </ol>
+          </div>
+        </div>
       </figure>
     </main>
 

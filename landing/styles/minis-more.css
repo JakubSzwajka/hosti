@@ -1,0 +1,193 @@
+/* more mini pages, shown only in the rolling catalog on wide screens.
+   Shared pieces such as .mini-head and .ln come from minis.css. */
+
+/* changelog */
+.mini-changelog {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--changelog-bg);
+  color: var(--changelog-ink);
+}
+
+.mini-changelog .mini-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--changelog-line);
+}
+
+.mini-changelog .log {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-changelog .tag {
+  padding: 1px 0;
+  border-radius: 3px;
+  background: var(--changelog-added);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 1;
+}
+
+.mini-changelog .tag[data-k="fixed"] {
+  background: var(--changelog-fixed);
+}
+
+.mini-changelog .tag[data-k="changed"] {
+  background: var(--changelog-changed);
+}
+
+.mini-changelog .log:nth-of-type(2) .ln {
+  width: 70%;
+}
+
+.mini-changelog .log:nth-of-type(4) .ln {
+  width: 84%;
+}
+
+/* end-to-end test run */
+.mini-e2e {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px 28px;
+  background: var(--e2e-bg);
+  color: var(--e2e-ink);
+}
+
+.mini-e2e .mini-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.mini-e2e .cells {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  align-content: start;
+  gap: 4px;
+}
+
+.mini-e2e .cells span {
+  height: 13px;
+  border-radius: 2px;
+  background: var(--e2e-pass);
+}
+
+.mini-e2e .cells span[data-fail] {
+  background: var(--e2e-fail);
+}
+
+.mini-e2e .cells span[data-skip] {
+  background: var(--e2e-skip);
+}
+
+/* incident review */
+.mini-incident {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--incident-alert);
+  background: var(--incident-bg);
+  color: var(--incident-ink);
+}
+
+.mini-incident .mini-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--incident-rule);
+}
+
+.mini-incident .mini-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.mini-incident .event {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-incident .event::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.4;
+}
+
+.mini-incident .event[data-alert]::before {
+  border-color: var(--incident-alert);
+  background: var(--incident-alert);
+  opacity: 1;
+}
+
+.mini-incident .event:nth-of-type(2) .ln {
+  width: 86%;
+}
+
+.mini-incident .event:nth-of-type(3) .ln {
+  width: 64%;
+}
+
+.mini-incident .event:nth-of-type(4) .ln {
+  width: 76%;
+}
+
+/* bundle size treemap */
+.mini-treemap {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px 14px 26px;
+  background: var(--treemap-bg);
+  color: var(--treemap-ink);
+}
+
+.mini-treemap .mini-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mini-treemap .blocks {
+  display: grid;
+  grid-template-columns: 5fr 3fr 2fr;
+  grid-template-rows: 3fr 2fr;
+  gap: 3px;
+}
+
+.mini-treemap .blocks span {
+  border-radius: 2px;
+  background: var(--treemap-a);
+}
+
+.mini-treemap .blocks span:nth-child(1) {
+  grid-row: span 2;
+}
+
+.mini-treemap .blocks span:nth-child(2) {
+  background: var(--treemap-b);
+}
+
+.mini-treemap .blocks span:nth-child(3) {
+  background: var(--treemap-c);
+}
+
+.mini-treemap .blocks span:nth-child(4) {
+  background: var(--treemap-d);
+}
+
+.mini-treemap .blocks span:nth-child(5) {
+  background: var(--treemap-e);
+}
