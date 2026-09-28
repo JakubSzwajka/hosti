@@ -33,6 +33,14 @@
   gap: 14px;
 }
 
+/* The extra cards and the repeated lists exist only for the rolling catalog
+   on wide screens (responsive.css). Everywhere else the glimpse stays four
+   still cards. */
+.catalog-grid .card-more,
+.catalog-copy {
+  display: none;
+}
+
 .card {
   display: flex;
   min-width: 0;

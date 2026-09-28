@@ -133,3 +133,60 @@
     font-size: 12px;
   }
 }
+
+/* Wide screens: the catalog fills its column and rolls slowly downward, new
+   cards entering at the top. The track holds three equal lists, each padded by
+   one grid gap, so moving it by a third lands on an identical frame. Reduced
+   motion keeps the four still cards. */
+@media (min-width: 901px) and (prefers-reduced-motion: no-preference) {
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+
+  .catalog-roll {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    contain: size;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      var(--ink) 40px,
+      var(--ink) calc(100% - 64px),
+      transparent
+    );
+  }
+
+  .catalog-track {
+    animation: catalog-roll var(--t-roll) linear infinite;
+    will-change: transform;
+  }
+
+  .catalog-roll:hover .catalog-track {
+    animation-play-state: paused;
+  }
+
+  .catalog-track .catalog-grid {
+    padding-bottom: 14px;
+  }
+
+  .catalog-grid .card-more {
+    display: flex;
+  }
+
+  .catalog-copy {
+    display: grid;
+  }
+}
+
+@keyframes catalog-roll {
+  from {
+    transform: translateY(calc(-100% / 3));
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}

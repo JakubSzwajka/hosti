@@ -16,6 +16,8 @@
   --gap-lg: 34px;
   --radius: 10px;
   --t: 140ms;
+  /* one full lap of the rolling catalog glimpse on wide screens */
+  --t-roll: 72s;
   --font-serif: Fraunces, Superclarendon, "Bookman Old Style", Georgia, serif;
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
@@ -41,6 +43,28 @@
   --latency-ink: #c2d0d8;
   --latency-grid: #26343f;
   --latency-trace: #f2b441;
+  --changelog-bg: #fbfaf6;
+  --changelog-ink: #25272c;
+  --changelog-line: #e4e1d7;
+  --changelog-added: #2f7d4f;
+  --changelog-fixed: #3b5ba8;
+  --changelog-changed: #a4621d;
+  --e2e-bg: #f2f4f8;
+  --e2e-ink: #1f2633;
+  --e2e-pass: #45a06a;
+  --e2e-fail: #d2493a;
+  --e2e-skip: #c9cfdb;
+  --incident-bg: #ffffff;
+  --incident-ink: #2b2323;
+  --incident-rule: #e7dddb;
+  --incident-alert: #c43c2a;
+  --treemap-bg: #1c1f2b;
+  --treemap-ink: #e9ebf3;
+  --treemap-a: #6f7fe8;
+  --treemap-b: #9da7f0;
+  --treemap-c: #d9b75a;
+  --treemap-d: #e38a5c;
+  --treemap-e: #4a5170;
 }
 
 @media (prefers-reduced-motion: reduce) {
