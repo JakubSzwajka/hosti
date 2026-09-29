@@ -3,9 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import type { AgentAuthorizationStatusResponse } from "@hosti/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ApiError, type ConnectionClient } from "../src/client.ts";
-import { CommandError } from "../src/commands.ts";
-import { defaultTokenName, login, type LoginContext, makeSecrets } from "../src/login.ts";
+import { ApiError, type ConnectionClient } from "../delivery/client.ts";
+import { CommandError } from "../delivery/commands.ts";
+import { defaultTokenName, login, type LoginContext, makeSecrets } from "../delivery/login.ts";
 
 const BASE = "https://hosti.example.com";
 const START = Date.parse("2026-09-26T10:00:00.000Z");

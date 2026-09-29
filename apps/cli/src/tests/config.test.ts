@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ConfigError, configFilePath, resolveConfig } from "../src/config.ts";
+import { ConfigError, configFilePath, resolveConfig } from "../delivery/config.ts";
 
 let configHome: string;
 

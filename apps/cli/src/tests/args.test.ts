@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFlags, parseInvocation, UsageError } from "../src/args.ts";
+import { parseFlags, parseInvocation, UsageError } from "../delivery/args.ts";
 
 describe("reading the words", () => {
   it("takes a value after the flag and after an equals sign", () => {

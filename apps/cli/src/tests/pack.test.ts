@@ -5,9 +5,9 @@ import { Readable } from "node:stream";
 import { gunzipSync } from "node:zlib";
 import { Parser, type ReadEntry } from "tar";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { collectFiles, PackError, packBundle } from "../src/pack.ts";
+import { collectFiles, PackError, packBundle } from "../delivery/pack.ts";
 
-const FIXTURES = path.resolve(import.meta.dirname, "../../../fixtures");
+const FIXTURES = path.resolve(import.meta.dirname, "../../../../fixtures");
 let messy: string;
 
 async function entriesOf(body: Buffer): Promise<string[]> {

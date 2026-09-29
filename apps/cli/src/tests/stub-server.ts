@@ -7,7 +7,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const BIN = path.resolve(import.meta.dirname, "../src/index.ts");
+const BIN = path.resolve(import.meta.dirname, "../index.ts");
 
 export type Run = { code: number; stdout: string; stderr: string };
 export type Mode = "private" | "link" | "pin";

@@ -114,15 +114,19 @@ test("the package ships compiled JavaScript and no workspace import", () => {
   assert.deepEqual(Object.keys(manifest.dependencies), ["tar"]);
   assert.equal(manifest.devDependencies, undefined);
 
-  const files = fs.readdirSync(path.join(installed, "dist"));
+  const dist = path.join(installed, "dist");
+  const files = fs
+    .readdirSync(dist, { recursive: true })
+    .filter((file) => fs.statSync(path.join(dist, file)).isFile());
   assert.ok(files.includes("index.js"));
+  assert.ok(files.includes(path.join("delivery", "commands.js")));
   assert.deepEqual(
     files.filter((file) => !file.endsWith(".js")),
     [],
   );
   for (const file of files) {
-    const source = fs.readFileSync(path.join(installed, "dist", file), "utf8");
+    const source = fs.readFileSync(path.join(dist, file), "utf8");
     assert.doesNotMatch(source, /@hosti\//, `${file} imports a workspace package`);
-    assert.doesNotMatch(source, /from "\.\/[^"]+\.ts"/, `${file} imports a .ts file`);
+    assert.doesNotMatch(source, /from "\.\.?\/[^"]+\.ts"/, `${file} imports a .ts file`);
   }
 });

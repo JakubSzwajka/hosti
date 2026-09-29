@@ -1,10 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { findAbsoluteRefs, scanForAbsoluteRefs } from "../src/absolute-refs.ts";
-import { collectFiles } from "../src/pack.ts";
-import { warnAbsoluteRefs } from "../src/output.ts";
+import { findAbsoluteRefs, scanForAbsoluteRefs } from "../delivery/absolute-refs.ts";
+import { collectFiles } from "../delivery/pack.ts";
+import { warnAbsoluteRefs } from "../delivery/output.ts";
 
-const FIXTURE = path.resolve(import.meta.dirname, "../../../fixtures/root-absolute");
+const FIXTURE = path.resolve(import.meta.dirname, "../../../../fixtures/root-absolute");
 
 describe("the four kinds of reference", () => {
   it("catches href, src, srcset and CSS url() in one file", async () => {
