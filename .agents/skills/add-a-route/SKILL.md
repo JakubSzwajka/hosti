@@ -23,9 +23,9 @@ Read `CONTEXT.md` before changing behavior. Use Hosti's terms and keep its produ
 
 ## Test the route
 
-- Add route tests under `apps/web/tests/`. Vitest is configured by `apps/web/vitest.config.ts`.
-- Import route functions directly, as `apps/web/tests/admin-routes.test.ts` does. Build `Request` objects and pass promised params for dynamic routes.
-- Seed catalog and identity state through `apps/web/tests/support.ts`; use `useTempDataDir`, `tarFixture`, and related helpers from `apps/web/tests/helpers.ts` when needed. Tests may import only `runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` from `src/server/`. Set auth values before importing the route module.
+- Add route tests under `apps/web/src/tests/`. Vitest is configured by `apps/web/vitest.config.ts`.
+- Import route functions directly, as `apps/web/src/tests/admin-routes.test.ts` does. Build `Request` objects and pass promised params for dynamic routes.
+- Seed catalog and identity state through `apps/web/src/tests/support.ts`; use `useTempDataDir`, `tarFixture`, and related helpers from `apps/web/src/tests/test-fixtures.ts` when needed. Tests may import only `runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` from `src/server/`. Set auth values before importing the route module.
 - Cover refusal and success paths. Admin mutation tests check missing sessions and invalid mutation tokens; bearer API tests check absent or invalid push tokens.
 
 ## Run checks

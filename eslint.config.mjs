@@ -1,6 +1,6 @@
-import codebaseAiRules from "eslint-plugin-codebase-ai-rules";
-import design from "eslint-plugin-codebase-ai-rules/design";
-import markdown from "eslint-plugin-codebase-ai-rules/markdown";
+import houseRules from "@jakubszwajka/house-rules";
+import design from "@jakubszwajka/house-rules/design";
+import markdown from "@jakubszwajka/house-rules/markdown";
 
 function allowedColors(...alphaFades) {
   // allowValues replaces the rule's defaults, so every list starts from them.
@@ -20,7 +20,7 @@ function appAlphaFades() {
 }
 
 function standalonePages() {
-  // The not-found page can't load the token stylesheet (node_modules/eslint-plugin-codebase-ai-rules/docs/design-no-raw-color-literal.md#options).
+  // The not-found page can't load the token stylesheet (node_modules/@jakubszwajka/house-rules/docs/design-no-raw-color-literal.md#options).
   return ["apps/web/src/server/serving/respond.ts"];
 }
 
@@ -49,11 +49,11 @@ export default [
       "**/coverage/**",
     ],
   },
-  ...codebaseAiRules.configs.recommended,
+  ...houseRules.configs.recommended,
   ...markdown,
   ...design({
-    tokenFiles: ["apps/web/src/styles/hosti.css"],
-    css: { files: ["apps/web/src/styles/**/*.css"] },
+    tokenFiles: ["apps/web/src/app/_styles/hosti.css"],
+    css: { files: ["apps/web/src/app/_styles/**/*.css"] },
     source: { files: ["apps/web/src/**/*.{ts,tsx}"] },
     rules: {
       "design-scale-value": [

@@ -1,7 +1,6 @@
-import type { PushIdentity } from "@hosti/identity";
+import { bearerSecret, Identity, type PushIdentity } from "@hosti/identity";
 import type { PushScope } from "@hosti/shared";
 import { Effect } from "effect";
-import { authenticatePush } from "./authenticate-push";
 
 export type PushAuthorization =
   | { status: "unauthorized" }
@@ -12,7 +11,8 @@ export const authorizePush = Effect.fn("authorizePush")(function* (
   authorization: string | null,
   scope: PushScope,
 ) {
-  const identity = yield* authenticatePush(authorization);
+  const tokens = yield* Identity;
+  const identity = yield* tokens.authenticatePush(bearerSecret(authorization));
   if (!identity) return { status: "unauthorized" } satisfies PushAuthorization;
   if (!identity.scopes.includes(scope)) {
     return { status: "missing_scope", scope } satisfies PushAuthorization;

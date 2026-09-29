@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
-import { HELP, parseInvocation, UsageError } from "./args.ts";
-import { openInBrowser } from "./browser.ts";
-import { ApiError, createClient } from "./client.ts";
-import { ConfigError, resolveConfig } from "./config.ts";
-import { COMMAND_TABLE, CommandError } from "./commands.ts";
-import { login, logout } from "./login.ts";
-import { PackError } from "./pack.ts";
-import { stderr, stdout } from "./output.ts";
+import { HELP, parseInvocation, UsageError } from "./delivery/args.ts";
+import { openInBrowser } from "./delivery/browser.ts";
+import { ApiError, createClient } from "./delivery/client.ts";
+import { ConfigError, resolveConfig } from "./delivery/config.ts";
+import { COMMAND_TABLE, CommandError } from "./delivery/commands.ts";
+import { login, logout } from "./delivery/login.ts";
+import { PackError } from "./delivery/pack.ts";
+import { stderr, stdout } from "./delivery/output.ts";
 
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;

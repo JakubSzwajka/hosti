@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import "../styles/hosti.css";
-import "../styles/controls.css";
-import "../styles/grid.css";
-import "../styles/detail.css";
-import "../styles/share.css";
-import "../styles/forms.css";
-import "../styles/onboard.css";
-import "../styles/narrow.css";
+import "./_styles/hosti.css";
+import "./_styles/controls.css";
+import "./_styles/grid.css";
+import "./_styles/detail.css";
+import "./_styles/share.css";
+import "./_styles/forms.css";
+import "./_styles/onboard.css";
+import "./_styles/narrow.css";
 
 export const metadata = {
   title: "Hosti",

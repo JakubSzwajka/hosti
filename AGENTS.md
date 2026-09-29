@@ -26,34 +26,35 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 ## Workspaces
 
 - `apps/web` is the Next.js 16 catalog and server. Keep its routes and UI inside this app.
-- `apps/cli` is the private `@hosti/cli` workspace package.
+- `apps/cli` is the private `@hosti/cli` workspace package. Its entry is `src/index.ts`; the rest of its code lives in `src/delivery`.
 - `packages/bundles` is `@hosti/bundles`, the Effect-backed bundle operations capability.
 - `packages/shared` is `@hosti/shared`, the shared public package. Export through `src/index.ts`.
 - `packages/catalog` is `@hosti/catalog`, the Effect-backed SQLite catalog. Export through `src/index.ts`.
 - `packages/identity` is `@hosti/identity`, the Effect-backed identity and authentication capability. Export through `src/index.ts`.
 - `packages/storage` is `@hosti/storage`, the Effect-backed bundle storage capability. Export through `src/index.ts`.
 - `packages/serving` is `@hosti/serving`, the Effect-backed bundle-serving capability.
+- Every workspace keeps its tests directly in `src/tests/`, next to the code they test. Web stylesheets live in `apps/web/src/app/_styles`.
 - Declare workspace dependencies by package name and use `workspace:<exact version>`. Do not import another workspace through a relative path.
 - Do not change `.dependency-cruiser.cjs` rules as part of routine feature work.
 
 ## Layers inside apps/web
 
 - `src/app` is delivery. It owns Next routes, pages, and React UI. A route is an entry point: it reads HTTP or Next inputs, applies auth/HTTP glue, calls a use-case, and maps the result to a response or page.
-- `src/use-cases` holds one `Effect.fn` per product action. Use-cases compose public `@hosti/*` package operations and return typed failures. They do not import Next, `Request`/`Response`, or `src/server`.
+- `src/use-cases` holds one `Effect.fn` per product action. Use-cases compose public `@hosti/*` package operations and return typed failures. They do not import Next, `Request`/`Response`, `src/server`, or another use-case. Put shared behavior in a `@hosti/*` package.
 - `src/server` holds Node layers, HTTP glue, `runtime.ts`, and the single `ManagedRuntime`. It has no domain adapters. Server glue calls public `@hosti/*` operations through the runtime.
-- Delivery calls use-cases through `src/app/_http/run-use-case.ts`, which uses `runtime.ts`. Do not run Effects from a route or page. Delivery may import `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node serving glue. It may import `@hosti/*` exports directly for constants and pure helpers.
+- Delivery calls use-cases through `src/app/_http/run-use-case.ts`, which is the only app file that may import `runtime.ts`. Do not run Effects from a route or page. Delivery may import `server/auth/admin.ts`, `server/auth/cookie.ts`, `server/config.ts`, `server/api-responses.ts`, `server/errors.ts`, and `server/serving/**` for Next, HTTP, configuration, and Node serving glue. It may import `@hosti/*` exports directly for constants and pure helpers.
 - Delivery must not import domain operations from `src/server`. Product actions go through use-cases. Serving, auth, HTTP, and Node glue may call public `@hosti/*` operations through `runtime.ts`.
-- Web tests seed state through `apps/web/tests/support.ts`. They may import only `src/server/runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` directly; Dependency Cruiser enforces this allowlist with `web-tests-import-only-server-test-glue`.
+- Web tests seed state through `apps/web/src/tests/support.ts`. They may import only `src/server/runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` directly; Dependency Cruiser enforces this allowlist with `web-tests-import-only-server-test-glue`.
 
-Dependency Cruiser enforces `use-cases-do-not-import-outer-layers`, `server-does-not-import-delivery`, `delivery-reaches-domain-through-use-cases`, and `web-tests-import-only-server-test-glue`.
+`.dependency-cruiser.cjs` builds on the `layout()` preset from `@jakubszwajka/house-rules`, with `app` as the web delivery layer and `src/delivery` as the CLI's. Dependency Cruiser enforces `use-cases-do-not-import-outer-layers`, `use-cases-do-not-import-use-cases`, `server-does-not-import-delivery`, `delivery-does-not-import-server` (except the delivery glue listed above), `delivery-reaches-domain-through-use-cases`, `web-tests-import-only-server-test-glue`, `tests-live-in-tests-dir`, `app-code-in-layers`, and `no-ownerless-files`. See [CHECKS.md](./CHECKS.md) for the full list.
 
 ## Pins and install policy
 
-Pin every dependency in the root and workspace manifests to an exact version or a full Git commit SHA. The `pins` check enforces this and rejects `workspace:*`. `packageManager` must stay exact. pnpm writes exact versions and `workspace:<exact version>` through `pnpm-workspace.yaml`.
+Pin every dependency in the root and workspace manifests to an exact version or a full Git commit SHA. The `pins` check (`house-rules-pins`) enforces this and rejects `workspace:*`. `packageManager` must stay exact. pnpm writes exact versions and `workspace:<exact version>` through `pnpm-workspace.yaml`.
 
 Do not upgrade a dependency as part of unrelated work. Ask before adding, removing, or changing a dependency, Node, pnpm, or Turbo.
 
-`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `@swc/core` is denied because its script only adds a wasm fallback; its native binary is optional. `lefthook` is disabled because hook setup runs explicitly. Review any new build script before approving it. `packageExtensions` gives the ESLint comment plugin its own TypeScript 6.0.3 dependency.
+`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `@swc/core` is denied because its script only adds a wasm fallback; its native binary is optional. `lefthook` is disabled because hook setup runs explicitly. Review any new build script before approving it. `packageExtensions` gives `@jakubszwajka/house-rules` its own TypeScript 6.0.3 dependency for its ESLint parser.
 
 ## Hooks
 
@@ -65,14 +66,14 @@ Before editing Effect code, read `effect/AGENTS.md` and the docs under `effect/a
 
 Effect packages live under `packages/` and declare `effect`. They use TypeScript 7.0.2 patched by `@effect/tsgo` 0.45.0. Root `prepare` runs `effect-tsgo patch` before hook setup. Keep `effect`, `@effect/vitest`, and any other `@effect/*` runtime package on the same exact version. Never lower an Effect diagnostic below `error` to make a change pass.
 
-Every workspace package, `apps/web` included, pins TypeScript 7.0.2. pnpm links them all to one copy, which `prepare` patches, so every `tsc` run inherits the Effect diagnostics from `tsconfig.base.json`. Next.js 16.3.5 runs that compiler as a CLI (`experimental.useTypeScriptCli`, on by default), so `next build` type-checks with TypeScript 7.
+Every workspace package, `apps/web` included, pins TypeScript 7.0.2. pnpm links them all to one copy, which `prepare` patches, so every `tsc` run inherits the Effect diagnostics from `tsconfig.base.json`. That file extends `@jakubszwajka/house-rules/tsconfig/effect.json` and overrides only the target, libraries, and Bundler module settings. Next.js 16.3.5 runs that compiler as a CLI (`experimental.useTypeScriptCli`, on by default), so `next build` type-checks with TypeScript 7.
 
 - `apps/web/tsconfig.json` sets `@effect/language-service` to `"diagnostics": false` in its `plugins`, because React pages and route handlers use `async`, `Date`, and Node built-ins. The main web pass still runs every strict flag from the base.
 - `apps/web/tsconfig.effect.json` runs the same compiler with the full Effect diagnostics on `src/use-cases/**` and every file those import. Keep `src/app`, React, and route handlers out of that project.
 - `apps/cli/tsconfig.json` turns the Effect diagnostics off the same way, because the CLI is plain Node code, not Effect. `packages/shared` passes them unchanged and keeps them on.
 - Never turn an Effect diagnostic off in `tsconfig.base.json` or in an Effect package.
 
-Dependency Cruiser uses SWC to parse TypeScript 7, and the comment plugin uses its TypeScript 6.0.3 extension.
+Dependency Cruiser uses SWC to parse TypeScript 7, and the house-rules ESLint plugin uses its TypeScript 6.0.3 extension.
 
 `next-env.d.ts` is generated by Next and ignored by Git, as the Next.js 16 docs advise. `next build` and `next dev` write different versions of it.
 

@@ -1,22 +1,5 @@
-import {
-  Identity,
-  type EffectLoginLimiter,
-  type IdentityCryptoError,
-  type Verdict,
-} from "@hosti/identity";
-import { Context, Effect, Layer } from "effect";
-
-export class LoginThrottle extends Context.Service<LoginThrottle, EffectLoginLimiter>()(
-  "@hosti/web/LoginThrottle",
-) {
-  static readonly layer = Layer.effect(
-    LoginThrottle,
-    Effect.gen(function* () {
-      const identity = yield* Identity;
-      return LoginThrottle.of(yield* identity.createLoginLimiter());
-    }),
-  );
-}
+import { Identity, LoginThrottle, type IdentityCryptoError, type Verdict } from "@hosti/identity";
+import { Effect } from "effect";
 
 export type LoginResult =
   | { status: "unconfigured" | "locked" | "bad" }

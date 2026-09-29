@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const script = fileURLToPath(new URL("../scripts/check-exact-pins.mjs", import.meta.url));
+const script = fileURLToPath(
+  new URL("../node_modules/@jakubszwajka/house-rules/bin/pins.mjs", import.meta.url),
+);
 const checkManifest = (manifest) => {
   const dir = mkdtempSync(join(tmpdir(), "check-exact-pins-"));
   try {

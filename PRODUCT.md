@@ -123,7 +123,7 @@ Confirmed behaviour the design has to respect:
 Technical constraints on the interface itself:
 
 - Next.js App Router, TypeScript, React server components by default.
-- Plain CSS in `apps/web/src/styles/`. No Tailwind, no component library, no
+- Plain CSS in `apps/web/src/app/_styles/`. No Tailwind, no component library, no
   CSS-in-JS, no animation library, no font loader package.
 - Biome caps a source file at 300 lines, which is why both the CSS and the UI
   are split into small files. Split further rather than fight it.
