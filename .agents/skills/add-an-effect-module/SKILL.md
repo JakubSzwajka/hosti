@@ -35,7 +35,7 @@ A delivery function may return an Effect. The entry point that owns the runtime 
 
 ## 5. Test it
 
-Put tests beside production code as `<file>.test.ts`. Use `@effect/vitest`, `it.effect`, and `it.layer` to provide services. Use `Effect.flip` to assert expected typed failures. Do not call `Effect.run*` or build a runtime by hand in tests.
+Put tests in `src/tests/<file>.test.ts`. For `src/foo.ts`, write `src/tests/foo.test.ts`. Import the module under test from `../foo.js` (with `.js` extension). Use `@effect/vitest`, `it.effect`, and `it.layer` to provide services. Use `Effect.flip` to assert expected typed failures. Do not call `Effect.run*` or build a runtime by hand in tests.
 
 ## 6. Verify it
 
