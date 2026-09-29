@@ -5,7 +5,7 @@ import { expect, it } from "@effect/vitest";
 import { Catalog } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { TestClock } from "effect/testing";
-import { ALL_SCOPES, Identity, IdentityCrypto } from "./index";
+import { ALL_SCOPES, Identity, IdentityCrypto } from "../index";
 
 let randomSequence = 0;
 
@@ -48,7 +48,7 @@ const testIdentityLayer = Layer.unwrap(
     const path = yield* Path.Path;
     const dataDir = yield* fs.makeTempDirectoryScoped({ prefix: "hosti-identity-" });
     const schemaSql = yield* fs.readFileString(
-      path.resolve(import.meta.dirname, "../../catalog/schema.sql"),
+      path.resolve(import.meta.dirname, "../../../catalog/schema.sql"),
     );
     const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(
       Layer.provideMerge(catalogPlatform),

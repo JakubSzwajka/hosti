@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { StorageError } from "./index";
+import { StorageError } from "../index";
 
 it("constructs a typed storage error", () => {
   const error = new StorageError({

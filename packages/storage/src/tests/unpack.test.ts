@@ -3,7 +3,7 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { expect, it } from "@effect/vitest";
 import { Effect, FileSystem, Layer, Path, Stream } from "effect";
-import { ArchiveCodec, Storage, StorageError } from "./index";
+import { ArchiveCodec, Storage, StorageError } from "../index";
 
 const page = new TextEncoder().encode("<h1>hi</h1>");
 const expandedZipEntry = new Uint8Array(50_000).fill(48);

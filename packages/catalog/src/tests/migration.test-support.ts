@@ -2,7 +2,7 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import Database from "better-sqlite3";
 import { Effect, FileSystem, Layer, Path } from "effect";
-import { openDatabaseAt } from "./index";
+import { openDatabaseAt } from "../index";
 
 const platformLayer = Layer.mergeAll(NodeFileSystem.layer, NodePath.layer);
 export const NOW = "2026-09-17T10:00:00.000Z";
@@ -95,7 +95,7 @@ export function withTempDirectory<A, E>(
       const path = yield* Path.Path;
       const dataDir = yield* fs.makeTempDirectoryScoped({ prefix: "hosti-migration-" });
       const schemaSql = yield* fs.readFileString(
-        path.resolve(import.meta.dirname, "../schema.sql"),
+        path.resolve(import.meta.dirname, "../../schema.sql"),
       );
       return yield* test(dataDir, schemaSql);
     }).pipe(Effect.provide(platformLayer)),

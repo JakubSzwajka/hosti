@@ -9,7 +9,9 @@ export { DEFAULT_LIMITS, PIN_LIMITS } from "./auth/rate-limit";
 export type { EffectLoginLimiter, LimiterOptions, Verdict } from "./auth/rate-limit";
 export { SESSION_MAX_AGE_SECONDS } from "./auth/session";
 export type { AdminSession } from "./auth/session";
+export { LoginThrottle } from "./login-throttle";
 export {
+  bearerSecret,
   CATALOG_UPLOAD,
   TOKEN_NAME_MAX_LENGTH,
   TOKEN_NAME_RULE,

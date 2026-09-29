@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import { CatalogError } from "@hosti/catalog";
 import { Deferred, Effect, Fiber } from "effect";
-import { CONNECTION_LIFETIME_MS, Identity } from "./index";
+import { CONNECTION_LIFETIME_MS, Identity } from "../index";
 import {
   directAgentConnectionStore,
   fakeSha256,

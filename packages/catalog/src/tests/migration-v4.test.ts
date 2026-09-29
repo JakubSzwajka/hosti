@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import Database from "better-sqlite3";
 import { Effect } from "effect";
-import { openDatabaseAt } from "./index";
+import { openDatabaseAt } from "../index";
 import {
   NOW,
   seedVersion2,

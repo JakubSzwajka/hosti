@@ -9,9 +9,9 @@ import {
   MAX_PENDING_CONNECTIONS,
   parseStoredScopes,
   USER_CODE_PATTERN,
-} from "./index";
+} from "../index";
 import { fakeSha256, freshIdentity, NOW, request } from "./agent-connections.test-support";
-import { readRequestedScopes } from "./scopes";
+import { readRequestedScopes } from "../scopes";
 
 describe("scopes", () => {
   it("writes a sorted list once each, and reads it back in reading order", () => {

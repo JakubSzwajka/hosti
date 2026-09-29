@@ -12,6 +12,12 @@ export const TOKEN_NAME_RULE = `A push token name is letters, digits, dashes, un
 export const CATALOG_UPLOAD = "@catalog";
 
 const TOKEN_NAME_PATTERN = /^[A-Za-z0-9_\- ]+$/;
+const BEARER_PREFIX = "Bearer ";
+
+export function bearerSecret(authorization: string | null): string | null {
+  if (!authorization?.startsWith(BEARER_PREFIX)) return null;
+  return authorization.slice(BEARER_PREFIX.length).trim() || null;
+}
 
 export type PushTokenRecord = {
   id: number;

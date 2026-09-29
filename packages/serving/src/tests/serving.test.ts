@@ -4,7 +4,7 @@ import { expect, it } from "@effect/vitest";
 import { IdentityCrypto } from "@hosti/identity";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { TestClock } from "effect/testing";
-import { Serving, PREVIEW_TOKEN_TTL_MS } from "./index";
+import { Serving, PREVIEW_TOKEN_TTL_MS } from "../index";
 
 const cryptoLayer = IdentityCrypto.layer({
   encodeBase64Url(value) {

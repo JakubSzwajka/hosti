@@ -3,8 +3,8 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { Catalog } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
-import { makeAgentConnectionStore, type TokenStore } from "./agent-connections";
-import { Identity, IdentityCrypto } from "./index";
+import { makeAgentConnectionStore, type TokenStore } from "../agent-connections";
+import { Identity, IdentityCrypto } from "../index";
 
 let sequence = 0;
 
@@ -40,7 +40,7 @@ export const freshIdentity = Layer.unwrap(
     const path = yield* Path.Path;
     const dataDir = yield* fs.makeTempDirectoryScoped({ prefix: "hosti-connections-" });
     const schemaSql = yield* fs.readFileString(
-      path.resolve(import.meta.dirname, "../../catalog/schema.sql"),
+      path.resolve(import.meta.dirname, "../../../catalog/schema.sql"),
     );
     const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(
       Layer.provideMerge(catalogPlatform),
