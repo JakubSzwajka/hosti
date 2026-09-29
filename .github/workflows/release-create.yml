@@ -34,6 +34,8 @@ env:
   BUILD_CONTEXT: .
   RELEASE_MARK_LATEST: "false"
   HEALTH_PATH: /api/health
+  LANDING_HEALTH_PATH: /healthz
+  LANDING_URL: https://hosti.kubaszwajka.com
 
 defaults:
   run:
@@ -53,6 +55,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Check release configuration
+        if: ${{ !inputs.dry_run }}
+        env:
+          LANDING_APP_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+        run: |
+          [ -n "$LANDING_APP_ID" ] || {
+            echo "DOKPLOY_LANDING_APPLICATION_ID is required for a real release." >&2
+            exit 1
+          }
+      - name: Preflight landing health
+        if: ${{ !inputs.dry_run }}
+        run: |
+          endpoint="${LANDING_URL%/}${LANDING_HEALTH_PATH}"
+          if ! body="$(curl -fsS --max-time 10 "$endpoint")"; then
+            echo "Landing preflight failed: ${endpoint} is not reachable." >&2
+            exit 1
+          fi
+          if ! jq -e 'type == "object" and .status == "ok" and (.commit | type == "string" and test("^[0-9a-f]{12}$"))' <<<"$body" >/dev/null; then
+            echo "Landing preflight failed: ${endpoint} must return status=ok and a 12-character lowercase commit." >&2
+            exit 1
+          fi
       - name: Next version
         id: version
         env:
@@ -97,6 +120,18 @@ jobs:
             ${{ steps.version.outputs.image }}:prod-sha-${{ steps.version.outputs.sha12 }}
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.version.outputs.image }}:latest
+      # Build both images before the tag: a failed landing build leaves no tag or release.
+      - if: ${{ !inputs.dry_run }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: landing
+          file: landing/Dockerfile
+          push: true
+          build-args: APP_COMMIT=${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ${{ steps.version.outputs.image }}:landing-prod-sha-${{ steps.version.outputs.sha12 }}
+            ${{ steps.version.outputs.image }}:landing-${{ steps.version.outputs.version }}
       - name: Tag and publish the GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
@@ -111,9 +146,12 @@ jobs:
 
   deploy:
     needs: build-and-tag
-    if: ${{ !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
+    if: ${{ always() && !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,8 +165,42 @@ jobs:
           sha="$(git rev-parse -q --verify "refs/tags/${VERSION}^{commit}")" || { echo "Tag ${VERSION} does not exist." >&2; exit 1; }
           git merge-base --is-ancestor "$sha" HEAD || { echo "${VERSION} is not on main." >&2; exit 1; }
           { echo "VERSION=${VERSION}"; echo "SHA12=${sha:0:12}"
-            echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:prod-sha-${sha:0:12}"; } >> "$GITHUB_ENV"
-      - name: Deploy to Dokploy
+            echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:prod-sha-${sha:0:12}"
+            echo "LANDING_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:landing-prod-sha-${sha:0:12}"; } >> "$GITHUB_ENV"
+      - name: Check release configuration
+        env:
+          LANDING_APP_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+        run: |
+          [ -n "$LANDING_APP_ID" ] || {
+            echo "DOKPLOY_LANDING_APPLICATION_ID is required for a release or redeploy." >&2
+            exit 1
+          }
+      - name: Log in to GHCR for image checks
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check release images exist
+        run: |
+          for image in "$IMAGE" "$LANDING_IMAGE"; do
+            docker manifest inspect "$image" >/dev/null || {
+              echo "Required immutable image is missing: $image" >&2
+              exit 1
+            }
+          done
+      - name: Preflight landing health before Dokploy
+        run: |
+          endpoint="${LANDING_URL%/}${LANDING_HEALTH_PATH}"
+          if ! body="$(curl -fsS --max-time 10 "$endpoint")"; then
+            echo "Landing preflight failed: ${endpoint} is not reachable." >&2
+            exit 1
+          fi
+          if ! jq -e 'type == "object" and .status == "ok" and (.commit | type == "string" and test("^[0-9a-f]{12}$"))' <<<"$body" >/dev/null; then
+            echo "Landing preflight failed: ${endpoint} must return status=ok and a 12-character lowercase commit." >&2
+            exit 1
+          fi
+      - name: Deploy app to Dokploy
         env:
           DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
@@ -141,7 +213,7 @@ jobs:
           post application.update "$(jq -nc --arg id "$APP_ID" --arg img "$IMAGE" '{applicationId: $id, dockerImage: $img}')"
           post application.deploy "$(jq -nc --arg id "$APP_ID" --arg t "${VERSION} (prod-sha-${SHA12})" '{applicationId: $id, title: $t}')"
       # The old container keeps answering 200 until the new one is healthy, so wait for the new commit.
-      - name: Wait for the new commit on health
+      - name: Wait for the app commit on health
         env:
           URL: ${{ vars.APP_URL }}
         run: |
@@ -153,6 +225,30 @@ jobs:
             sleep 10
           done
           echo "${URL%/}${HEALTH_PATH} never served commit ${SHA12} with HTTP 200." >&2; exit 1
+      - name: Deploy landing to Dokploy
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          LANDING_APP_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+        run: |
+          post() {
+            curl -fsS -X POST "${DOKPLOY_BASE_URL%/}/api/$1" -d "$2" \
+              -H "x-api-key: ${DOKPLOY_API_KEY}" -H 'content-type: application/json' >/dev/null
+          }
+          post application.update "$(jq -nc --arg id "$LANDING_APP_ID" --arg img "$LANDING_IMAGE" '{applicationId: $id, dockerImage: $img}')"
+          post application.deploy "$(jq -nc --arg id "$LANDING_APP_ID" --arg t "${VERSION} (landing-prod-sha-${SHA12})" '{applicationId: $id, title: $t}')"
+      - name: Wait for the landing commit on health
+        env:
+          URL: ${{ env.LANDING_URL }}
+        run: |
+          deadline=$((SECONDS + 600))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            seen="$(curl -fsS --max-time 10 "${URL%/}${LANDING_HEALTH_PATH}" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true)"
+            echo "landing commit ${seen:-none}, want ${SHA12}"
+            [ "$seen" = "$SHA12" ] && exit 0
+            sleep 10
+          done
+          echo "${URL%/}${LANDING_HEALTH_PATH} never served commit ${SHA12} with HTTP 200." >&2; exit 1
       - name: Notify Discord
         if: always() && github.ref == 'refs/heads/main'
         continue-on-error: true

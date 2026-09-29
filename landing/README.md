@@ -34,43 +34,58 @@ page has no horizontal overflow at 390px or 1440px wide.
 
 ## Image
 
-[Dockerfile](Dockerfile) copies the site files into a pinned Caddy image, and
-[Caddyfile](Caddyfile) serves them on port 80 as a non-root user. The build
-context is this folder:
+`Dockerfile` copies the site files into a pinned Caddy image, and
+`Caddyfile` serves them on port 80 as a non-root user. The image
+accepts `APP_COMMIT` and reports its first 12 characters at `/healthz`. The
+build context is this folder:
 
 ```bash
-docker build -t hosti-landing landing
+docker build --build-arg APP_COMMIT=0123456789abcdef -t hosti-landing landing
 docker run --rm -p 8080:80 hosti-landing
+curl -fsS http://127.0.0.1:8080/healthz
+# { "status": "ok", "commit": "0123456789ab" }
 ```
 
 TLS ends at Traefik, so the container speaks plain HTTP.
 
 ## Deploy
 
-The page is live at `https://hosti.kubaszwajka.com`. It runs as the Dokploy
-application `hosti-landing`, next to the app's `hosti`:
+The page is live at `https://hosti.kubaszwajka.com`. It is moving to a new
+image-based Dokploy application `hosti-landing-image`, next to the app's
+`hosti`. The existing `hosti-landing` application is GitHub-source until the
+separately approved cutover.
 
 | Setting | Value |
 | --- | --- |
-| Source | GitHub, this repository, branch `main` |
-| Build | Dockerfile path `landing/Dockerfile`, build context `landing/` |
+| Source | Docker image `ghcr.io/jakubszwajka/hosti:landing-prod-sha-<12>`, pinned by each release |
+| Build | "Create release" builds `landing/Dockerfile` with context `landing/` and pushes to GHCR |
 | Domain | `hosti.kubaszwajka.com`, HTTPS, routed to container port `80` |
 | Auto deploy | off |
 
-"Create release" does not deploy it. That workflow waits for a new commit on
-`/api/health`, and this page has no such route. To ship a change:
+Before a real release, the workflow preflights the public `/healthz` and
+requires `{"status":"ok","commit":"<12 lowercase hex>"}`. It then deploys the
+new application after Hosti and waits for the same commit. It does not change
+the old GitHub-source app in place. Set the repo variable
+`DOKPLOY_LANDING_APPLICATION_ID` to the new application before a real release.
 
-1. [ ] Merge it to `main`.
-2. [ ] In Dokploy, open `hosti-landing` and press Deploy. It builds from the
-   current `main`.
-3. [ ] Check that `https://hosti.kubaszwajka.com/` shows the change and
-   `https://hosti.kubaszwajka.com/b/x` answers 308 to `hosti-private`.
+The current `v0.3.0` landing app returns an empty `/healthz`, so it cannot be
+used as the bootstrap image. After the first release commit is merged to
+`main`, build and publish that commit's health-aware landing image and deploy
+it to the new application before the domain cutover. Verify the new
+application, then get separate production approval to point the domain at it.
+Keep the old GitHub-source app for manual fallback. The first two-image
+release cannot automatically roll back to `v0.3.0` unless a compatible
+landing image is intentionally built and published.
+
+For a local check, build with a commit, then confirm `/healthz` returns JSON
+with that commit and `/v/example?x=y` redirects to `hosti-private` with the
+query preserved.
 
 ## What the server answers
 
 | Path | Answer |
 | --- | --- |
-| `/healthz` | 200, empty body |
+| `/healthz` | 200, JSON `{"status":"ok","commit":"<12>"}` from the image build commit |
 | `/api/*`, `/b/*`, `/c/*`, `/v/*`, `/connect/*` | 308 to `https://hosti-private.kubaszwajka.com` with the same path and query |
 | `/login*`, `/logout*`, `/tokens*`, `/upload*` | the same 308 |
 | `/`, `/docs/*`, `/styles/*`, `/icon.svg` | the files, cached for 5 minutes (pages) or one day (styles, icon) |

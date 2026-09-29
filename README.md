@@ -123,15 +123,30 @@ reports the commit the image was built from. `docker compose down` keeps
 ### The landing page
 
 `hosti.kubaszwajka.com` is the static landing page. The app lives at
-`hosti-private.kubaszwajka.com`. The landing page is its own Dokploy
-application, `hosti-landing`, next to `hosti`:
+`hosti-private.kubaszwajka.com`. The landing page is moving to a new,
+image-based Dokploy application next to `hosti`:
 
 | Setting | Value |
 | --- | --- |
-| Source | GitHub, this repository, branch `main`, auto deploy off |
-| Build | Dockerfile `landing/Dockerfile`, build context `landing/`. A Caddy image |
+| Source | Docker image `ghcr.io/jakubszwajka/hosti:landing-prod-sha-<12>`, pinned by each release |
+| Build | "Create release" builds `landing/Dockerfile` with context `landing/` and pushes to GHCR |
 | Domain | `hosti.kubaszwajka.com`, HTTPS |
-| Deploy | by hand in Dokploy, not "Create release": the page has no `/api/health` commit to wait for |
+| Deploy | gated with the app, auto deploy off |
+
+Set the repo variable `DOKPLOY_LANDING_APPLICATION_ID` to the new Dokploy
+application. Before a real release, the workflow requires the public
+`/healthz` to return `{"status":"ok","commit":"<12 lowercase hex>"}`. It
+then deploys the app first, waits for `/api/health`, deploys landing and waits
+for `/healthz` with the same commit. The old GitHub-source `hosti-landing`
+application must not have its `sourceType` switched in place.
+
+The current `v0.3.0` landing app has no health JSON, so it cannot bootstrap the
+new gated workflow. After the first release commit is merged to `main`, build
+and publish that commit's health-aware landing image and deploy it to the new
+application as a one-time bootstrap. Verify it there, then get separate
+production approval to point the domain at it. Keep the old app for manual
+fallback. See [landing/README.md](landing/README.md) and
+[docs/release.md](docs/release.md).
 
 Its Caddy sends a 308 to `hosti-private.kubaszwajka.com` for the app's paths,
 so old share and approval links still reach the app. A redirect does not help

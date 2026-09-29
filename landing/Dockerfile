@@ -2,7 +2,12 @@
 # Build context: landing/. Only the site files go into the web root.
 FROM caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
 
+ARG APP_COMMIT=unknown
+ENV APP_COMMIT=$APP_COMMIT
+
 COPY Caddyfile /etc/caddy/Caddyfile
+RUN commit="$(printf '%s' "$APP_COMMIT" | cut -c1-12)" \
+  && sed -i "s/__APP_COMMIT__/${commit}/g" /etc/caddy/Caddyfile
 COPY index.html icon.svg /srv/
 COPY styles/ /srv/styles/
 COPY docs/ /srv/docs/
