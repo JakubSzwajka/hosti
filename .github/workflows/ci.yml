@@ -49,3 +49,26 @@ jobs:
 
       - name: Build Docker image
         run: docker build -f apps/web/Dockerfile .
+
+      - name: Build and smoke-test landing image
+        working-directory: landing
+        env:
+          APP_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker build --build-arg "APP_COMMIT=${APP_COMMIT}" -t hosti-landing-ci .
+          container="hosti-landing-ci-${GITHUB_RUN_ID}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name "$container" --publish 127.0.0.1:18080:80 hosti-landing-ci
+          for _ in {1..30}; do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:18080/healthz >/tmp/landing-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          test -s /tmp/landing-health.json
+          test "$(jq -r .status /tmp/landing-health.json)" = ok
+          test "$(jq -r .commit /tmp/landing-health.json)" = "${APP_COMMIT:0:12}"
+          headers="$(curl --silent --show-error --max-time 5 --dump-header - --output /dev/null 'http://127.0.0.1:18080/v/example?x=y')"
+          grep -F $'HTTP/1.1 308' <<<"$headers"
+          grep -F 'location: https://hosti-private.kubaszwajka.com/v/example?x=y' <<<"${headers,,}"

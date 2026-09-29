@@ -15,7 +15,9 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
-	respond /healthz 200
+	@health path /healthz
+	header @health Content-Type "application/json"
+	respond @health `{ "status": "ok", "commit": "__APP_COMMIT__" }` 200
 
 	# The app moved to hosti-private. Old share, approval and API links on this
 	# domain keep working through a permanent redirect that keeps path and query.
