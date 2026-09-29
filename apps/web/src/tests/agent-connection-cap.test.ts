@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import { MAX_PENDING_CONNECTIONS } from "@hosti/identity";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 const { POST: CREATE } = await import("@/app/api/v1/agent-authorizations/route");
 

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import type { PushScope } from "@hosti/shared";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
@@ -27,7 +27,7 @@ const LoginPage = (await import("@/app/login/page")).default;
 const { POST: LOGIN } = await import("@/app/login/submit/route");
 const { POST: APPROVE } = await import("@/app/connect/[id]/approve/route");
 const { POST: DENY } = await import("@/app/connect/[id]/deny/route");
-const nextConfig = (await import("../next.config")).default;
+const nextConfig = (await import("../../next.config")).default;
 const support = await import("./support");
 
 let dataDir: string;

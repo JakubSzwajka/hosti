@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 
@@ -21,7 +21,7 @@ const TOKENS_THE_GATE_COPIES = [
   "--danger",
 ] as const;
 
-const HOSTI_CSS = path.resolve(import.meta.dirname, "../src/styles/hosti.css");
+const HOSTI_CSS = path.resolve(import.meta.dirname, "../app/_styles/hosti.css");
 
 let dataDir: string;
 let token: string;

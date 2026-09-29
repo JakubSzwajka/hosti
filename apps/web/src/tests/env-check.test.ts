@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkEnvironment, digestPrefix, inspectSecret } from "../scripts/env-check.mjs";
+import { checkEnvironment, digestPrefix, inspectSecret } from "../../scripts/env-check.mjs";
 
 const CLEAN_ENV = {
   HOSTI_OWNER_PASSWORD: "abcd12efg!@#",

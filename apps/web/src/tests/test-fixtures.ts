@@ -4,7 +4,7 @@ import path from "node:path";
 import { deflateRawSync, gzipSync } from "node:zlib";
 import { create } from "tar";
 
-export const FIXTURES = path.resolve(import.meta.dirname, "../../../fixtures");
+export const FIXTURES = path.resolve(import.meta.dirname, "../../../../fixtures");
 
 export async function useTempDataDir(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-test-"));
