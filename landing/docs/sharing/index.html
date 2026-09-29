@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="The private, link and pin sharing states, what each one exposes, pins and rotate." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ecf2f3" />
+    <title>sharing · hosti docs</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap" />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/landing.css" />
+    <link rel="stylesheet" href="/styles/docs.css" />
+    <link rel="stylesheet" href="/styles/docs-prose.css" />
+    <link rel="stylesheet" href="/styles/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <nav class="header-nav" aria-label="site">
+        <a class="header-link" href="/docs/">docs</a>
+        <a class="header-link" href="https://github.com/JakubSzwajka/hosti">source on github</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <nav class="docs-nav" aria-label="docs">
+        <p class="docs-nav-label">docs</p>
+        <ol>
+          <li><a href="/docs/">what hosti is</a></li>
+          <li><a href="/docs/self-host/">self-host</a></li>
+          <li><a href="/docs/cli/">the cli</a></li>
+          <li><a href="/docs/sharing/" aria-current="page">sharing</a></li>
+          <li><a href="/docs/agents/">agents</a></li>
+        </ol>
+      </nav>
+
+      <main id="main" class="docs-main">
+        <article class="prose">
+          <h1>Sharing a bundle</h1>
+          <p class="lede">A bundle has one sharing state and at most one share link. Every bundle arrives private, and a push never changes that.</p>
+
+          <h2>The three states</h2>
+          <dl>
+            <div>
+              <dt><span class="state" data-s="private">private</span></dt>
+              <dd>Nothing answers at the share link. A guest gets the same 404 as for any other miss, so the 404 does not even say the bundle exists. The owner still sees it in the catalog.</dd>
+            </div>
+            <div>
+              <dt><span class="state" data-s="link">link</span></dt>
+              <dd>Anyone holding the share link opens the bundle's current revision.</dd>
+            </div>
+            <div>
+              <dt><span class="state" data-s="pin">pin</span></dt>
+              <dd>The share link shows the pin gate first. The right pin opens the bundle for 12 hours in that browser.</dd>
+            </div>
+          </dl>
+          <p>A bundle with no revision, and a share slug nobody knows, answer the same 404 as a private bundle.</p>
+
+          <h2>The share link</h2>
+          <p>The share link is <code>/v/&lt;share-slug&gt;/</code> on the catalog's domain. The share slug is the bundle slug until a rotate replaces it, so <code>squad-2026</code> is shared at <code>https://hosti.example/v/squad-2026/</code>. A share link does not expire.</p>
+          <p>Under that path, a guest reads the bundle's files:</p>
+          <pre><code>/v/x                  308 to /v/x/, unless a pin gates it
+/v/x/                 index.html
+/v/x/athletes/        athletes/index.html
+/v/x/athletes         308 to /v/x/athletes/
+/v/x/reports/2026-q3  reports/2026-q3.html
+/v/x/assets/chart.js  the file
+anything else         the bundle's 404.html, else Hosti's own 404</code></pre>
+          <p>Links inside a bundle must be relative. A link written <code>/assets/chart.js</code> asks for the root of the domain, which is the catalog, and it will 404.</p>
+          <p>Every response under <code>/v/</code> carries <code>Cache-Control: private, no-store</code> and <code>frame-ancestors 'none'</code>. A shared cache in front of Hosti must never keep one of these responses.</p>
+
+          <h2>Setting the state</h2>
+          <p>The owner sets it on the bundle's page in the catalog, <code>/b/&lt;slug&gt;</code>. An agent sets it with the CLI, which needs a push token with the <code>share</code> scope:</p>
+          <pre><code>hosti share squad-2026 --mode link
+hosti share squad-2026 --mode pin --pin 4821
+hosti share squad-2026 --mode private</code></pre>
+          <p>Over HTTP it is <code>PUT /api/v1/bundles/&lt;slug&gt;/sharing</code> with a body of <code>{"mode": "private" | "link" | "pin", "pin"?: "4821"}</code>. A mode that is not one of the three comes back 400 <code>bad_mode</code>.</p>
+
+          <h2>Pins</h2>
+          <p>A pin is four to eight digits, and the owner types them. Hosti never invents one. It hashes what you send with <code>scrypt</code> and a fresh salt, so no page and no endpoint can show a pin again. To change a pin, send new digits. To drop the gate, set the state to <code>link</code>.</p>
+          <ul>
+            <li>Asking for <code>pin</code> with no pin stored and none sent is refused, 400 <code>pin_required</code>. Once a pin is stored, <code>pin</code> on its own keeps it.</li>
+            <li>A pin sent with <code>private</code> or <code>link</code> is refused, 400 <code>pin_not_wanted</code>.</li>
+            <li>Anything that is not four to eight digits is refused, 400 <code>bad_pin</code>. The message never quotes what you sent.</li>
+            <li>Setting a pin needs <code>HOSTI_SECRET</code> on the server. Without it the call is refused with 503.</li>
+          </ul>
+          <p>Going to <code>private</code> or <code>link</code> clears the stored pin hash. A pin that survived going private would meet you months later as a gate whose digits you no longer remember.</p>
+
+          <h3>What a guest sees at a pin</h3>
+          <pre><code>browser asks for a page   200, the gate, at the same URL, no redirect
+anything else asks        404, the same 404 as any other miss
+POST .../unlock, right    303 onward, cookie set
+POST .../unlock, wrong    303 back to the gate, one error line</code></pre>
+          <p>The gate names nothing: not the bundle title, not the collection, not whether the slug is real. The unlock cookie is <code>hosti_pin_&lt;share-slug&gt;</code>, scoped to <code>/v/&lt;share-slug&gt;</code> and good for 12 hours. It opens that one link and never the catalog.</p>
+          <p>The gate takes ten wrong pins per caller per fifteen minutes. Then it shuts that link to that caller for an hour, and while it is shut the right pin is refused too. The count lives in memory, so a restart clears it.</p>
+
+          <h2>Rotate</h2>
+          <p>Rotating mints a fresh random share slug: twelve characters, no vowels. The old address stops answering at once. It is the only way to cut off somebody who already has the link.</p>
+          <pre><code>hosti rotate squad-2026</code></pre>
+          <p>A rotate keeps the sharing state and the pin as they were. Rotating a private bundle only changes the address it will use later. Every pin unlock cookie belongs to the old slug, so after a rotate the fresh link asks for the pin again.</p>
+
+          <h2>What hosti does not record</h2>
+          <p>Hosti keeps no record of who opened a link. There are no counters, no hit table, no last-opened stamp and no addresses.</p>
+
+          <h2>Bundles run on the catalog's origin</h2>
+          <div class="note">
+            <p>A bundle opened at <code>/v/</code> runs its own JavaScript on the same origin as the catalog. While you are logged in, a script in a bundle can read the catalog pages and act as you there, including starting and approving its own agent connection. It cannot forge a push on its own, because the push API takes a bearer token no browser holds.</p>
+            <p>The fix, serving <code>/v/</code> from a second hostname, is not built yet. Until it is, do not host bundles someone else generated, and check <code>/tokens</code> for a push token you did not approve. The catalog's own previews are sandboxed and do not carry this risk.</p>
+          </div>
+        </article>
+
+        <nav class="docs-pager" aria-label="previous and next page">
+          <a class="prev" href="/docs/cli/"><small>previous</small><span>the cli</span></a>
+          <a class="next" href="/docs/agents/"><small>next</small><span>agents</span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <a class="footer-link" href="/docs/">docs</a>
+      <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
+      <span class="footer-license">MIT license</span>
+      <p class="register">one VPS, one domain, one person</p>
+    </footer>
+  </body>
+</html>

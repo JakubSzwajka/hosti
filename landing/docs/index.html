@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="What hosti is: a self-hosted catalog for the static bundles AI agents push. Push, catalog, share." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ecf2f3" />
+    <title>what hosti is · hosti docs</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap" />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/landing.css" />
+    <link rel="stylesheet" href="/styles/docs.css" />
+    <link rel="stylesheet" href="/styles/docs-prose.css" />
+    <link rel="stylesheet" href="/styles/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <nav class="header-nav" aria-label="site">
+        <a class="header-link" href="/docs/">docs</a>
+        <a class="header-link" href="https://github.com/JakubSzwajka/hosti">source on github</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <nav class="docs-nav" aria-label="docs">
+        <p class="docs-nav-label">docs</p>
+        <ol>
+          <li><a href="/docs/" aria-current="page">what hosti is</a></li>
+          <li><a href="/docs/self-host/">self-host</a></li>
+          <li><a href="/docs/cli/">the cli</a></li>
+          <li><a href="/docs/sharing/">sharing</a></li>
+          <li><a href="/docs/agents/">agents</a></li>
+        </ol>
+      </nav>
+
+      <main id="main" class="docs-main">
+        <article class="prose">
+          <h1>What hosti is</h1>
+          <p class="lede">Hosti is a self-hosted catalog for the static bundles AI agents generate. An agent pushes a folder, the folder gets a URL, and the owner browses everything ever pushed and shares single bundles by link.</p>
+          <p>There are no users. There is the owner, and there are people holding links. Hosti runs as one container with one data volume, on your own VPS.</p>
+
+          <h2>Push, catalog, share</h2>
+          <pre><code>agent  hosti push ./out --slug q3-report
+         |
+hosti  new revision, lands private
+         |
+owner  previews it in the catalog
+         |
+agent  hosti share q3-report --mode link
+         |
+reader opens /v/q3-report/</code></pre>
+
+          <h3>1. Push</h3>
+          <p>An agent runs <code>hosti push</code> on a folder with an <code>index.html</code> at its root. The CLI sends it as one gzipped tarball. The slug names the bundle. Pushing an unknown slug creates the bundle. Pushing the same slug again adds the next revision and moves <code>current</code> onto it, then prunes: the newest five revisions stay by default and the rest are deleted.</p>
+          <p>The owner can also drop a <code>.zip</code> or a <code>.tar.gz</code> on the catalog in the browser. Both ways in go through the same limits and the same entry-file rule.</p>
+
+          <h3>2. Catalog</h3>
+          <p>The owner logs in with the owner password and sees every bundle, newest push first. Each card runs the bundle's current revision, scaled down, in a sandboxed frame. That preview needs the owner's login, so it works on a private bundle too.</p>
+
+          <h3>3. Share</h3>
+          <p>A push never changes the sharing state, so every bundle arrives <span class="state" data-s="private">private</span> and answers 404 at its share link. The owner, or an agent whose push token has the <code>share</code> scope, moves it to <span class="state" data-s="link">link</span> or <span class="state" data-s="pin">pin</span>. The share link is <code>/v/&lt;share-slug&gt;/</code>, and the share slug is the bundle slug until a rotate replaces it.</p>
+
+          <h2>The words hosti uses</h2>
+          <p>The catalog, the CLI and these docs use the same words.</p>
+          <dl>
+            <div>
+              <dt>bundle</dt>
+              <dd>One static site: a directory of files with an entry file, normally <code>index.html</code>. Named by a slug, for example <code>garmin-q3</code>.</dd>
+            </div>
+            <div>
+              <dt>revision</dt>
+              <dd>One archive landing on a bundle. The same slug again makes a new revision and moves the <code>current</code> pointer.</dd>
+            </div>
+            <div>
+              <dt>catalog</dt>
+              <dd>The full set of bundles, and the owner's web UI that browses it and takes uploads.</dd>
+            </div>
+            <div>
+              <dt>collection</dt>
+              <dd>A flat, named group of bundles, such as <code>reports</code>. A bundle is in zero or one.</dd>
+            </div>
+            <div>
+              <dt>sharing state</dt>
+              <dd>One of <code>private</code>, <code>link</code> or <code>pin</code>. One bundle, one state.</dd>
+            </div>
+            <div>
+              <dt>share link</dt>
+              <dd>The one public path to a bundle, at <code>/v/&lt;share-slug&gt;/</code>. It answers only while the state is <code>link</code> or <code>pin</code>.</dd>
+            </div>
+            <div>
+              <dt>rotate</dt>
+              <dd>Minting a fresh share slug. The old address stops answering at once.</dd>
+            </div>
+            <div>
+              <dt>pin</dt>
+              <dd>Four to eight digits the owner types to guard a bundle's link. Hosti stores only a hash.</dd>
+            </div>
+            <div>
+              <dt>push token</dt>
+              <dd>The bearer secret an agent or the CLI uses to write. It carries scopes. A browser never uses one.</dd>
+            </div>
+          </dl>
+
+          <h2>The catalog's pages</h2>
+          <p>Every page here needs the owner's login.</p>
+          <pre><code>/login                   the owner password, one field
+/                        every bundle, newest push first
+/c/reports               one collection; /c/- is the bundles no push put in one
+/b/garmin-q3             one bundle: preview, revisions, sharing, collection, delete
+/b/garmin-q3/preview/    the bundle itself, for the owner's eyes only
+/upload                  drop an archive here; the drop zone posts to it
+/tokens                  the agent prompt, every push token with its scopes, revoke
+/connect/&lt;id&gt;            approve or deny one agent connection</code></pre>
+
+          <h2>What hosti leaves out</h2>
+          <ul>
+            <li>Accounts. The owner password is the only login.</li>
+            <li>View counts. Hosti keeps no record of who opened a link: no counters, no hit table, no addresses.</li>
+            <li>Expiry. A share link answers until the owner goes private, rotates or deletes the bundle.</li>
+            <li>Subdomains. Bundle URLs are paths on one domain, so links inside a bundle must be relative.</li>
+          </ul>
+        </article>
+
+        <nav class="docs-pager" aria-label="next page">
+          <a class="next" href="/docs/self-host/"><small>next</small><span>self-host</span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <a class="footer-link" href="/docs/">docs</a>
+      <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
+      <span class="footer-license">MIT license</span>
+      <p class="register">one VPS, one domain, one person</p>
+    </footer>
+  </body>
+</html>

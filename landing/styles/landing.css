@@ -69,7 +69,14 @@ body {
   height: 28px;
 }
 
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0 18px;
+}
+
 .header-link,
+.footer-link,
 .footer-repo {
   display: inline-flex;
   min-height: 44px;

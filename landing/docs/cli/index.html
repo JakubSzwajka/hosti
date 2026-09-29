@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Install the hosti CLI, log in by browser approval, and push, share, rotate and list bundles." />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ecf2f3" />
+    <title>the cli · hosti docs</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,900|instrument-sans:400,500,700&display=swap" />
+    <link rel="stylesheet" href="/styles/tokens.css" />
+    <link rel="stylesheet" href="/styles/landing.css" />
+    <link rel="stylesheet" href="/styles/docs.css" />
+    <link rel="stylesheet" href="/styles/docs-prose.css" />
+    <link rel="stylesheet" href="/styles/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">skip to content</a>
+
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <nav class="header-nav" aria-label="site">
+        <a class="header-link" href="/docs/">docs</a>
+        <a class="header-link" href="https://github.com/JakubSzwajka/hosti">source on github</a>
+      </nav>
+    </header>
+
+    <div class="docs-shell">
+      <nav class="docs-nav" aria-label="docs">
+        <p class="docs-nav-label">docs</p>
+        <ol>
+          <li><a href="/docs/">what hosti is</a></li>
+          <li><a href="/docs/self-host/">self-host</a></li>
+          <li><a href="/docs/cli/" aria-current="page">the cli</a></li>
+          <li><a href="/docs/sharing/">sharing</a></li>
+          <li><a href="/docs/agents/">agents</a></li>
+        </ol>
+      </nav>
+
+      <main id="main" class="docs-main">
+        <article class="prose">
+          <h1>The hosti CLI</h1>
+          <p class="lede"><code>hosti</code> pushes bundles, sets their sharing state and prints their links. It talks HTTP to your catalog and never opens the database.</p>
+
+          <h2>Install</h2>
+          <p>The CLI needs Node 24.21.0 or later. Each CLI release is a <code>hosti-cli.tgz</code> attached to a <code>cli-v&lt;version&gt;</code> release on GitHub:</p>
+          <p class="link-row"><a href="https://github.com/JakubSzwajka/hosti/releases">github.com/JakubSzwajka/hosti/releases</a></p>
+          <p>Install the latest one:</p>
+          <pre><code>npm install -g https://github.com/JakubSzwajka/hosti/releases/latest/download/hosti-cli.tgz</code></pre>
+          <p>From a checkout of the repository, pack and install it yourself:</p>
+          <pre><code>pnpm --filter @hosti/cli run pack:tgz
+npm install -g ./apps/cli/hosti-cli.tgz</code></pre>
+
+          <h2>Log in</h2>
+          <pre><code>hosti login https://hosti.example</code></pre>
+          <p><code>hosti login</code> asks the owner for a push token by browser approval:</p>
+          <ol>
+            <li>The CLI makes a push token and a polling secret on your machine and sends only their SHA-256 digests.</li>
+            <li>It prints a link to <code>/connect/&lt;id&gt;</code> and a short code, such as <code>KX4F-9QLM</code>, each on its own line, and tries to open the link in a browser.</li>
+            <li>The owner opens the link, logs in if needed, checks that the page shows the same code, and approves.</li>
+            <li>The CLI writes <code>{"url","token"}</code> to <code>~/.config/hosti.json</code>, or <code>$XDG_CONFIG_HOME/hosti.json</code>, with mode <code>0600</code>. It prints the token's name and scopes, never the token.</li>
+          </ol>
+          <p>A connection lasts ten minutes. If the owner denies it, it runs out, or the server forgot it after a restart, the CLI exits 1 and says to run <code>hosti login</code> again.</p>
+          <pre><code>hosti login https://hosti.example --name "ci runner"   # default: &lt;user&gt;@&lt;hostname&gt;
+hosti login https://hosti.example --allow-delete       # ask for delete too
+hosti whoami     # the URL, the token name and its scopes
+hosti logout     # forget the saved login</code></pre>
+          <p>A new login asks for the <code>publish</code> and <code>share</code> scopes, and for <code>delete</code> only with <code>--allow-delete</code>. The owner may grant less than you asked for, never more.</p>
+          <p><code>logout</code> only edits the local file. A push token cannot revoke itself, so it keeps working until the owner revokes it on <code>/tokens</code>.</p>
+
+          <h2>Commands</h2>
+          <p>This is the CLI's own usage text, from <code>hosti --help</code>:</p>
+          <pre><code>hosti login &lt;url&gt; [--name N] [--allow-delete]
+hosti whoami
+hosti logout
+hosti push &lt;path&gt; --slug &lt;slug&gt; [--title T] [--collection C]
+                  [--allow-absolute]
+hosti ls [--collection C]
+hosti share &lt;slug&gt; --mode private|link|pin [--pin 4821]
+hosti rotate &lt;slug&gt;
+hosti rm &lt;slug&gt; [--yes]
+hosti open &lt;slug&gt; [--open]
+hosti prune &lt;slug&gt;</code></pre>
+
+          <h3>push</h3>
+          <pre><code>hosti push ./out --slug squad-2026 --title "Squad 2026" --collection reports</code></pre>
+          <p><code>push</code> takes a directory or one <code>.html</code> file. It leaves out <code>.git</code>, <code>node_modules</code>, <code>.DS_Store</code> and <code>._</code> sidecars. <code>--title</code> sets the name shown in the catalog; without it the bundle is named after its slug. <code>--collection</code> puts the bundle in a collection. A later push that names none leaves both as they are.</p>
+          <p>The folder needs <code>index.html</code> at its root. A folder with exactly one root <code>.html</code> file and no <code>index.html</code> has that file stored as <code>index.html</code>. The server refuses anything over 50 MB compressed, 2000 files, or 20 MB per file.</p>
+          <p>A reference that starts with a slash asks for the root of the domain, so it will 404 under the bundle's path. <code>push</code> warns about each one and still goes through. It never rewrites your files. <code>--allow-absolute</code> skips the check.</p>
+          <pre><code>$ hosti push ./fixtures/root-absolute --slug repo-atlas
+warning  5 root-absolute references will 404 under /v/repo-atlas/
+            about.html:4   &lt;script src="/assets/nav.js"&gt;
+            index.html:6   &lt;link rel="stylesheet" href="/assets/atlas.css" /&gt;
+          fix them, or push anyway with --allow-absolute
+pushed   revision 1
+private  nothing answers at the share URL
+admin    https://hosti.example/b/repo-atlas</code></pre>
+
+          <h3>ls</h3>
+          <p>Lists bundles as a table: slug, revision, collection, last update, sharing state and share link. <code>--collection C</code> shows one collection. The sharing column prints <code>private</code>, <code>link</code> or <code>pin</code>, the same words the catalog uses.</p>
+
+          <h3>share</h3>
+          <pre><code>hosti share squad-2026 --mode link
+hosti share squad-2026 --mode pin --pin 4821
+hosti share squad-2026 --mode private</code></pre>
+          <p><code>share</code> is the only way the CLI moves the sharing state. <code>--mode pin</code> needs <code>--pin</code> unless the bundle already holds a pin. The CLI refuses <code>--pin</code> with any other mode before a request leaves. Nothing ever prints the digits of a pin.</p>
+
+          <h3>rotate</h3>
+          <p><code>hosti rotate &lt;slug&gt;</code> mints a fresh share slug. The old URL stops answering. It leaves the sharing state and the pin alone.</p>
+
+          <h3>rm</h3>
+          <p><code>hosti rm &lt;slug&gt;</code> deletes a bundle with every revision and its share link. It asks first. With no terminal attached to ask, it refuses unless you pass <code>--yes</code>. It needs the <code>delete</code> scope.</p>
+
+          <h3>open</h3>
+          <p>Prints where a bundle can be read: its share link, or its owner-only catalog page while it is private. The URL is always the last line, alone, so <code>hosti open x | tail -1</code> is a URL. <code>--open</code> also hands it to the browser. An unknown slug exits 1.</p>
+
+          <h3>prune</h3>
+          <p>Trims a bundle to the newest few revisions and prints which it kept and which it removed. The count is the server's <code>HOSTI_KEEP_REVISIONS</code>. The CLI has no flag for it.</p>
+
+          <h2>Settings</h2>
+          <p>Each setting resolves in this order:</p>
+          <ol>
+            <li><code>--url</code> and <code>--token</code></li>
+            <li><code>HOSTI_URL</code> and <code>HOSTI_TOKEN</code></li>
+            <li>the saved login in <code>~/.config/hosti.json</code>, or <code>$XDG_CONFIG_HOME/hosti.json</code></li>
+          </ol>
+          <p><code>hosti login</code> and <code>hosti logout</code> warn when <code>HOSTI_URL</code> or <code>HOSTI_TOKEN</code> is set, because those override the saved login.</p>
+
+          <h2>Exit codes</h2>
+          <dl>
+            <div>
+              <dt><code>0</code></dt>
+              <dd>Done.</dd>
+            </div>
+            <div>
+              <dt><code>1</code></dt>
+              <dd>The server refused, or the command failed. The reason is on the last line, in the server's own words where it gave one.</dd>
+            </div>
+            <div>
+              <dt><code>2</code></dt>
+              <dd>A usage error, or a missing setting. The message names what to set.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <nav class="docs-pager" aria-label="previous and next page">
+          <a class="prev" href="/docs/self-host/"><small>previous</small><span>self-host</span></a>
+          <a class="next" href="/docs/sharing/"><small>next</small><span>sharing</span></a>
+        </nav>
+      </main>
+    </div>
+
+    <footer class="page-footer">
+      <a class="brand" href="/" aria-label="hosti home">
+        <svg viewBox="0 0 32 32" width="32" height="32" fill="none" aria-hidden="true">
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="4" />
+          <rect x="12" y="12" width="16" height="16" rx="3" stroke="#06707e" stroke-width="4" />
+          <rect x="18" y="10" width="4" height="4" fill="currentColor" />
+        </svg>
+        <span>hosti</span>
+      </a>
+      <a class="footer-link" href="/docs/">docs</a>
+      <a class="footer-repo" href="https://github.com/JakubSzwajka/hosti">github.com/JakubSzwajka/hosti</a>
+      <span class="footer-license">MIT license</span>
+      <p class="register">one VPS, one domain, one person</p>
+    </footer>
+  </body>
+</html>

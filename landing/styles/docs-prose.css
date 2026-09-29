@@ -1,0 +1,227 @@
+/* docs prose: one readable column. Machine values are mono with ligatures off. */
+.prose {
+  max-width: 68ch;
+}
+
+.prose h1 {
+  max-width: 18ch;
+  font-family: var(--font-serif);
+  font-size: clamp(38px, 5.6vw, 54px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.prose .lede {
+  margin-top: 16px;
+  font-size: 19px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.prose h2 {
+  margin-top: 48px;
+  margin-bottom: 12px;
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  scroll-margin-top: 20px;
+}
+
+.prose h3 {
+  margin-top: 28px;
+  margin-bottom: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose dl,
+.prose pre,
+.prose .note {
+  margin-top: 14px;
+}
+
+.prose p,
+.prose li {
+  text-wrap: pretty;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 22px;
+}
+
+.prose ul {
+  list-style: disc;
+}
+
+.prose ol {
+  list-style: decimal;
+}
+
+.prose li + li {
+  margin-top: 6px;
+}
+
+.prose li::marker {
+  color: var(--muted);
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+/* machine values: paths, commands, env vars, slugs */
+.prose code,
+.prose pre {
+  font-family: var(--font-mono);
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
+  font-variant-ligatures: none;
+  letter-spacing: 0.015em;
+}
+
+.prose :not(pre) > code {
+  padding: 1px 5px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  background: var(--card);
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  font-size: 13.5px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.prose pre code {
+  font-size: inherit;
+}
+
+/* a heading sits close to what it introduces */
+.prose h2 + p,
+.prose h3 + p,
+.prose h2 + pre,
+.prose h3 + pre {
+  margin-top: 0;
+}
+
+/* a link that stands on its own line, sized as a target */
+.prose .link-row a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--pop);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-ligatures: none;
+  overflow-wrap: anywhere;
+}
+
+/* a term list: the name on its own line, then what it means */
+.prose dl {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.prose dl > div {
+  padding: 12px 16px;
+}
+
+.prose dl > div + div {
+  border-top: 1px solid var(--line-soft);
+}
+
+.prose dt {
+  font-weight: 700;
+}
+
+.prose dt code {
+  color: var(--pop);
+  font-size: 14px;
+}
+
+.prose dd {
+  margin: 2px 0 0;
+}
+
+.prose dd + dd {
+  margin-top: 6px;
+}
+
+/* one plain panel for a fact that needs to stand apart */
+.prose .note {
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.prose .note p:first-child {
+  margin-top: 0;
+}
+
+/* sharing state: words on a block, never a dot. Only link and pin take teal. */
+.state {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid var(--pop);
+  border-radius: 5px;
+  background: var(--pop);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.state[data-s="private"] {
+  border-color: var(--line);
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .prose .lede {
+    font-size: 18px;
+  }
+
+  .prose h2 {
+    margin-top: 40px;
+    font-size: 23px;
+  }
+
+  .prose pre {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .prose dl > div {
+    padding: 12px 14px;
+  }
+}
