@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 
@@ -137,7 +137,7 @@ describe("the owner moving a pin", () => {
 
   it("leaves a pushed bundle private however it arrived", async () => {
     const { push } = await import("./api");
-    const { tarFixture } = await import("./helpers");
+    const { tarFixture } = await import("./test-fixtures");
     await push(token, "push-stays-private", await tarFixture("multi-page"));
     const body = (await (await getBundle(token, "push-stays-private")).json()) as {
       bundle: { sharing: { mode: string } };

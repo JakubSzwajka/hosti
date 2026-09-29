@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
@@ -37,7 +37,7 @@ let dataDir: string;
 let cookie: string;
 
 const SKILL_PATH = fileURLToPath(
-  new URL("../../../skills/hosti-publish/SKILL.md", import.meta.url),
+  new URL("../../../../skills/hosti-publish/SKILL.md", import.meta.url),
 );
 
 async function skillText(): Promise<string> {

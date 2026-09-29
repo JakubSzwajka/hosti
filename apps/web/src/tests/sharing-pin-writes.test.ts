@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import type { SharingResponse } from "@hosti/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { tarFixture, useTempDataDir } from "./helpers";
+import { tarFixture, useTempDataDir } from "./test-fixtures";
 
 process.env.HOSTI_SECRET = "a-long-random-string-for-tests";
 

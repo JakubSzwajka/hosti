@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { tarFixture, useTempDataDir } from "./helpers";
+import { tarFixture, useTempDataDir } from "./test-fixtures";
 
 const { prune, push } = await import("./api");
 const { createPushToken, findBundle, listRevisions, pruneRevisions, bundleDir } = await import(

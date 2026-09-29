@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
-import { tarFixture, useTempDataDir } from "./helpers";
+import { tarFixture, useTempDataDir } from "./test-fixtures";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 

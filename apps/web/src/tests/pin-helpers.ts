@@ -1,6 +1,6 @@
 import type { SharingMode } from "@hosti/shared";
 import { push, setSharing, shareSlugOf } from "./api";
-import { tarFixture } from "./helpers";
+import { tarFixture } from "./test-fixtures";
 
 export const TEST_SECRET = "a-long-random-string-for-tests";
 

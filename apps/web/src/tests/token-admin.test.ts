@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { tarFixture, useTempDataDir } from "./helpers";
+import { tarFixture, useTempDataDir } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
@@ -9,7 +9,7 @@ process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
 process.env.HOSTI_SECRET = SECRET;
 
 const ORIGIN = "http://127.0.0.1:3000";
-const APP_DIR = path.resolve(import.meta.dirname, "../src/app");
+const APP_DIR = path.resolve(import.meta.dirname, "../app");
 
 const { push } = await import("./api");
 const { SESSION_COOKIE, mutationToken, signSession, verifySession } = await import("./support");

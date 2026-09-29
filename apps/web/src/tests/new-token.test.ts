@@ -6,7 +6,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const SCRIPT = path.resolve(import.meta.dirname, "../scripts/new-token.mjs");
+const SCRIPT = path.resolve(import.meta.dirname, "../../scripts/new-token.mjs");
 
 let dataDir: string;
 

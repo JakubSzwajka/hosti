@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { makeZip, tarFixture, useTempDataDir, zipFixture } from "./helpers";
+import { makeZip, tarFixture, useTempDataDir, zipFixture } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";

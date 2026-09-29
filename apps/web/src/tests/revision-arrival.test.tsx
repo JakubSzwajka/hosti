@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";

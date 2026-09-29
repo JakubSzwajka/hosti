@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import type { PushScope } from "@hosti/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { tarFixture, useTempDataDir } from "./helpers";
+import { tarFixture, useTempDataDir } from "./test-fixtures";
 
 const { ORIGIN, getBundle, prune, push, removeBundle, rotateSharing, setSharing } = await import(
   "./api"

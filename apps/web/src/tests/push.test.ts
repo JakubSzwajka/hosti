@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { makeTar, tarFixture, useTempDataDir } from "./helpers";
+import { makeTar, tarFixture, useTempDataDir } from "./test-fixtures";
 
 const { GET } = await import("@/app/api/v1/bundles/route");
 const { POST } = await import("@/app/api/v1/bundles/[slug]/revisions/route");

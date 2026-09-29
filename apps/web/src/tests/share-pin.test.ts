@@ -1,13 +1,13 @@
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_SECRET } from "./pin-helpers";
-import { useTempDataDir } from "./helpers";
+import { useTempDataDir } from "./test-fixtures";
 
 process.env.HOSTI_SECRET = TEST_SECRET;
 
 const { navigate, push, serve, setSharing, unlock } = await import("./api");
 const { grantFrom, openLink, protectedLink } = await import("./pin-helpers");
-const { tarFixture } = await import("./helpers");
+const { tarFixture } = await import("./test-fixtures");
 const { createPushToken, unlockCookieName } = await import("./support");
 const { isValidPin } = await import("@hosti/shared");
 
