@@ -186,7 +186,7 @@ pnpm env:digest        # inspect configured values without printing secrets
 ```
 
 The architecture checks adapt the maintained-tool setup from
-[drunk-cat-stack](https://github.com/JakubSzwajka/drunk-cat-stack).
+[house-rules-stack](https://github.com/JakubSzwajka/house-rules-stack).
 
 pnpm 12 runs only the install scripts approved in `pnpm-workspace.yaml`.
 `better-sqlite3` needs its script to build the native SQLite binding. The

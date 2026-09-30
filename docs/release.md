@@ -3,7 +3,7 @@
 A merge to `main` ships nothing. CI checks and tests it, and that is all. Prod
 changes only when someone runs **Create release** in GitHub Actions. This is
 the operator's gated release profile. The reference copy of the workflow lives
-in `JakubSzwajka/drunk-cat-stack`.
+in `JakubSzwajka/house-rules-stack`.
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
@@ -192,7 +192,7 @@ The release workflow is maintained here rather than copied from the reference
 project. Compare them when the reference changes:
 
 ```sh
-diff ../drunk-cat-stack/.github/workflows/release-create.yml .github/workflows/release-create.yml
+diff ../house-rules-stack/.github/workflows/release-create.yml .github/workflows/release-create.yml
 ```
 
 The Hosti-specific settings include the app Dockerfile, the landing Dockerfile
