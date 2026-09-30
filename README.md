@@ -178,7 +178,7 @@ keep local values in an ignored `.env.local`. Useful repository commands:
 
 ```bash
 pnpm build             # Next production build
-pnpm test              # ESLint config test, then workspace tests
+pnpm test              # Repository Node tests, ESLint config tests, then workspace tests
 pnpm check             # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
 pnpm token:new -- --name laptop   # a push token from the shell; add --allow-delete for delete
 pnpm env:check         # validate the declared environment schema with Varlock

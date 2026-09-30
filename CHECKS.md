@@ -42,7 +42,7 @@
 | App code under `src/` sits in a layer folder (`app`, `delivery` for the CLI, `server`, `use-cases`) or is the `src/index.ts` entry | Dependency Cruiser `app-code-in-layers` | `.dependency-cruiser.cjs` |
 | No file or folder under `apps/` or `packages/` is named `utils`, `helpers`, or `misc` | Dependency Cruiser `no-ownerless-files` | `.dependency-cruiser.cjs` |
 | Imports resolve, except the generated Next declaration file | Dependency Cruiser `no-unresolved-imports` | `.dependency-cruiser.cjs` |
-| Hook policy and exact-pin checker cases pass | Node test runner over `tests/**/*.test.mjs` | `package.json`, `tests/*.test.mjs` |
+| Hook policy, CLI package, landing, and release workflow cases pass | Node test runner over `tests/**/*.test.mjs` | `package.json`, `tests/*.test.mjs` |
 | ESLint configuration tests pass | Node test runner | `tools/eslint/*.test.mjs`, `package.json` |
 | Workspace behavior tests pass; web tests seed through `apps/web/src/tests/support.ts` | Vitest through Turbo `test` | `apps/cli/package.json`, `apps/web/package.json`, Vitest configuration files |
 
