@@ -15,7 +15,7 @@ minimumReleaseAgeExclude:
 # Giving the plugin its own TypeScript 6.0.3 satisfies that peer inside its subtree.
 # The root and every workspace package, apps/web included, use TypeScript 7.0.2.
 packageExtensions:
-  "@jakubszwajka/house-rules":
+  "@house-rules/rules":
     dependencies:
       typescript: 6.0.3
 

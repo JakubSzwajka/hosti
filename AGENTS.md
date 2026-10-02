@@ -46,7 +46,7 @@ Before handing off code, run `pnpm check` and `pnpm test`. Run `pnpm build` when
 - Delivery must not import domain operations from `src/server`. Product actions go through use-cases. Serving, auth, HTTP, and Node glue may call public `@hosti/*` operations through `runtime.ts`.
 - Web tests seed state through `apps/web/src/tests/support.ts`. They may import only `src/server/runtime.ts`, `config.ts`, `auth/config.ts`, and `auth/cookie.ts` directly; Dependency Cruiser enforces this allowlist with `web-tests-import-only-server-test-glue`.
 
-`.dependency-cruiser.cjs` builds on the `layout()` preset from `@jakubszwajka/house-rules`, with `app` as the web delivery layer and `src/delivery` as the CLI's. Dependency Cruiser enforces `use-cases-do-not-import-outer-layers`, `use-cases-do-not-import-use-cases`, `server-does-not-import-delivery`, `delivery-does-not-import-server` (except the delivery glue listed above), `delivery-reaches-domain-through-use-cases`, `web-tests-import-only-server-test-glue`, `tests-live-in-tests-dir`, `app-code-in-layers`, and `no-ownerless-files`. See [CHECKS.md](./CHECKS.md) for the full list.
+`.dependency-cruiser.cjs` builds on the `layout()` preset from `@house-rules/rules`, with `app` as the web delivery layer and `src/delivery` as the CLI's. Dependency Cruiser enforces `use-cases-do-not-import-outer-layers`, `use-cases-do-not-import-use-cases`, `server-does-not-import-delivery`, `delivery-does-not-import-server` (except the delivery glue listed above), `delivery-reaches-domain-through-use-cases`, `web-tests-import-only-server-test-glue`, `tests-live-in-tests-dir`, `app-code-in-layers`, and `no-ownerless-files`. See [CHECKS.md](./CHECKS.md) for the full list.
 
 ## Pins and install policy
 
@@ -54,7 +54,7 @@ Pin every dependency in the root and workspace manifests to an exact version or 
 
 Do not upgrade a dependency as part of unrelated work. Ask before adding, removing, or changing a dependency, Node, pnpm, or Turbo.
 
-`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `@swc/core` is denied because its script only adds a wasm fallback; its native binary is optional. `lefthook` is disabled because hook setup runs explicitly. Review any new build script before approving it. `packageExtensions` gives `@jakubszwajka/house-rules` its own TypeScript 6.0.3 dependency for its ESLint parser.
+`pnpm-workspace.yaml` holds the install policy. `minimumReleaseAge: 1440` refuses versions published less than one day ago. If a pinned version is too new, wait or ask before adding an exact-version `minimumReleaseAgeExclude` entry. `allowBuilds` names every dependency with an install script. Keep approvals explicit: `better-sqlite3` is enabled for the native SQLite binding, and `esbuild` for Vitest's platform binary. `@swc/core` is denied because its script only adds a wasm fallback; its native binary is optional. `lefthook` is disabled because hook setup runs explicitly. Review any new build script before approving it. `packageExtensions` gives `@house-rules/rules` its own TypeScript 6.0.3 dependency for its ESLint parser.
 
 ## Hooks
 
@@ -66,7 +66,7 @@ Before editing Effect code, read `effect/AGENTS.md` and the docs under `effect/a
 
 Effect packages live under `packages/` and declare `effect`. They use TypeScript 7.0.2 patched by `@effect/tsgo` 0.45.0. Root `prepare` runs `effect-tsgo patch` before hook setup. Keep `effect`, `@effect/vitest`, and any other `@effect/*` runtime package on the same exact version. Never lower an Effect diagnostic below `error` to make a change pass.
 
-Every workspace package, `apps/web` included, pins TypeScript 7.0.2. pnpm links them all to one copy, which `prepare` patches, so every `tsc` run inherits the Effect diagnostics from `tsconfig.base.json`. That file extends `@jakubszwajka/house-rules/tsconfig/effect.json` and overrides only the target, libraries, and Bundler module settings. Next.js 16.3.5 runs that compiler as a CLI (`experimental.useTypeScriptCli`, on by default), so `next build` type-checks with TypeScript 7.
+Every workspace package, `apps/web` included, pins TypeScript 7.0.2. pnpm links them all to one copy, which `prepare` patches, so every `tsc` run inherits the Effect diagnostics from `tsconfig.base.json`. That file extends `@house-rules/rules/tsconfig/effect.json` and overrides only the target, libraries, and Bundler module settings. Next.js 16.3.5 runs that compiler as a CLI (`experimental.useTypeScriptCli`, on by default), so `next build` type-checks with TypeScript 7.
 
 - `apps/web/tsconfig.json` sets `@effect/language-service` to `"diagnostics": false` in its `plugins`, because React pages and route handlers use `async`, `Date`, and Node built-ins. The main web pass still runs every strict flag from the base.
 - `apps/web/tsconfig.effect.json` runs the same compiler with the full Effect diagnostics on `src/use-cases/**` and every file those import. Keep `src/app`, React, and route handlers out of that project.
