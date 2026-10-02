@@ -29,7 +29,7 @@
     "@effect/tsgo": "0.45.0",
     "@eslint/css": "2.0.0",
     "@eslint/markdown": "8.0.3",
-    "@jakubszwajka/house-rules": "github:JakubSzwajka/house-rules#ea83c2654485eb0088a57c48e93602d6debfe897",
+    "@jakubszwajka/house-rules": "github:JakubSzwajka/house-rules-stack#de7a3be622f4e750a8b6d722df165b9e5188b421&path:/packages/rules",
     "@swc/core": "1.16.2",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
