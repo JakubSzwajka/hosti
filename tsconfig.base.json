@@ -1,5 +1,5 @@
 {
-  "extends": "@jakubszwajka/house-rules/tsconfig/effect.json",
+  "extends": "@house-rules/rules/tsconfig/effect.json",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],

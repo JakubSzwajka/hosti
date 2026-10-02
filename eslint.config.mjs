@@ -1,6 +1,6 @@
-import houseRules from "@jakubszwajka/house-rules";
-import design from "@jakubszwajka/house-rules/design";
-import markdown from "@jakubszwajka/house-rules/markdown";
+import houseRules from "@house-rules/rules";
+import design from "@house-rules/rules/design";
+import markdown from "@house-rules/rules/markdown";
 
 function allowedColors(...alphaFades) {
   // allowValues replaces the rule's defaults, so every list starts from them.
@@ -20,7 +20,7 @@ function appAlphaFades() {
 }
 
 function standalonePages() {
-  // The not-found page can't load the token stylesheet (node_modules/@jakubszwajka/house-rules/docs/design-no-raw-color-literal.md#options).
+  // The not-found page can't load the token stylesheet (node_modules/@house-rules/rules/docs/design-no-raw-color-literal.md#options).
   return ["apps/web/src/server/serving/respond.ts"];
 }
 

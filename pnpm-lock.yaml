@@ -162,7 +162,7 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-packageExtensionsChecksum: sha256-too+fYhi6o5Kpwp6pjf/wOOoTJpEdNyFHpGPz8hY108=
+packageExtensionsChecksum: sha256-xGhdlLk3e92Bf+OaCf61W/uIx3ILmN/ppXKV7cEhGyY=
 
 importers:
 
@@ -180,9 +180,9 @@ importers:
       '@eslint/markdown':
         specifier: 8.0.3
         version: 8.0.3(supports-color@7.2.0)
-      '@jakubszwajka/house-rules':
-        specifier: github:JakubSzwajka/house-rules-stack#de7a3be622f4e750a8b6d722df165b9e5188b421&path:/packages/rules
-        version: https://codeload.github.com/JakubSzwajka/house-rules-stack/tar.gz/de7a3be622f4e750a8b6d722df165b9e5188b421#path:/packages/rules(@eslint/css@2.0.0)(@eslint/markdown@8.0.3(supports-color@7.2.0))(dependency-cruiser@18.4.0)(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)
+      '@house-rules/rules':
+        specifier: github:JakubSzwajka/house-rules#1a001b340127104ec4dcfd8b7a0f6cf56c584744&path:/packages/rules
+        version: https://codeload.github.com/JakubSzwajka/house-rules/tar.gz/1a001b340127104ec4dcfd8b7a0f6cf56c584744#path:/packages/rules(@eslint/css@2.0.0)(@eslint/markdown@8.0.3(supports-color@7.2.0))(dependency-cruiser@18.4.0)(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)
       '@swc/core':
         specifier: 1.16.2
         version: 1.16.2(@swc/helpers@0.5.23)
@@ -746,6 +746,24 @@ packages:
     resolution: {integrity: sha512-IkO+/KEUvwbVpiURZg+P7zF74z5Jxe0UgJxVni+RtoHQ6IZieXaO02kmadomap/q+l6bc/jdPGGqTjhuZnuz1Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
+  '@house-rules/rules@https://codeload.github.com/JakubSzwajka/house-rules/tar.gz/1a001b340127104ec4dcfd8b7a0f6cf56c584744#path:/packages/rules':
+    resolution: {gitHosted: true, integrity: sha512-bT9H0e67+M2ueZu5Mq+EECQNMEJ771j92lxo95vfPd6WSWs+WfpzJu06NfsEG0pjfAjGek1vkW0DmfH25In++w==, path: /packages/rules, tarball: https://codeload.github.com/JakubSzwajka/house-rules/tar.gz/1a001b340127104ec4dcfd8b7a0f6cf56c584744}
+    version: 0.5.0
+    engines: {node: '>=24.21.0'}
+    hasBin: true
+    peerDependencies:
+      '@eslint/css': ^2.0.0
+      '@eslint/markdown': ^8.0.3
+      dependency-cruiser: ^18.4.0
+      eslint: '>=9'
+    peerDependenciesMeta:
+      '@eslint/css':
+        optional: true
+      '@eslint/markdown':
+        optional: true
+      dependency-cruiser:
+        optional: true
+
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
     engines: {node: '>=18.18.0'}
@@ -931,24 +949,6 @@ packages:
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
-
-  '@jakubszwajka/house-rules@https://codeload.github.com/JakubSzwajka/house-rules-stack/tar.gz/de7a3be622f4e750a8b6d722df165b9e5188b421#path:/packages/rules':
-    resolution: {gitHosted: true, integrity: sha512-eXlIwPu2WpFWbxG1kooy0qLmsbxesMp/4Fh/1mflDN3Uci3tN7CYneY5fpHSqViKEWkdt6U10W6sOcD0qIjulw==, path: /packages/rules, tarball: https://codeload.github.com/JakubSzwajka/house-rules-stack/tar.gz/de7a3be622f4e750a8b6d722df165b9e5188b421}
-    version: 0.5.0
-    engines: {node: '>=24.21.0'}
-    hasBin: true
-    peerDependencies:
-      '@eslint/css': ^2.0.0
-      '@eslint/markdown': ^8.0.3
-      dependency-cruiser: ^18.4.0
-      eslint: '>=9'
-    peerDependenciesMeta:
-      '@eslint/css':
-        optional: true
-      '@eslint/markdown':
-        optional: true
-      dependency-cruiser:
-        optional: true
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -3017,6 +3017,18 @@ snapshots:
       '@eslint/core': 1.2.1
       levn: 0.4.1
 
+  '@house-rules/rules@https://codeload.github.com/JakubSzwajka/house-rules/tar.gz/1a001b340127104ec4dcfd8b7a0f6cf56c584744#path:/packages/rules(@eslint/css@2.0.0)(@eslint/markdown@8.0.3(supports-color@7.2.0))(dependency-cruiser@18.4.0)(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)':
+    dependencies:
+      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      eslint: 10.11.0(supports-color@7.2.0)
+      typescript: 6.0.3
+    optionalDependencies:
+      '@eslint/css': 2.0.0
+      '@eslint/markdown': 8.0.3(supports-color@7.2.0)
+      dependency-cruiser: 18.4.0
+    transitivePeerDependencies:
+      - supports-color
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -3143,18 +3155,6 @@ snapshots:
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.3
-
-  '@jakubszwajka/house-rules@https://codeload.github.com/JakubSzwajka/house-rules-stack/tar.gz/de7a3be622f4e750a8b6d722df165b9e5188b421#path:/packages/rules(@eslint/css@2.0.0)(@eslint/markdown@8.0.3(supports-color@7.2.0))(dependency-cruiser@18.4.0)(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)':
-    dependencies:
-      '@typescript-eslint/parser': 8.70.1(eslint@10.11.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
-      eslint: 10.11.0(supports-color@7.2.0)
-      typescript: 6.0.3
-    optionalDependencies:
-      '@eslint/css': 2.0.0
-      '@eslint/markdown': 8.0.3(supports-color@7.2.0)
-      dependency-cruiser: 18.4.0
-    transitivePeerDependencies:
-      - supports-color
 
   '@jridgewell/resolve-uri@3.1.2': {}
 

@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { layout } = require("@jakubszwajka/house-rules/dependency-cruiser");
+const { layout } = require("@house-rules/rules/dependency-cruiser");
 
 const CLI_ROOT = "^apps/cli(?:/|$)";
 const CLI_SOURCE_ROOT = "^apps/cli/src(?:/|$)";
