@@ -8,7 +8,8 @@
     "start": "HOSTI_DATA_DIR=${HOSTI_DATA_DIR:-../../data} next start -p ${PORT:-3000}",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.effect.json --noEmit",
     "test": "vitest run",
-    "token:new": "node scripts/new-token.mjs"
+    "token:new": "node scripts/new-token.mjs",
+    "owner:hash": "node scripts/owner-hash.mjs"
   },
   "dependencies": {
     "@effect/platform-node": "4.0.0-rc.117",

@@ -44,10 +44,26 @@ To set up the same thing again:
    environment example:
 
    ```dotenv
-   HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
+   HOSTI_OWNER_PASSWORD_HASH='scrypt:16384:8:1:<salt>:<key>'
    HOSTI_SECRET='replace-with-output-from-openssl-rand-hex-32'
    HOSTI_PUBLIC_URL=https://hosti.example.com
    ```
+
+   Hosti stores the owner password only as a scrypt hash, never as plain text.
+   Make the hash on your own machine, from the repository root, and paste it
+   as `HOSTI_OWNER_PASSWORD_HASH`:
+
+   ```bash
+   pnpm --silent owner:hash
+   ```
+
+   In a terminal the command asks for the password twice without showing it.
+   The password needs at least 8 characters. In a script, pipe it on stdin:
+   `printf '%s' 'the owner password' | pnpm --silent owner:hash`. Either way it
+   prints only the hash on stdout; prompts and errors go to stderr. The hash
+   format matches board-app's `owner:hash`, so a hash from either app works in
+   both. The older plain `HOSTI_OWNER_PASSWORD` is not read any more. Remove
+   it, because `node scripts/env-check.mjs` warns while it is still set.
 
    Wrap every secret value in single quotes. Dokploy's environment editor
    parses this text before the container sees it, and for a Compose stack
@@ -66,11 +82,12 @@ To set up the same thing again:
 
    `HOSTI_PUBLIC_URL` must be the exact HTTPS origin that serves Hosti. The
    approval link an agent prints is built from it. Generate `HOSTI_SECRET`
-   with `openssl rand -hex 32`. Without the password and the secret, the
-   catalog serves no admin page.
+   with `openssl rand -hex 32`. Without the password hash and the secret, or
+   with a hash that is not a well-formed scrypt hash, the catalog serves no
+   admin page.
 5. Add an HTTPS domain and route it to container port `3000`. Nothing is
    published on the host.
-6. Deploy, open the domain, and log in with `HOSTI_OWNER_PASSWORD`. Connect an
+6. Deploy, open the domain, and log in with the password you hashed. Connect an
    agent as [Getting an agent pushing](#getting-an-agent-pushing) describes.
    No container shell is involved.
 
@@ -105,11 +122,12 @@ The Compose service is `web`. It mounts the named volume `hosti_data:/data`
 and fixes `HOSTI_DATA_DIR=/data` and `PORT=3000`. Only variables listed in its
 `environment` reach the container, so optional settings such as
 `HOSTI_KEEP_REVISIONS` must also be added there. Compose refuses to start if
-`HOSTI_OWNER_PASSWORD` or `HOSTI_SECRET` is missing, and the quoting advice
+`HOSTI_OWNER_PASSWORD_HASH` or `HOSTI_SECRET` is missing, and the quoting advice
 above applies to its `.env` too. `HOSTI_PUBLIC_URL` has a Compose default of
 `http://localhost:3000`, but a deployment must set it.
 
 ```bash
+pnpm --silent owner:hash    # prints the value for HOSTI_OWNER_PASSWORD_HASH in .env
 docker compose up -d        # or, from the repository root: pnpm compose:up
 docker compose exec web node scripts/new-token.mjs --name vps
 ```
@@ -162,15 +180,17 @@ Run the source directly when you need Hosti on localhost:
 ```bash
 corepack enable
 pnpm install --frozen-lockfile
-export HOSTI_OWNER_PASSWORD='whatever-you-will-remember'
+export HOSTI_OWNER_PASSWORD_HASH=$(pnpm --silent owner:hash)
 export HOSTI_SECRET=$(openssl rand -hex 32)
 pnpm dev               # http://127.0.0.1:3000
 ```
 
-Single-quote the password. A shell mangles an unquoted value the same way
-Dokploy did. `!` starts history expansion in bash and zsh, and `#` starts a
-comment. The `HOSTI_SECRET` line stays unquoted on purpose, because the
-command substitution has to run and hex output is safe.
+`pnpm owner:hash` asks for the owner password at a prompt and prints the hash.
+A hash holds no `$` or `#`, but single-quote it when you write it into a file
+or an editor: a shell mangles an unquoted value the same way Dokploy did.
+`!` starts history expansion in bash and zsh, and `#` starts a comment. The
+`HOSTI_SECRET` line stays unquoted on purpose, because the command
+substitution has to run and hex output is safe.
 
 Without both variables, the catalog names the missing value on `/login` and
 serves no admin page. `.env.schema` declares and validates the app's settings;
@@ -181,6 +201,7 @@ pnpm build             # Next production build
 pnpm test              # Repository Node tests, ESLint config tests, then workspace tests
 pnpm check             # includes pins, Varlock, Biome, ESLint, TypeScript, and Dependency Cruiser
 pnpm token:new -- --name laptop   # a push token from the shell; add --allow-delete for delete
+pnpm owner:hash        # scrypt hash of the owner password, for HOSTI_OWNER_PASSWORD_HASH
 pnpm env:check         # validate the declared environment schema with Varlock
 pnpm env:digest        # inspect configured values without printing secrets
 ```

@@ -84,7 +84,9 @@ _Avoid_: permission, role, right.
 
 **Admin session**:
 The cookie the owner gets after typing the owner password. It unlocks the
-catalog. It never unlocks anything under `/v/`.
+catalog. It never unlocks anything under `/v/`. Hosti holds the owner password
+only as a `scrypt` hash, in `HOSTI_OWNER_PASSWORD_HASH`, made with
+`pnpm owner:hash`. It never reads a plain password.
 _Avoid_: login, user account.
 
 ## How the pieces sit

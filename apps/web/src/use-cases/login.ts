@@ -19,7 +19,7 @@ export const login = Effect.fn("login")(function* (
   if (!secrets) return { status: "unconfigured" };
   if (
     typeof password !== "string" ||
-    !(yield* identity.constantTimeEquals(secrets.password, password))
+    !(yield* identity.verifyOwnerPassword(password, secrets.passwordHash))
   ) {
     return { status: failureStatus(yield* limiter.fail(caller)) };
   }

@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -5,6 +6,17 @@ import { deflateRawSync, gzipSync } from "node:zlib";
 import { create } from "tar";
 
 export const FIXTURES = path.resolve(import.meta.dirname, "../../../../fixtures");
+
+export function ownerPasswordHash(password: string): string {
+  const salt = randomBytes(16);
+  const key = scryptSync(password.normalize("NFKC"), salt, 32, {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 64 * 1024 * 1024,
+  });
+  return `scrypt:16384:8:1:${salt.toString("base64url")}:${key.toString("base64url")}`;
+}
 
 export async function useTempDataDir(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hosti-test-"));

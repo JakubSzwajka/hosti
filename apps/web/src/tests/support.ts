@@ -79,6 +79,14 @@ export function hashPin(pin: string): Promise<string> {
   return runIdentityPromise((identity) => identity.hashPin(pin));
 }
 
+export function hashOwnerPassword(password: string): Promise<string> {
+  return runIdentityPromise((identity) => identity.hashOwnerPassword(password));
+}
+
+export function verifyOwnerPassword(password: string, hash: string): Promise<boolean> {
+  return runIdentityPromise((identity) => identity.verifyOwnerPassword(password, hash));
+}
+
 export function verifyPin(pin: string, stored: string): Promise<boolean> {
   return runIdentityPromise((identity) => identity.verifyPin(pin, stored));
 }

@@ -73,8 +73,9 @@ function Setup({ missing }: { missing: string[] }) {
         in the environment, then restart.
       </p>
       <p className="setup">
-        <code>HOSTI_OWNER_PASSWORD</code> is the password this form takes. <code>HOSTI_SECRET</code>{" "}
-        signs the session cookie; any long random string will do.
+        <code>HOSTI_OWNER_PASSWORD_HASH</code> is the scrypt hash of the password this form takes.
+        Make it with <code>pnpm owner:hash</code>. <code>HOSTI_SECRET</code> signs the session
+        cookie; any long random string will do.
       </p>
     </>
   );

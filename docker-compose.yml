@@ -17,8 +17,9 @@ services:
       # hostname here.
       HOSTI_PUBLIC_URL: ${HOSTI_PUBLIC_URL:-http://localhost:3000}
       # Both are required. The catalog refuses to serve admin pages without the
-      # password, and a share link cannot take a PIN without the secret.
-      HOSTI_OWNER_PASSWORD: ${HOSTI_OWNER_PASSWORD:?set HOSTI_OWNER_PASSWORD in .env}
+      # owner password hash (make it with `pnpm --silent owner:hash`), and a
+      # share link cannot take a PIN without the secret.
+      HOSTI_OWNER_PASSWORD_HASH: ${HOSTI_OWNER_PASSWORD_HASH:?set HOSTI_OWNER_PASSWORD_HASH in .env, make it with pnpm --silent owner:hash}
       HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
       PORT: "3000"
     # No host port is published. A reverse proxy on the same Docker network
