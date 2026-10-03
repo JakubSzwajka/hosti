@@ -3,11 +3,11 @@ import fs from "node:fs/promises";
 import type { PushScope } from "@hosti/shared";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useTempDataDir } from "./test-fixtures";
+import { ownerPasswordHash, useTempDataDir } from "./test-fixtures";
 
 const PASSWORD = "the-owner-password";
 const SECRET = "a-long-random-string-for-tests";
-process.env.HOSTI_OWNER_PASSWORD = PASSWORD;
+process.env.HOSTI_OWNER_PASSWORD_HASH = ownerPasswordHash(PASSWORD);
 process.env.HOSTI_SECRET = SECRET;
 
 const ORIGIN = "http://127.0.0.1:3000";

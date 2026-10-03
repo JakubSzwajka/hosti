@@ -2,7 +2,10 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-const SECRET_VARS = ["HOSTI_OWNER_PASSWORD", "HOSTI_SECRET"];
+const OWNER_HASH_VAR = "HOSTI_OWNER_PASSWORD_HASH";
+const OBSOLETE_OWNER_VAR = "HOSTI_OWNER_PASSWORD";
+const SECRET_VARS = [OWNER_HASH_VAR, "HOSTI_SECRET"];
+const OWNER_HASH_PATTERN = /^scrypt:16384:8:1:[A-Za-z0-9_-]{22}:[A-Za-z0-9_-]{43}$/;
 const PLAIN_VARS = ["HOSTI_DATA_DIR", "HOSTI_PUBLIC_URL", "PORT"];
 
 const WHITESPACE_NAMES = {
@@ -76,6 +79,14 @@ export function inspectSecret(name, raw) {
   };
 }
 
+export function inspectOwnerHash(raw) {
+  const report = inspectSecret(OWNER_HASH_VAR, raw);
+  if (!report.set) return report;
+  // The image does not ship @hosti/identity, so this pattern is a copy of its own.
+  const wellFormed = OWNER_HASH_PATTERN.test(raw.trim());
+  return { ...report, wellFormed, problem: report.problem || !wellFormed };
+}
+
 function reportLines(report) {
   if (!report.set) {
     return [report.name, "  set       no", "  missing   this variable is unset or empty"];
@@ -90,8 +101,16 @@ function reportLines(report) {
   if (report.trimmedDigest) {
     lines.push(`  in use    Hosti trims first, so it uses sha256 ${report.trimmedDigest}`);
   }
-  if (report.warnings.length === 0)
+  if (report.wellFormed === true) lines.push("  format    a well-formed scrypt hash");
+  if (report.wellFormed === false) {
+    lines.push(
+      "  warning   not a well-formed scrypt hash, so Hosti treats it as unset",
+      "            expected scrypt:16384:8:1:<salt>:<key>; make one with pnpm owner:hash",
+    );
+  }
+  if (report.warnings.length === 0 && report.wellFormed !== false) {
     lines.push("  clean     no stray whitespace, quotes or escapes");
+  }
   return lines;
 }
 
@@ -99,21 +118,33 @@ const HOW_TO_COMPARE = [
   "Compare without revealing anything:",
   "  1. In the running container, open the service Terminal in Dokploy and",
   "     run:  node scripts/env-check.mjs",
-  "  2. On your own machine, digest the password you believe you type:",
-  "       printf '%s' 'the-password-you-type' | shasum -a 256 | cut -c1-8",
+  "  2. On your own machine, digest the value you believe you set, the hash",
+  "     from pnpm owner:hash for HOSTI_OWNER_PASSWORD_HASH:",
+  "       printf '%s' 'the-value-you-set' | shasum -a 256 | cut -c1-8",
   "     On Linux use sha256sum in place of shasum -a 256.",
   "  3. The two sha256 values must match. If they differ, the container holds",
-  "     a different value from the one you type, whatever the panel shows.",
+  "     a different value from the one you set, whatever the panel shows.",
   "Keep the single quotes. Unquoted, a shell and Dokploy's environment editor",
   "both mangle a ! or a # before anything downstream sees the value.",
 ];
 
 export function checkEnvironment(env) {
-  const reports = SECRET_VARS.map((name) => inspectSecret(name, env[name]));
+  const reports = SECRET_VARS.map((name) =>
+    name === OWNER_HASH_VAR ? inspectOwnerHash(env[name]) : inspectSecret(name, env[name]),
+  );
   const lines = ["hosti env check", ""];
 
   for (const report of reports) {
     lines.push(...reportLines(report), "");
+  }
+
+  if (env[OBSOLETE_OWNER_VAR] !== undefined && env[OBSOLETE_OWNER_VAR] !== "") {
+    lines.push(
+      `${OBSOLETE_OWNER_VAR}`,
+      "  warning   still set, and ignored. Hosti reads only HOSTI_OWNER_PASSWORD_HASH.",
+      "            Remove it from the environment.",
+      "",
+    );
   }
 
   lines.push("Plain settings, no secret among them");

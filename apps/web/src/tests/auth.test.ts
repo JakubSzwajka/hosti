@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { adminSecrets, OWNER_PASSWORD_VAR, SECRET_VAR, signingSecret } from "@/server/auth/config";
+import {
+  adminSecrets,
+  missingAdminVars,
+  OWNER_PASSWORD_HASH_VAR,
+  SECRET_VAR,
+  signingSecret,
+} from "@/server/auth/config";
 import {
   expiredSessionCookie,
   isSecureRequest,
@@ -7,39 +13,50 @@ import {
   sessionCookie,
 } from "@/server/auth/cookie";
 import { SESSION_COOKIE } from "./support";
+import { ownerPasswordHash } from "./test-fixtures";
 
 const SECRET = "a-long-random-string-for-tests";
+const HASH = ownerPasswordHash("hunter2-for-tests");
 
 describe("the configured secrets", () => {
-  const savedPassword = process.env[OWNER_PASSWORD_VAR];
+  const savedPassword = process.env[OWNER_PASSWORD_HASH_VAR];
   const savedSecret = process.env[SECRET_VAR];
 
   afterEach(() => {
-    if (savedPassword === undefined) delete process.env[OWNER_PASSWORD_VAR];
-    else process.env[OWNER_PASSWORD_VAR] = savedPassword;
+    if (savedPassword === undefined) delete process.env[OWNER_PASSWORD_HASH_VAR];
+    else process.env[OWNER_PASSWORD_HASH_VAR] = savedPassword;
     if (savedSecret === undefined) delete process.env[SECRET_VAR];
     else process.env[SECRET_VAR] = savedSecret;
   });
 
   it("strips the whitespace a deployment panel pastes in", () => {
-    process.env[OWNER_PASSWORD_VAR] = "  hunter2\r\n";
+    process.env[OWNER_PASSWORD_HASH_VAR] = `  ${HASH}\r\n`;
     process.env[SECRET_VAR] = ` ${SECRET} `;
-    expect(adminSecrets()).toEqual({ password: "hunter2", secret: SECRET });
+    expect(adminSecrets()).toEqual({ passwordHash: HASH, secret: SECRET });
   });
 
   it("hands the session and the PIN gate the same signing key", () => {
-    process.env[OWNER_PASSWORD_VAR] = "hunter2";
+    process.env[OWNER_PASSWORD_HASH_VAR] = HASH;
     process.env[SECRET_VAR] = `${SECRET}\n`;
     expect(adminSecrets()?.secret).toBe(signingSecret());
   });
 
   it("is null when either value is missing or only whitespace", () => {
-    process.env[OWNER_PASSWORD_VAR] = "   ";
+    process.env[OWNER_PASSWORD_HASH_VAR] = "   ";
     process.env[SECRET_VAR] = SECRET;
     expect(adminSecrets()).toBeNull();
     delete process.env[SECRET_VAR];
-    process.env[OWNER_PASSWORD_VAR] = "hunter2";
+    process.env[OWNER_PASSWORD_HASH_VAR] = HASH;
     expect(adminSecrets()).toBeNull();
+  });
+
+  it("counts a value that is not a well-formed hash as not configured", () => {
+    process.env[SECRET_VAR] = SECRET;
+    for (const value of ["hunter2", "scrypt:16384:8:1:short:short", HASH.slice(0, -1)]) {
+      process.env[OWNER_PASSWORD_HASH_VAR] = value;
+      expect(adminSecrets()).toBeNull();
+      expect(missingAdminVars()).toEqual([OWNER_PASSWORD_HASH_VAR]);
+    }
   });
 });
 

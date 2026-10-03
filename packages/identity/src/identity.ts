@@ -19,6 +19,7 @@ import type {
 } from "./agent-connection-model";
 import { makeAgentConnectionStore } from "./agent-connections";
 import { makePushTokenOperations, type PushIdentity, type PushTokenRecord } from "./push-tokens";
+import { makeOwnerPasswordOperations } from "./owner-password";
 import { makeSharePinOperations } from "./share-pin";
 
 export type IdentityFailure =
@@ -54,6 +55,11 @@ export class Identity extends Context.Service<
     readonly constantTimeEquals: (
       left: string,
       right: string,
+    ) => Effect.Effect<boolean, IdentityCryptoError>;
+    readonly hashOwnerPassword: (password: string) => Effect.Effect<string, IdentityCryptoError>;
+    readonly verifyOwnerPassword: (
+      password: string,
+      hash: string,
     ) => Effect.Effect<boolean, IdentityCryptoError>;
     readonly createLoginLimiter: (
       options?: Partial<LimiterOptions>,
@@ -120,6 +126,7 @@ export class Identity extends Context.Service<
       const crypto = yield* IdentityCrypto;
       const catalog = yield* Catalog;
       const session = makeSessionOperations(crypto);
+      const ownerPassword = makeOwnerPasswordOperations(crypto);
       const pushTokens = makePushTokenOperations({ catalog, crypto });
       const sharePin = makeSharePinOperations({ crypto, signingSecret: signingSecret() });
       const connections = yield* makeAgentConnectionStore({ crypto, tokens: pushTokens });
@@ -133,6 +140,7 @@ export class Identity extends Context.Service<
         ...session,
         constantTimeEquals: (left, right) => crypto.constantTimeEquals(left, right),
         createLoginLimiter: limiter,
+        ...ownerPassword,
         ...sharePin,
         requireSigningSecret: sharePin.requireSigningSecret(),
         ...pushTokens,

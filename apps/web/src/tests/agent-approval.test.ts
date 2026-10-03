@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useTempDataDir } from "./test-fixtures";
+import { ownerPasswordHash, useTempDataDir } from "./test-fixtures";
 
 const SECRET = "a-long-random-string-for-tests";
-process.env.HOSTI_OWNER_PASSWORD = "the-owner-password";
+process.env.HOSTI_OWNER_PASSWORD_HASH = ownerPasswordHash("the-owner-password");
 process.env.HOSTI_SECRET = SECRET;
 process.env.HOSTI_PUBLIC_URL = "https://hosti.example/";
 

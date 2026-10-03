@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
-export type ScryptCost = { N: number; r: number; p: number };
+export type ScryptCost = { N: number; r: number; p: number; maxmem?: number };
 
 export class IdentityCryptoError extends Schema.TaggedError<IdentityCryptoError>()(
   "IdentityCryptoError",

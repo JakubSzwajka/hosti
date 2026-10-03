@@ -68,7 +68,7 @@ ghcr.io/jakubszwajka/hosti:v0.1.0    one release, pinned</code></pre>
     environment:
       HOSTI_DATA_DIR: /data
       HOSTI_PUBLIC_URL: ${HOSTI_PUBLIC_URL:-http://localhost:3000}
-      HOSTI_OWNER_PASSWORD: ${HOSTI_OWNER_PASSWORD:?set HOSTI_OWNER_PASSWORD in .env}
+      HOSTI_OWNER_PASSWORD_HASH: ${HOSTI_OWNER_PASSWORD_HASH:?set HOSTI_OWNER_PASSWORD_HASH in .env, make it with pnpm --silent owner:hash}
       HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
       PORT: "3000"
     expose:
@@ -79,12 +79,12 @@ ghcr.io/jakubszwajka/hosti:v0.1.0    one release, pinned</code></pre>
 volumes:
   hosti_data:</code></pre>
           <p>Put the settings in a <code>.env</code> file next to it:</p>
-          <pre><code>HOSTI_OWNER_PASSWORD='choose-a-long-owner-password'
+          <pre><code>HOSTI_OWNER_PASSWORD_HASH='scrypt:16384:8:1:&lt;salt&gt;:&lt;key&gt;'
 HOSTI_SECRET='replace-with-output-from-openssl-rand-hex-32'
 HOSTI_PUBLIC_URL=https://hosti.example</code></pre>
-          <p>Make the secret with <code>openssl rand -hex 32</code>. Then start it:</p>
+          <p>Hosti stores the owner password only as a scrypt hash. Make the hash on your own machine, from a clone of the repository, with <code>pnpm --silent owner:hash</code>. It asks for the password twice without showing it (at least 8 characters) and prints only the hash. The older plain <code>HOSTI_OWNER_PASSWORD</code> is ignored, so remove it. Make the secret with <code>openssl rand -hex 32</code>. Then start it:</p>
           <pre><code>docker compose up -d</code></pre>
-          <p>Compose refuses to start while <code>HOSTI_OWNER_PASSWORD</code> or <code>HOSTI_SECRET</code> is missing. Because of <code>pull_policy: always</code>, every <code>docker compose up -d</code> asks the registry for the current <code>latest</code>. Pin a version tag such as <code>:v0.1.0</code> to stay on one release.</p>
+          <p>Compose refuses to start while <code>HOSTI_OWNER_PASSWORD_HASH</code> or <code>HOSTI_SECRET</code> is missing. Because of <code>pull_policy: always</code>, every <code>docker compose up -d</code> asks the registry for the current <code>latest</code>. Pin a version tag such as <code>:v0.1.0</code> to stay on one release.</p>
 
           <div class="note">
             <p><strong>Single-quote every secret.</strong> Compose reads <code>$name</code> in an unquoted value as a variable and puts its value in, usually nothing, so <code>secr$tone</code> arrives as <code>secr</code>. Double quotes do not protect a <code>$</code>. A password ending in <code>#</code> has also failed login when set unquoted. Single quotes cover both cases.</p>
@@ -95,7 +95,7 @@ HOSTI_PUBLIC_URL=https://hosti.example</code></pre>
           <p><code>HOSTI_PUBLIC_URL</code> must be that exact HTTPS origin, for example <code>https://hosti.example</code>. The approval link an agent prints is built from it.</p>
 
           <h2>First login</h2>
-          <p>Open the domain and log in at <code>/login</code> with <code>HOSTI_OWNER_PASSWORD</code>. Without the password and the secret, <code>/login</code> names the missing value and the catalog serves no admin page.</p>
+          <p>Open the domain and log in at <code>/login</code> with the password you hashed. Without the password hash and the secret, or with a hash that is not a well-formed scrypt hash, <code>/login</code> names the missing value and the catalog serves no admin page.</p>
           <p>The session is a signed cookie, <code>hosti_admin</code>, good for 30 days. The login form takes five wrong passwords per caller per fifteen minutes, then locks that caller out for ten. The count lives in memory, so a restart clears it.</p>
           <p>Next, connect an agent. The agents page in the docs nav walks through it.</p>
 
@@ -103,8 +103,8 @@ HOSTI_PUBLIC_URL=https://hosti.example</code></pre>
           <p>The repository's <code>.env.schema</code> lists and types every variable Hosti reads. Only variables listed in the Compose service's <code>environment</code> reach the container, so add an optional one there as well as to <code>.env</code>.</p>
           <dl>
             <div>
-              <dt><code>HOSTI_OWNER_PASSWORD</code></dt>
-              <dd>The owner password for <code>/login</code>. Compose requires it.</dd>
+              <dt><code>HOSTI_OWNER_PASSWORD_HASH</code></dt>
+              <dd>A scrypt hash of the owner password for <code>/login</code>, made with <code>pnpm owner:hash</code>. Compose requires it. The older plain <code>HOSTI_OWNER_PASSWORD</code> is obsolete and ignored.</dd>
             </div>
             <div>
               <dt><code>HOSTI_SECRET</code></dt>

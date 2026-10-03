@@ -84,13 +84,20 @@ the `/v/` entry point in `serve-bundle.ts`, not inside the shared helper.
 
 ## What is left, outside this repository
 
-- **Rotate the temporary prod owner password.** `HOSTI_OWNER_PASSWORD` in
-  Dokploy is still the value set for the operator's manual end-to-end run of
-  the login flow. That value (not repeated here) sat in this repository's git
-  history, in `apps/web/tests/env-check.test.ts`, before commit `6143d1a`.
-  Because the repository is now public, treat that old value as burned: it
-  must never be reused anywhere, and the live password needs a fresh value in
-  Dokploy.
+- **Move the prod owner password to a hash.** The value that sat in git
+  history, in `apps/web/tests/env-check.test.ts` before commit `6143d1a`, was
+  a test password and is not the live one. The repository is public, so treat
+  that old value (not repeated here) as burned: it must never be reused
+  anywhere. Hosti now reads only `HOSTI_OWNER_PASSWORD_HASH`, a scrypt hash
+  made with `pnpm owner:hash`; the plain `HOSTI_OWNER_PASSWORD` is ignored.
+  After the release that carries this change, the operator must:
+  1. run `pnpm owner:hash` on a fresh password, never the burned one;
+  2. set `HOSTI_OWNER_PASSWORD_HASH` in Dokploy and remove
+     `HOSTI_OWNER_PASSWORD`;
+  3. redeploy, not restart, so the container gets the new environment.
+
+  Until then the catalog serves no admin page and `/login` names the missing
+  variable.
 - **CLI logins on the old domain.** The CLI has no built-in default server
   URL, and the 308 cannot carry a login: `fetch` drops `Authorization` on a
   cross-origin redirect. Anyone logged in against `hosti.kubaszwajka.com`
