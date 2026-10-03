@@ -4,9 +4,8 @@
 
 > How this file was written: no operator was available to interview during the
 > session that created it. Every fact below is read out of `CONTEXT.md`,
-> `README.md`, `.pi/specs/2026-09-17_hosti-bundle-catalog/`, and the code in
-> `apps/`. Nothing here is invented. Where the sources do not answer, the
-> section says so rather than guessing.
+> `README.md` and the code in `apps/`. Nothing here is invented. Where the
+> sources do not answer, the section says so rather than guessing.
 
 ## Platform
 
@@ -148,13 +147,8 @@ Technical constraints on the interface itself:
 
 ## Evidence on hand
 
-- Seed data in `data/`: ten bundles across five collection states, one
-  multi-page bundle worth previewing. The file is still on the old schema, so
-  the first open migrates it and every bundle lands private.
 - Bundle fixtures in `fixtures/`: three bundle shapes plus one that links from
   the root.
-- The design argument and three prototypes in
-  `.pi/specs/2026-09-17_hosti-bundle-catalog/` (read only, never edited).
 
 What does not exist, and must not be invented: users other than the owner,
 usage metrics of any kind (Hosti deliberately records none), customers,
