@@ -1,5 +1,7 @@
 # Releasing
 
+This page documents the maintainer's own release pipeline. Self-hosters do not need it.
+
 A merge to `main` ships nothing. CI checks and tests it, and that is all. Prod
 changes only when someone runs **Create release** in GitHub Actions. This is
 the operator's gated release profile. The reference copy of the workflow lives
@@ -73,11 +75,9 @@ deploys the landing image and waits for `/healthz`. Nothing is rebuilt. The
 same command with the current version redeploys it. Read the next section
 before you roll back.
 
-The preflight is intentional. While `hosti.kubaszwajka.com` still serves the
-old GitHub-source landing app, its empty `/healthz` response stops a real
-release before the image build and tag, and stops a redeploy before any Dokploy
-update. The first image-based release cannot proceed until the cutover is
-ready.
+The preflight is intentional. If the public landing origin does not answer
+`/healthz` with the health contract below, a real release stops before the
+image build and tag, and a redeploy stops before any Dokploy update.
 
 ## The database and rollbacks
 
@@ -91,8 +91,8 @@ roll back by image alone**. The upgrade runs forward only. An older image would
 start against a newer schema. Before you release such a change:
 
 1. [ ] Say so in the release notes or the PR.
-2. [ ] Take a fresh backup of the `hosti-data` volume first. The nightly S3
-   backup may be up to a day old.
+2. [ ] Take a fresh backup of the data volume first. A scheduled backup may be
+   hours or days old.
 3. [ ] Plan the way back as "restore the backup, then redeploy the older
    version", not "redeploy the older version".
 
@@ -102,15 +102,10 @@ auto-rollback either application. The release operator must inspect the partial
 deploy and choose a compatible pair. Follow the migration rule above before
 using an older app image.
 
-For the first two-image release, the rollback floor is the first release whose
-landing image was built from the new health-aware landing code after the
-cutover bootstrap. It is **not** automatically `v0.3.0`: the current `v0.3.0`
-GitHub-source landing app returns an empty `/healthz`, and no compatible
-historical landing image exists unless one is intentionally built and
-published. Keep that old app as a manual fallback only. If the image pair cannot
-be rolled back safely, an operator may separately approve pointing the public
-domain back to the old app while the image deployment is repaired. That is not
-a workflow rollback.
+A rollback needs a landing image that serves the health contract. A release
+older than the first one built from the health-aware landing code has no such
+image, so the workflow cannot roll back to it. If the pair cannot be rolled back
+safely, the operator repairs it by hand. That is not a workflow rollback.
 
 ## Why `--latest=false`
 
@@ -132,41 +127,14 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Secret | `DOKPLOY_API_KEY` | Dokploy API key for the deploy. |
 | Secret | `DISCORD_DEPLOY_WEBHOOK` | A plain Discord #deploys channel webhook URL. Empty means no post. |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
-| Variable | `DOKPLOY_APPLICATION_ID` | The Hosti app application. |
-| Variable | `DOKPLOY_LANDING_APPLICATION_ID` | The separate image-based landing application. Required for real releases and redeploys. |
-| Variable | `APP_URL` | `https://hosti-private.kubaszwajka.com`. The app health target. |
+| Variable | `DOKPLOY_APPLICATION_ID` | The Dokploy application that runs the Hosti app image. |
+| Variable | `DOKPLOY_LANDING_APPLICATION_ID` | The Dokploy application that runs the landing image. Required for real releases and redeploys. |
+| Variable | `APP_URL` | Public origin of the app. The deploy polls `APP_URL/api/health`. |
 
 These sit at repo level, with no `environment:`. Both Dokploy applications
-need image sources that can pull from GHCR. `LANDING_URL` is the fixed public
-origin `https://hosti.kubaszwajka.com`.
-
-## Onboarding and cutover
-
-Hosti went onto the gated release profile on 2026-09-27:
-
-1. [x] PR #15 merged the workflow and the health route (`a7488f8`).
-2. [x] "Create release" cut `v0.1.0` from `a7488f8` before any Dokploy secret
-   existed, so its deploy job stopped at "Deploy to Dokploy" and made no call.
-3. [x] The existing five names above were set.
-4. [ ] Create the new image-based `hosti-landing-image` Dokploy application and set
-   `DOKPLOY_LANDING_APPLICATION_ID`. Do not switch the old GitHub-source app's
-   `sourceType` in place.
-5. [ ] After the first release commit is merged to `main`, build and publish
-   its landing image, then deploy that image to the new application before the
-   domain cutover. This one-time bootstrap must come from the new health-aware
-   landing code, not from the current `v0.3.0` landing app, whose `/healthz` is
-   empty. Verify the new application's `/healthz` before continuing.
-6. [ ] Get separate production approval, then point the `hosti.kubaszwajka.com`
-   domain at the new application. The workflow does not perform this cutover.
-7. [x] The Dokploy `hosti` application moved to the Docker image
-   `ghcr.io/jakubszwajka/hosti:prod-sha-a7488f87868d`, with a per-app GHCR
-   pull login and auto deploy off.
-8. [x] `-f redeploy=v0.1.0` deployed it. Health reported `a7488f87868d`, and
-   #deploys got the success line.
-
-The prod domain is `hosti-private.kubaszwajka.com`, and the app health check
-uses it. `hosti.kubaszwajka.com` remains on the old GitHub-source landing app
-until the separately approved cutover. See `landing/README.md`.
+need image sources that can pull from GHCR, with auto deploy off.
+`LANDING_URL` is not a variable: the workflow hard-codes it as
+`https://hosti.kubaszwajka.com`. See `landing/README.md`.
 
 ## The health contract
 
