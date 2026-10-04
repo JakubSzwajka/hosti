@@ -6,6 +6,13 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
+if (args.includes("--help") || args.includes("-h")) {
+  process.stdout.write(
+    "usage: node scripts/new-token.mjs [--name <name>] [--allow-delete]\n" +
+      "Makes a push token in $HOSTI_DATA_DIR/hosti.db and prints it once.\n",
+  );
+  process.exit(0);
+}
 const nameFlag = args.indexOf("--name");
 const name = nameFlag === -1 ? "unnamed" : (args[nameFlag + 1] ?? "unnamed");
 const scopes = args.includes("--allow-delete") ? "delete,publish,share" : "publish,share";

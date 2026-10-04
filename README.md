@@ -66,11 +66,13 @@ You need Docker with Compose, and a way to make the owner hash (next step).
 5. Open the address, log in at `/login` with the password you hashed, and
    [connect an agent](#connect-an-agent).
 
-If the image pull is denied, the package is not readable anonymously. Log in
-first with `docker login ghcr.io -u YOUR_GITHUB_USERNAME` and a GitHub token
-with `read:packages`, never your account password. Keep that token out of the
-repository and out of `.env`. You can also build the image yourself from
-`apps/web/Dockerfile`, with the repository root as the build context.
+To build the image from source instead of pulling it, clone the repository and
+add the build override. It builds `apps/web/Dockerfile` with the repository root
+as the context and tags the result `hosti:local`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
 
 `docker compose down` keeps the `hosti_data` volume. `docker compose down -v`
 removes it, and with it every bundle and the database.
@@ -194,10 +196,16 @@ when it last pushed, with a revoke on each. Revoking drops the digest, so that
 secret stops opening `/api/v1/` from the next request on. Nothing under
 `/api/v1/` makes or revokes a token, so no push token can create another one.
 
-To make a token from a shell instead, run `pnpm token:new -- --name laptop` from
-a clone, with `HOSTI_DATA_DIR` pointing at the data directory. Add
-`--allow-delete` for the `delete` scope. It prints the secret once. Hosti stores
-only the digest, in `hosti.db`.
+To make a token from the server instead, run this where the container runs:
+
+```bash
+docker compose exec web node scripts/new-token.mjs --name laptop
+```
+
+Add `--allow-delete` for the `delete` scope. From a clone, run
+`pnpm token:new -- --name laptop` with `HOSTI_DATA_DIR` pointing at the data
+directory. Either way it prints the secret once. Hosti stores only the digest,
+in `hosti.db`. `hosti login` stays the recommended path.
 
 ### The hosti-publish skill
 
@@ -401,9 +409,6 @@ under other names.
   path to `apps/web/Dockerfile` and the build context to `.`. The Dockerfile
   needs the whole workspace, so the context is the repository root. Such an
   image reports `unknown` as its commit.
-
-If the image pull is denied, give the application registry credentials: a
-GitHub username and a token with `read:packages`.
 
 The PaaS environment editor parses the text you type before the container sees
 it, so single-quote every secret. After you change a variable, redeploy so the
