@@ -47,8 +47,15 @@ COPY --from=build --chown=node:node /app/apps/web/.next/static /app/apps/web/.ne
 COPY --from=build --chown=node:node /app/apps/web/scripts /app/apps/web/scripts
 COPY --from=build --chown=node:node /app/packages/catalog/package.json /app/packages/catalog/package.json
 COPY --from=build --chown=node:node /app/packages/catalog/src/schema.mjs /app/packages/catalog/src/schema.mjs
+# scripts/new-token.mjs imports better-sqlite3 by name. Next keeps the traced copy
+# under .next/node_modules/better-sqlite3-<hash>, which plain Node cannot
+# resolve, so link it where /app/apps/web/scripts finds it. The server keeps
+# using its hashed path.
 RUN mkdir -p /app/node_modules/@hosti \
-  && ln -sfn /app/packages/catalog /app/node_modules/@hosti/catalog
+  && ln -sfn /app/packages/catalog /app/node_modules/@hosti/catalog \
+  && set -- /app/apps/web/.next/node_modules/better-sqlite3-* \
+  && [ "$#" -eq 1 ] && [ -f "$1/package.json" ] \
+  && ln -sfn "$(readlink -f "$1")" /app/node_modules/better-sqlite3
 
 USER node
 EXPOSE 3000

@@ -1,0 +1,16 @@
+# Build-from-source override. It replaces the registry image of docker-compose.yml
+# with one built from this checkout:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# The build context is the repository root, because the Dockerfile needs the
+# whole workspace. The image reports `unknown` as its commit unless you pass
+# `--build-arg APP_COMMIT=$(git rev-parse HEAD)` to `docker compose build`.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: hosti:local
+    # Never pull: hosti:local does not exist in a registry.
+    pull_policy: build
