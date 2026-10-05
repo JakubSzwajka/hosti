@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1200, initial-scale=1" />
+    <title>Hosti link preview source</title>
+    <link rel="stylesheet" href="styles/tokens.css" />
+    <style>
+      body {
+        width: 1200px;
+        height: 630px;
+        padding: 54px 64px 38px;
+        overflow: hidden;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 28px;
+        border-bottom: 5px solid var(--ink);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      h1 {
+        font-family: var(--font-serif);
+        font-size: 96px;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+      .license {
+        color: var(--muted);
+        font-size: 22px;
+      }
+      main {
+        padding-top: 30px;
+      }
+      .pitch {
+        font-size: 46px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+      }
+      .description {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 28px;
+      }
+      .catalog {
+        margin-top: 32px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--card);
+      }
+      .catalog li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 22px;
+      }
+      .catalog li + li {
+        border-top: 1px solid var(--line-soft);
+      }
+      .bundle {
+        font-family: var(--font-serif);
+        font-size: 28px;
+        font-weight: 700;
+      }
+      .state {
+        padding: 3px 14px;
+        border: 1px solid var(--pop);
+        border-radius: 5px;
+        background: var(--pop);
+        color: var(--white);
+        font-size: 21px;
+      }
+      .state-private {
+        border-color: var(--line);
+        border-style: dashed;
+        background: transparent;
+        color: var(--muted);
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 26px;
+        color: var(--muted);
+        font-size: 21px;
+      }
+      .origin {
+        color: var(--pop);
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img src="icon.svg" width="80" height="80" alt="" />
+        <h1>hosti</h1>
+      </div>
+      <p class="license">open source · MIT license</p>
+    </header>
+    <main>
+      <p class="pitch">Your agents' bundles, on your VPS.</p>
+      <p class="description">A self-hosted catalog for coding agents.</p>
+      <ol class="catalog" aria-label="Example bundles">
+        <li><span class="bundle">Weekly report</span><span class="state state-private">private</span></li>
+        <li><span class="bundle">Q4 planning deck</span><span class="state">link</span></li>
+      </ol>
+    </main>
+    <footer>
+      <span class="origin">hosti.kubaszwajka.com</span>
+      <span>Every bundle lands private.</span>
+    </footer>
+  </body>
+</html>

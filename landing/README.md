@@ -32,6 +32,42 @@ For a local browser check, build and serve the static image, then confirm the
 browser Network panel loads `https://analytics.niuluc.me/script.js` and that the
 page has no horizontal overflow at 390px or 1440px wide.
 
+## Link preview
+
+The static OG and Twitter tags in `index.html` point to
+`https://hosti.kubaszwajka.com/og-image.png`. The canonical origin is
+`https://hosti.kubaszwajka.com/`. Crawlers need no JavaScript.
+
+`og-image.png` is a 1200×630 PNG under 300 KB. Its source, `og-image.html`,
+uses the landing's `styles/tokens.css` and `icon.svg`. It makes no network
+requests and uses the landing's serif/sans font stacks with local browser
+fallbacks, so no font download or added package is needed. Keep the pitch on one line.
+Only the PNG goes into the Docker image; the render source stays in Git.
+
+From the repository root, render with an installed Chromium browser:
+
+```bash
+chromium --headless --disable-gpu --hide-scrollbars \
+  --user-data-dir="$(mktemp -d /tmp/hosti-og-render.XXXXXX)" \
+  --force-device-scale-factor=1 --window-size=1200,630 \
+  --screenshot="$PWD/landing/og-image.png" \
+  "file://$PWD/landing/og-image.html"
+node --test tests/landing-preview.test.mjs
+```
+
+Use the same Chromium version and installed fallback fonts for byte-identical
+renders. No image optimizer is needed. Inspect the PNG after changing the
+source, then keep the source and PNG together.
+
+To test the actual running landing container as CI does:
+
+```bash
+node tests/landing-preview.test.mjs http://127.0.0.1:8080
+```
+
+This checks the served HTML tags, PNG bytes and dimensions, GET and HEAD
+`image/png` responses with no redirect, and the one-day asset cache.
+
 ## Image
 
 `Dockerfile` copies the site files into a pinned Caddy image, and
@@ -77,7 +113,7 @@ query preserved.
 | `/healthz` | 200, JSON `{"status":"ok","commit":"<12>"}` from the image build commit |
 | `/api/*`, `/b/*`, `/c/*`, `/v/*`, `/connect/*` | 308 to `https://hosti-private.kubaszwajka.com` with the same path and query |
 | `/login*`, `/logout*`, `/tokens*`, `/upload*` | the same 308 |
-| `/`, `/docs/*`, `/styles/*`, `/icon.svg` | the files, cached for 5 minutes (pages) or one day (styles, icon) |
+| `/`, `/docs/*`, `/styles/*`, `/icon.svg`, `/og-image.png` | the files, cached for 5 minutes (pages) or one day (styles, icon, preview image) |
 | anything else | 404, not cached |
 
 The redirects keep share, approval and API links that use this domain working. They do not carry a CLI login: `fetch`

@@ -69,6 +69,7 @@ jobs:
           test -s /tmp/landing-health.json
           test "$(jq -r .status /tmp/landing-health.json)" = ok
           test "$(jq -r .commit /tmp/landing-health.json)" = "${APP_COMMIT:0:12}"
+          node ../tests/landing-preview.test.mjs http://127.0.0.1:18080
           headers="$(curl --silent --show-error --max-time 5 --dump-header - --output /dev/null 'http://127.0.0.1:18080/v/example?x=y')"
           grep -F $'HTTP/1.1 308' <<<"$headers"
           grep -F 'location: https://hosti-private.kubaszwajka.com/v/example?x=y' <<<"${headers,,}"

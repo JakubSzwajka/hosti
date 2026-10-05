@@ -8,7 +8,7 @@ ENV APP_COMMIT=$APP_COMMIT
 COPY Caddyfile /etc/caddy/Caddyfile
 RUN commit="$(printf '%s' "$APP_COMMIT" | cut -c1-12)" \
   && sed -i "s/__APP_COMMIT__/${commit}/g" /etc/caddy/Caddyfile
-COPY index.html icon.svg /srv/
+COPY index.html icon.svg og-image.png /srv/
 COPY styles/ /srv/styles/
 COPY docs/ /srv/docs/
 
