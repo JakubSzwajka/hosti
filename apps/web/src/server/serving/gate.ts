@@ -1,4 +1,5 @@
 import { PIN_LIMITS, type EffectLoginLimiter } from "@hosti/identity";
+import { baseUrlFromHeaders } from "@/server/config";
 import { signingSecret } from "@/server/auth/config";
 import { isSecureRequest, readCookie } from "@/server/auth/cookie";
 import { runIdentityPromise, runIdentitySync } from "@/server/runtime";
@@ -36,9 +37,14 @@ function callerKey(headers: Headers): string {
 
 export type ShareRequest = { shareSlug: string; requestPath: string; sharePrefix: string };
 
+const LINK_PREVIEW_BOTS =
+  /discordbot|slackbot|twitterbot|facebookexternalhit|whatsapp|telegrambot|linkedinbot|mastodon|skypeuripreview|embedly/i;
+
 export function wantsPage(request: Request): boolean {
   if (request.headers.get("sec-fetch-mode") === "navigate") return true;
-  return (request.headers.get("accept") ?? "").includes("text/html");
+  if ((request.headers.get("accept") ?? "").includes("text/html")) return true;
+  // Unfurlers ask with Accept: */* and no Sec-Fetch headers, so they would never reach the card.
+  return LINK_PREVIEW_BOTS.test(request.headers.get("user-agent") ?? "");
 }
 
 export function isUnlocked(request: Request, shareSlug: string, binding: UnlockBinding): boolean {
@@ -72,6 +78,7 @@ export function lockedResponse(request: Request, parsed: ShareRequest): Response
       sharePath: displayPath(request, parsed),
       sharePrefix: parsed.sharePrefix,
       next: landingPath(parsed),
+      baseUrl: baseUrlFromHeaders(request.headers),
       ...(fault ? { fault } : {}),
     }),
   );

@@ -120,3 +120,12 @@ The redirects keep share, approval and API links that use this domain working. T
 drops `Authorization` on a cross-origin redirect. A CLI logged in against this
 domain must point `url` in `~/.config/hosti.json`, or `HOSTI_URL`, at
 `https://hosti-private.kubaszwajka.com`. The token stays valid.
+
+`apple-touch-icon.png` is the 180×180 home-screen icon, the same file as the web
+app's `apple-icon.png`. The Dockerfile copies it by name, and Caddy caches it
+as an asset.
+
+The web app has its own generic card, `apps/web/src/app/opengraph-image.png`.
+It is this card without the `hosti.kubaszwajka.com` footer, so a self-hosted
+Hosti never advertises that domain. The app and the pin gate both point
+`og:image` at it, using `HOSTI_PUBLIC_URL`.

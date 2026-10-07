@@ -27,7 +27,7 @@
 	# /docs is the landing's own and stays out of @app. Its pages cache like /.
 	# The files have no content hash, so even the long cache stays at one day.
 	@page path / /index.html /docs /docs/*
-	@assets path /styles/* /icon.svg /og-image.png
+	@assets path /styles/* /icon.svg /og-image.png /apple-touch-icon.png
 	header @page Cache-Control "public, max-age=300"
 	header @assets Cache-Control "public, max-age=86400"
 

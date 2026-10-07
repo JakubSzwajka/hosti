@@ -1,5 +1,5 @@
 export { Serving } from "./serving";
-export type { GateFault } from "./gate-page";
+export type { GateFault, GatePageInput } from "./gate-page";
 export {
   PREVIEW_TOKEN_TTL_MS,
   TOKEN_MARK,

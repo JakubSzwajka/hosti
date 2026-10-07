@@ -89,7 +89,7 @@ to `.env`.
 | --- | --- | --- | --- |
 | `HOSTI_OWNER_PASSWORD_HASH` | Yes, for the admin pages | none | Scrypt hash of the owner password, `scrypt:16384:8:1:<salt>:<key>`. Make it with `pnpm owner:hash`. Compose requires it. Without a well-formed hash the catalog serves no admin page and `/login` names the missing value. |
 | `HOSTI_SECRET` | Yes, for the admin pages | none | Signs the admin session cookie, the pin unlock cookies and the preview grants. A pin cannot be set without it. Changing it signs the owner out and shuts every unlocked link. Make it with `openssl rand -hex 32`. Compose requires it. |
-| `HOSTI_PUBLIC_URL` | Yes, in a deployment | the request's own origin; Compose defaults to `http://localhost:3000` | The exact public HTTPS origin that serves Hosti. The approval link an agent prints and the share URLs are built from it. |
+| `HOSTI_PUBLIC_URL` | Yes, in a deployment | the request's own origin; Compose defaults to `http://localhost:3000` | The exact public HTTPS origin that serves Hosti. The approval link an agent prints, the share URLs and the absolute URLs in link-preview tags are built from it. |
 | `HOSTI_DATA_DIR` | No | `./data`; the image and Compose set `/data` | Where `hosti.db` and the bundles live. |
 | `PORT` | No | `3000` | The port the server listens on. The image and Compose use `3000`. |
 | `HOSTI_KEEP_REVISIONS` | No | `5` | How many revisions of one bundle survive a push. A value below 1 is read as 1, and a value that is not a number falls back to 5. The current revision is never deleted. |
