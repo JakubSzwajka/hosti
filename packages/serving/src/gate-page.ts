@@ -1,5 +1,40 @@
 export type GateFault = "wrong" | "locked" | "unavailable";
 
+export type GatePageInput = {
+  sharePath: string;
+  sharePrefix: string;
+  next: string;
+  baseUrl: string;
+  fault?: GateFault;
+};
+
+const CARD_TITLE = "Protected Hosti link";
+const CARD_DESCRIPTION =
+  "This Hosti link is protected by a pin. Enter the pin you were sent to open it.";
+const CARD_IMAGE_PATH = "/opengraph-image.png";
+
+function cardTags(input: GatePageInput): string {
+  // The card is the same for every link, so a pasted URL never leaks the bundle behind the pin.
+  const url = escapeHtml(`${input.baseUrl}${input.sharePrefix}/`);
+  const image = escapeHtml(`${input.baseUrl}${CARD_IMAGE_PATH}`);
+  return [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="Hosti" />`,
+    `<meta property="og:title" content="${CARD_TITLE}" />`,
+    `<meta property="og:description" content="${CARD_DESCRIPTION}" />`,
+    `<meta property="og:url" content="${url}" />`,
+    `<meta property="og:image" content="${image}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${CARD_TITLE}" />`,
+    `<meta name="twitter:description" content="${CARD_DESCRIPTION}" />`,
+    `<meta name="twitter:image" content="${image}" />`,
+    `<link rel="icon" href="/icon.svg" type="image/svg+xml" />`,
+    `<link rel="apple-touch-icon" href="/apple-icon.png" />`,
+  ].join("\n    ");
+}
+
 const FAULTS: Record<GateFault, string> = {
   wrong: "That pin is wrong. Check it and try again.",
   locked: "Too many wrong pins. This link is shut for a while.",
@@ -141,12 +176,7 @@ body {
 }
 `.trim();
 
-export function gatePageHtml(input: {
-  sharePath: string;
-  sharePrefix: string;
-  next: string;
-  fault?: GateFault;
-}): string {
+export function gatePageHtml(input: GatePageInput): string {
   const fault = input.fault;
   const message = fault ? FAULTS[fault] : "";
   const state = fault ? ` data-state="${fault}"` : "";
@@ -158,6 +188,7 @@ export function gatePageHtml(input: {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Protected link</title>
+    ${cardTags(input)}
     <style>${STYLE}</style>
   </head>
   <body>

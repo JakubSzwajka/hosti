@@ -102,9 +102,23 @@ test("preview source is local and its browser render command is documented", () 
 
 test("landing image ships only the PNG and Caddy caches it as an asset", () => {
   const dockerfile = readLanding("Dockerfile");
-  assert.match(dockerfile, /^COPY index\.html icon\.svg og-image\.png \/srv\//m);
+  assert.match(
+    dockerfile,
+    /^COPY index\.html icon\.svg og-image\.png apple-touch-icon\.png \/srv\//m,
+  );
   assert.doesNotMatch(dockerfile, /^COPY .*og-image\.html/m);
   assert.match(readLanding("Caddyfile"), /@assets path [^\n]*\/og-image\.png/);
+});
+
+test("landing links a 180x180 apple-touch-icon that the image ships", () => {
+  const links = [...landing.matchAll(/<link\b[^>]*>/gi)].map((match) => attributes(match[0]));
+  const icon = links.filter((tag) => tag.rel === "apple-touch-icon");
+  assert.equal(icon.length, 1, "one apple-touch-icon link");
+  assert.equal(icon[0].href, "apple-touch-icon.png");
+  const bytes = fs.readFileSync(path.join(root, "landing", "apple-touch-icon.png"));
+  assert.deepEqual(bytes.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  assert.equal(bytes.readUInt32BE(16), 180);
+  assert.equal(bytes.readUInt32BE(20), 180);
 });
 
 test("CI landing smoke runs the served preview assertions", () => {

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Mark } from "@/app/_ui/mark";
+import { linkPreview } from "@/app/_http/link-preview";
 import { safeReturnPath } from "@/app/_http/return-path";
 import { runAppUseCase } from "@/app/_http/run-use-case";
 import { currentAdmin } from "@/server/auth/admin";
@@ -8,7 +9,9 @@ import { showLoginSetup } from "@/use-cases/show-login-setup";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Hosti" };
+export function generateMetadata() {
+  return linkPreview("/login");
+}
 
 export default async function Login({
   searchParams,

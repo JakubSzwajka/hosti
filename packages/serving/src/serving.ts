@@ -22,18 +22,13 @@ import type {
   ServingOutcome,
   UnlockBinding,
 } from "./types";
-import type { GateFault } from "./gate-page";
+import type { GatePageInput } from "./gate-page";
 
 export class Serving extends Context.Service<
   Serving,
   {
     contentTypeFor(filePath: string): Effect.Effect<string>;
-    gatePageHtml(input: {
-      sharePath: string;
-      sharePrefix: string;
-      next: string;
-      fault?: GateFault;
-    }): Effect.Effect<string>;
+    gatePageHtml(input: GatePageInput): Effect.Effect<string>;
     signPreviewToken(
       secret: string,
       bundleSlug: string,
