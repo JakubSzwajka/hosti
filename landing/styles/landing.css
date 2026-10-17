@@ -189,9 +189,17 @@ body {
   height: 22px;
 }
 
-.footer-license {
+.footer-license,
+.footer-credit {
   color: var(--muted);
   font-size: 13.5px;
+}
+
+.footer-credit a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--ink);
 }
 
 .register {

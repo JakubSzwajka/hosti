@@ -7,14 +7,16 @@ an `index.html`. There is no build step. The Hosti app itself runs at
 
 ## Analytics
 
-Only this public landing page records automatic pageviews in the self-hosted
-Umami website for `hosti.kubaszwajka.com`. The single tracker in `index.html`
-restricts collection to that domain, respects Do Not Track, and removes query
-strings and hashes from recorded URLs. It sends no visitor identifiers or
-custom events. The private Hosti app, catalog and shared bundles are outside
-this scope.
+The public landing page and the `/docs/` pages record automatic pageviews in
+the self-hosted Umami website for `hosti.kubaszwajka.com`. Every page carries the
+same single tracker tag. It restricts collection to that domain, respects Do Not
+Track, and removes query strings and hashes from recorded URLs. It sends no
+visitor identifiers. The one custom event is `built_by_click`, set with
+`data-umami-event` on the footer credit link, which appears on the landing page
+and every docs page. The private Hosti app, catalog and shared bundles are
+outside this scope.
 
-To change the tracker, edit that one script tag and keep the website ID and
+To change the tracker, edit that script tag in every page and keep the website ID and
 scope explicit. Check it with the focused regression test:
 
 ```bash
