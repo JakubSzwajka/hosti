@@ -1,0 +1,150 @@
+/* Title search: the field in the control bar, the matched letters, and the
+   keyboard highlight on rows and cards. */
+
+mark {
+  border-radius: 2px;
+  background: var(--pop-wash);
+  color: var(--pop);
+}
+
+.find {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 1 230px;
+  min-width: 200px;
+  height: 31px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  transition: border-color var(--t) ease;
+}
+.find:hover {
+  border-color: var(--muted);
+}
+.find:focus-within {
+  border-color: var(--pop);
+  outline: 2px solid var(--pop);
+  outline-offset: 1px;
+}
+.find-icon {
+  flex: none;
+  color: var(--muted);
+}
+.find:focus-within .find-icon,
+.find[data-active] .find-icon {
+  color: var(--pop);
+}
+.find-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+/* We draw our own clear button. */
+.find-input::-webkit-search-cancel-button,
+.find-input::-webkit-search-decoration {
+  appearance: none;
+}
+.find-count {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.find-count:empty {
+  display: none;
+}
+.find-x {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background var(--t) ease,
+    color var(--t) ease;
+}
+.find-x:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.find-kbd {
+  flex: none;
+  min-width: 19px;
+  margin-right: 3px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 17px;
+  text-align: center;
+  opacity: 0.55;
+}
+/* No keyboard to press it on. */
+@media (pointer: coarse) {
+  .find-kbd {
+    display: none;
+  }
+}
+
+.search-empty {
+  color: var(--muted);
+  font-size: 14px;
+}
+.dtable td.search-empty {
+  padding: 26px 14px;
+  text-align: center;
+}
+
+/* Keyboard highlight. Scroll margins keep it clear of the sticky edges. */
+.dtable tbody tr,
+.grid .card {
+  scroll-margin: 90px 0 140px;
+}
+.card[data-hi] mark {
+  background: var(--selection);
+}
+.dtable tbody tr[data-hi] {
+  background: var(--pop-wash);
+}
+.dtable tbody tr:hover mark {
+  background: var(--selection);
+}
+.dtable tbody tr[data-hi] > :first-child {
+  border-left: 3px solid var(--pop);
+}
+.dtable tbody tr[data-hi] .nm a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+.dtable tbody tr[data-hi] mark {
+  background: var(--selection);
+}
+.grid .card {
+  transition:
+    border-color var(--t) ease,
+    transform var(--t) ease;
+}
+.grid .card[data-hi] {
+  border-color: var(--pop);
+  outline: 1px solid var(--pop);
+  transform: translateY(-2px);
+}

@@ -12,6 +12,17 @@ import {
 import { MiniThumb } from "@/app/_ui/mini-thumb";
 import { OnboardingPanel } from "@/app/_ui/onboarding-panel";
 import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
+import { SearchField } from "@/app/_ui/search-field";
+import {
+  EmptyHits,
+  HitCard,
+  type HitNode,
+  HitRow,
+  MatchTitle,
+  OrderLabel,
+  SearchList,
+} from "@/app/_ui/search-hits";
+import { SearchProvider } from "@/app/_ui/search-state";
 import { UploadDrop } from "@/app/_ui/upload-drop";
 
 export type CatalogView = "gallery" | "table";
@@ -25,14 +36,13 @@ export function CatalogScreen(props: {
   chips: ChipCount[];
   active: string;
   token: string;
-  heading?: string | undefined;
   emptyNote: React.ReactNode;
   allSlugs: string[];
   previewGrants: ReadonlyMap<string, PreviewGrant>;
   collection?: string;
   view?: CatalogView;
 }) {
-  const { bundles, active, token, heading, emptyNote, allSlugs, previewGrants } = props;
+  const { bundles, active, token, emptyNote, allSlugs, previewGrants } = props;
   const view = props.view ?? "gallery";
   const table = view === "table";
   // Chips keep the view, so moving between collections does not flip it back.
@@ -40,10 +50,11 @@ export function CatalogScreen(props: {
   const chips = props.chips.map((chip) => ({ ...chip, href: `${chip.href}${suffix}` }));
   const total = formatTotal(totalBytes(bundles));
   const anyBundles = chips.some((chip) => chip.count > 0);
+  const items = bundles.map(({ slug, title }) => ({ slug, title }));
   return (
-    <>
+    <SearchProvider items={items}>
       <div className="wrap catalog-shell">
-        <Masthead meta={<CatalogMeta heading={heading} />} token={token} />
+        <Masthead meta={<CatalogMeta ordered={bundles.length > 0} />} token={token} />
         <div className="register-line">
           <span>catalog</span>
           <span className="reg-right">
@@ -56,6 +67,7 @@ export function CatalogScreen(props: {
 
         <div className="bar">
           {anyBundles ? <Chips chips={chips} active={`${active}${suffix}`} /> : null}
+          {anyBundles ? <SearchField /> : null}
           {anyBundles ? <ViewToggle path={active} view={view} /> : null}
           <UploadDrop
             token={token}
@@ -64,31 +76,41 @@ export function CatalogScreen(props: {
           />
         </div>
         {bundles.length === 0 ? (
-          emptyNote
+          anyBundles ? (
+            <EmptyHits note={emptyNote} />
+          ) : (
+            emptyNote
+          )
         ) : table ? (
           <BundleTable bundles={bundles} total={total} />
         ) : (
-          <div className="grid">
-            {bundles.map((bundle, index) => (
-              <Card
-                key={bundle.slug}
-                bundle={bundle}
-                frame={index + 1}
-                previewGrant={previewGrants.get(bundle.slug) ?? null}
-              />
-            ))}
-          </div>
+          <SearchList layout="grid" items={cards(bundles, previewGrants)} />
         )}
         {anyBundles ? (
           <footer className="sheet-tail">
-            <span>{plural(bundles.length, "bundle")}, newest first</span>
+            <span>
+              {plural(bundles.length, "bundle")}, <OrderLabel />
+            </span>
             <span>hosti, one box, one domain</span>
           </footer>
         ) : null}
       </div>
       {anyBundles ? null : <EmptyFooter />}
-    </>
+    </SearchProvider>
   );
+}
+
+function cards(bundles: Bundle[], previewGrants: ReadonlyMap<string, PreviewGrant>): HitNode[] {
+  return bundles.map((bundle, index) => ({
+    slug: bundle.slug,
+    node: (
+      <Card
+        bundle={bundle}
+        frame={index + 1}
+        previewGrant={previewGrants.get(bundle.slug) ?? null}
+      />
+    ),
+  }));
 }
 
 function ViewToggle({ path, view }: { path: string; view: CatalogView }) {
@@ -138,11 +160,13 @@ function BundleTable({ bundles, total }: { bundles: Bundle[]; total: string }) {
             </th>
           </tr>
         </thead>
-        <tbody>
-          {bundles.map((bundle) => (
-            <BundleRow key={bundle.slug} bundle={bundle} />
-          ))}
-        </tbody>
+        <SearchList
+          layout="table"
+          items={bundles.map((bundle) => ({
+            slug: bundle.slug,
+            node: <BundleRow bundle={bundle} />,
+          }))}
+        />
         <tfoot>
           <tr>
             <td colSpan={3}>{plural(bundles.length, "bundle")}</td>
@@ -163,13 +187,15 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
   const href = `/b/${bundle.slug}`;
   const current = bundle.currentRevision;
   return (
-    <tr>
+    <HitRow slug={bundle.slug}>
       <td className="c-thumb">
         <MiniThumb seed={bundle.slug} live={current !== null} />
       </td>
       <th scope="row" className="c-name">
         <span className="nm">
-          <Link href={href}>{bundle.title}</Link>
+          <Link href={href}>
+            <MatchTitle slug={bundle.slug} title={bundle.title} />
+          </Link>
         </span>
         <span className="pt mono">
           /b/{bundle.slug}/ {current ? `r${current.seq}` : "no revision"}
@@ -194,7 +220,7 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
           </>
         )}
       </td>
-    </tr>
+    </HitRow>
   );
 }
 
@@ -210,7 +236,7 @@ function Card({
   const href = `/b/${bundle.slug}`;
   const current = bundle.currentRevision;
   return (
-    <article className="card">
+    <HitCard slug={bundle.slug}>
       <div className="card-window">
         <p className="window-bar">
           <span className="where">/b/{bundle.slug}/</span>
@@ -231,7 +257,9 @@ function Card({
         <span className="frame-no">{String(frame).padStart(2, "0")}</span>
         <div className="card-name">
           <h2>
-            <Link href={href}>{bundle.title}</Link>
+            <Link href={href}>
+              <MatchTitle slug={bundle.slug} title={bundle.title} />
+            </Link>
           </h2>
           <p className="card-slug">{bundle.slug}</p>
         </div>
@@ -253,14 +281,18 @@ function Card({
           </span>
         )}
       </div>
-    </article>
+    </HitCard>
   );
 }
 
-function CatalogMeta({ heading }: { heading?: string | undefined }) {
+function CatalogMeta({ ordered }: { ordered: boolean }) {
   return (
     <span className="mast-meta">
-      {heading ? <span>{heading}</span> : null}
+      {ordered ? (
+        <span>
+          <OrderLabel />
+        </span>
+      ) : null}
       <Link href="/tokens">push tokens</Link>
     </span>
   );
