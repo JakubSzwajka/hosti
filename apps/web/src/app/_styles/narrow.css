@@ -23,6 +23,10 @@
   .bar .drop {
     grid-column: 1 / -1;
   }
+  .bar .find {
+    grid-column: 1 / -1;
+    order: -1;
+  }
   .grid {
     grid-template-columns: 1fr;
     gap: 12px;

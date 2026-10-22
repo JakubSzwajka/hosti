@@ -38,7 +38,6 @@ export default async function CollectionPage({
       previewGrants={grants}
       view={view}
       {...(loose ? {} : { collection: wanted })}
-      {...(bundles.length === 0 ? {} : { heading: "newest first" })}
       emptyNote={<EmptyCollection name={name} />}
     />
   );

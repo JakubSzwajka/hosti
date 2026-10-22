@@ -541,6 +541,41 @@ Every change the catalog makes, setting the sharing state, rotating the link,
 setting a collection, deleting a bundle, logging out, is a POST carrying a token
 derived from the session. No GET ever changes anything.
 
+### Catalog views and title search
+
+The catalog has two views. Gallery is the default: a card per bundle with a live
+preview. Table is one dense row per bundle, with its collection, revisions,
+update date, size and sharing state. Pick one with the Gallery and Table toggle,
+or open `/?view=table` or `/c/reports?view=table`. The collection chips keep the
+view you are in. The total size in the register line always counts every bundle
+on the page, whatever the search says.
+
+The search field sits in the bar beside the toggle on `/` and `/c/<collection>`.
+It filters as you type and looks at bundle titles only, not slugs or collections.
+
+- Case does not matter and spaces in the query are ignored.
+- Every query character must appear in the title, in order. `pdur` finds
+  "Pi Durable" and `agt dev` finds "agent-dev-kit". Loose matches show up at the
+  bottom of the list.
+- Better matches come first. Runs of characters and word starts score the same,
+  a match at the start of the title scores a bit more, and gaps cost a little.
+  Equal scores keep the catalog's order, newest first.
+- Matched characters are highlighted. The field shows "N of M" while a query is
+  active, and the list says so when no title matches.
+- On a collection page it searches only that collection.
+
+| Key | Does |
+| --- | --- |
+| `/` or Ctrl/Cmd-K | Focus the field from anywhere on the page. It does nothing while another input has focus, or inside the upload form. |
+| Down, Up | Move a highlight through the matches, wrapping at the ends. |
+| Enter | Open the highlighted bundle, or the first match when none is highlighted. |
+| Esc | Drop the highlight. Press it again to clear the query. |
+
+The query is held in the browser's memory only. It is not in the URL, a cookie
+or local storage, so a full reload clears it. Gallery and Table keep the query
+when you flip between them. The collection chips keep it too, including the
+chip back to all bundles (`/`). On a collection page it filters only that
+collection. The highlight resets when you change collection.
 
 ### Putting a bundle in from the browser
 

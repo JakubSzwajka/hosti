@@ -4,6 +4,7 @@ import "./_styles/hosti.css";
 import "./_styles/controls.css";
 import "./_styles/grid.css";
 import "./_styles/table.css";
+import "./_styles/search.css";
 import "./_styles/detail.css";
 import "./_styles/share.css";
 import "./_styles/forms.css";
