@@ -48,6 +48,10 @@ async function render(component: () => Promise<React.ReactElement>): Promise<str
   return renderToStaticMarkup(await component());
 }
 
+function catalogPage() {
+  return () => Catalog({ searchParams: Promise.resolve({}) });
+}
+
 function tokensPage(query: { token?: string } = {}) {
   return () => PushTokens({ searchParams: Promise.resolve(query) });
 }
@@ -189,7 +193,7 @@ describe("the agent prompt", () => {
 
 describe("the empty catalog", () => {
   it("offers the panel instead of telling the owner to open a shell", async () => {
-    const html = decodeEntities(await render(Catalog));
+    const html = decodeEntities(await render(catalogPage()));
     expect(html).toContain(CLI_INSTALL_COMMAND);
     expect(html).toContain(`hosti login https://${HOST}`);
     expect(html).not.toContain("/tokens/mint");
@@ -203,7 +207,7 @@ describe("the empty catalog", () => {
   });
 
   it("reaches /tokens from the masthead", async () => {
-    const html = await render(Catalog);
+    const html = await render(catalogPage());
     expect(html).toContain('href="/tokens"');
   });
 });

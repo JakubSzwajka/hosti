@@ -57,6 +57,39 @@
   color: var(--muted);
 }
 
+.flag[data-size="sm"] {
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+/* Gallery or Table. Two plain links, so the choice lives in the URL. */
+.view-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+.view-toggle a {
+  padding: 4px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  transition:
+    background var(--t) ease,
+    color var(--t) ease;
+}
+.view-toggle a + a {
+  border-left: 1px solid var(--line);
+}
+.view-toggle a:hover {
+  color: var(--ink);
+}
+.view-toggle a[data-on] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 /* buttons ----------------------------------------------------------- */
 .btn {
   border: 1px solid var(--line);

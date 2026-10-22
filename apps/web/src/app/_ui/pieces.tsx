@@ -52,15 +52,15 @@ export function Chips({
   );
 }
 
-export function ShareFlag({ mode }: { mode: SharingMode }) {
+export function ShareFlag({ mode, small }: { mode: SharingMode; small?: boolean }) {
   return (
-    <span className="flag" data-s={mode}>
+    <span className="flag" data-s={mode} {...(small ? { "data-size": "sm" } : {})}>
       {mode}
     </span>
   );
 }
 
-function bars(seed: string, count: number): { id: string; height: number }[] {
+export function bars(seed: string, count: number): { id: string; height: number }[] {
   let hash = 0;
   for (const character of seed) hash = (hash * 31 + character.charCodeAt(0)) % 9973;
   return Array.from({ length: count }, (_, step) => ({
