@@ -1,10 +1,24 @@
 import type { PreviewGrant } from "@hosti/serving";
 import type { Bundle } from "@hosti/shared";
 import Link from "next/link";
-import { type ChipCount, formatDate, plural } from "@/app/_ui/format";
+import {
+  type ChipCount,
+  formatBytes,
+  formatDate,
+  formatTotal,
+  plural,
+  totalBytes,
+} from "@/app/_ui/format";
+import { MiniThumb } from "@/app/_ui/mini-thumb";
 import { OnboardingPanel } from "@/app/_ui/onboarding-panel";
 import { Chips, Masthead, ShareFlag, Thumb } from "@/app/_ui/pieces";
 import { UploadDrop } from "@/app/_ui/upload-drop";
+
+export type CatalogView = "gallery" | "table";
+
+export function parseView(value: string | string[] | undefined): CatalogView {
+  return (Array.isArray(value) ? value[0] : value) === "table" ? "table" : "gallery";
+}
 
 export function CatalogScreen(props: {
   bundles: Bundle[];
@@ -16,8 +30,15 @@ export function CatalogScreen(props: {
   allSlugs: string[];
   previewGrants: ReadonlyMap<string, PreviewGrant>;
   collection?: string;
+  view?: CatalogView;
 }) {
-  const { bundles, chips, active, token, heading, emptyNote, allSlugs, previewGrants } = props;
+  const { bundles, active, token, heading, emptyNote, allSlugs, previewGrants } = props;
+  const view = props.view ?? "gallery";
+  const table = view === "table";
+  // Chips keep the view, so moving between collections does not flip it back.
+  const suffix = table ? "?view=table" : "";
+  const chips = props.chips.map((chip) => ({ ...chip, href: `${chip.href}${suffix}` }));
+  const total = formatTotal(totalBytes(bundles));
   const anyBundles = chips.some((chip) => chip.count > 0);
   return (
     <>
@@ -25,11 +46,17 @@ export function CatalogScreen(props: {
         <Masthead meta={<CatalogMeta heading={heading} />} token={token} />
         <div className="register-line">
           <span>catalog</span>
-          <span>{plural(bundles.length, "frame")}</span>
+          <span className="reg-right">
+            <span className="size-pill">
+              total size <b>{total}</b>
+            </span>
+            <span>{plural(bundles.length, "frame")}</span>
+          </span>
         </div>
 
         <div className="bar">
-          {anyBundles ? <Chips chips={chips} active={active} /> : null}
+          {anyBundles ? <Chips chips={chips} active={`${active}${suffix}`} /> : null}
+          {anyBundles ? <ViewToggle path={active} view={view} /> : null}
           <UploadDrop
             token={token}
             slugs={allSlugs}
@@ -38,6 +65,8 @@ export function CatalogScreen(props: {
         </div>
         {bundles.length === 0 ? (
           emptyNote
+        ) : table ? (
+          <BundleTable bundles={bundles} total={total} />
         ) : (
           <div className="grid">
             {bundles.map((bundle, index) => (
@@ -59,6 +88,113 @@ export function CatalogScreen(props: {
       </div>
       {anyBundles ? null : <EmptyFooter />}
     </>
+  );
+}
+
+function ViewToggle({ path, view }: { path: string; view: CatalogView }) {
+  const options = [
+    { name: "gallery", label: "Gallery", href: path },
+    { name: "table", label: "Table", href: `${path}?view=table` },
+  ] as const;
+  return (
+    <nav className="view-toggle" aria-label="View">
+      {options.map((option) => (
+        <Link
+          key={option.name}
+          href={option.href}
+          {...(option.name === view ? { "data-on": "", "aria-current": "true" as const } : {})}
+        >
+          {option.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function BundleTable({ bundles, total }: { bundles: Bundle[]; total: string }) {
+  return (
+    // Browsers make a scroller keyboard-focusable, so a narrow screen can scroll it.
+    <div className="dtable-scroll">
+      <table className="dtable">
+        <thead>
+          <tr>
+            <th scope="col">
+              <span className="sr-only">Preview</span>
+            </th>
+            <th scope="col">Bundle</th>
+            <th scope="col">Collection</th>
+            <th scope="col" className="num">
+              Revs
+            </th>
+            <th scope="col" className="num">
+              Updated
+            </th>
+            <th scope="col" className="num">
+              Size
+            </th>
+            <th scope="col">Share</th>
+            <th scope="col">
+              <span className="sr-only">Open</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {bundles.map((bundle) => (
+            <BundleRow key={bundle.slug} bundle={bundle} />
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={3}>{plural(bundles.length, "bundle")}</td>
+            <td />
+            <td />
+            <td className="num">
+              total <b>{total}</b>
+            </td>
+            <td colSpan={2} />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+function BundleRow({ bundle }: { bundle: Bundle }) {
+  const href = `/b/${bundle.slug}`;
+  const current = bundle.currentRevision;
+  return (
+    <tr>
+      <td className="c-thumb">
+        <MiniThumb seed={bundle.slug} live={current !== null} />
+      </td>
+      <th scope="row" className="c-name">
+        <span className="nm">
+          <Link href={href}>{bundle.title}</Link>
+        </span>
+        <span className="pt mono">
+          /b/{bundle.slug}/ {current ? `r${current.seq}` : "no revision"}
+        </span>
+      </th>
+      <td className="c-coll">{bundle.collection ?? "no collection"}</td>
+      <td className="num">{bundle.revisionCount}</td>
+      <td className="num">{formatDate(bundle.updatedAt)}</td>
+      <td className="num c-size">{current ? formatBytes(current.byteSize) : "\u2014"}</td>
+      <td>
+        <ShareFlag mode={bundle.sharing.mode} small />
+      </td>
+      <td className="c-open">
+        {current ? (
+          <Link href={href}>
+            open <span aria-hidden="true">&#8599;</span>
+          </Link>
+        ) : (
+          <>
+            <span aria-hidden="true">&mdash;</span>
+            <span className="sr-only">nothing to open</span>
+          </>
+        )}
+      </td>
+    </tr>
   );
 }
 

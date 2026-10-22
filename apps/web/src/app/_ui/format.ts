@@ -14,6 +14,18 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1000 / 1000).toFixed(1)} MB`;
 }
 
+export function totalBytes(bundles: readonly Bundle[]): number {
+  let sum = 0;
+  for (const bundle of bundles) sum += bundle.currentRevision?.byteSize ?? 0;
+  return sum;
+}
+
+export function formatTotal(bytes: number): string {
+  if (bytes < 1000 * 1000) return `${Math.round(bytes / 1000)} kB`;
+  if (bytes < 1000 * 1000 * 1000) return `${(bytes / 1000 / 1000).toFixed(1)} MB`;
+  return `${(bytes / 1000 / 1000 / 1000).toFixed(2)} GB`;
+}
+
 export function plural(count: number, one: string, many = `${one}s`): string {
   return `${count} ${count === 1 ? one : many}`;
 }
