@@ -5,8 +5,8 @@ This page documents the maintainer's own release pipeline. Self-hosters do not n
 A merge to `main` ships nothing. CI checks and tests it, and that is all. Prod
 changes only when someone runs **Create release** in GitHub Actions. This is
 the operator's gated release profile. The workflow follows the infra CI standard
-(`docs/ci/README.md` in the infra repo). Hosti's one allowed deviation is the
-second image, landing.
+(`docs/ci/README.md` in the infra repo). Hosti's allowed deviations are the
+second image, landing, and the release on GitHub-hosted runners (a public repo).
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
@@ -37,7 +37,8 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy
 
 The build runs before the tag, so a failed build never leaves a tag or a
 release behind. The tag is made on the server by `gh release create --target`,
-with no `git push`. Both jobs run on the self-hosted `boat` runner. The image
+with no `git push`. Both jobs run on GitHub-hosted `ubuntu-24.04`: hosti is a public repo, so those
+minutes are free, and a public repo should not use a self-hosted runner. The image
 build reads and writes the Docker layer cache in the Actions cache service
 (`scope=release` for the app, `scope=landing` for landing). CI only reads it.
 Runs share one concurrency group, `hosti-release`. A second run waits and is
