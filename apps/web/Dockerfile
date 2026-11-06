@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # Debian rather than Alpine: better-sqlite3 ships glibc prebuilds, and the
 # fallback node-gyp build needs a toolchain that Alpine would also need.
-# Keep the tag in step with .nvmrc.
-FROM node:24.21.0-bookworm-slim AS base
+# Keep the tag in step with .nvmrc. Tag plus digest, literal so Dependabot bumps both.
+FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS base
 WORKDIR /app
 ENV COREPACK_HOME=/corepack
 RUN corepack enable
@@ -27,12 +27,12 @@ COPY tsconfig.base.json ./
 COPY packages/ packages/
 COPY apps/web apps/web
 RUN pnpm --filter @hosti/web build
+# Next traces the packages the server needs into standalone/node_modules. That tree is far
+# smaller than a --prod install (every workspace dependency), so keep it, but as its own
+# runtime layer: it does not change on a code-only release, the rest of standalone does.
+RUN mv apps/web/.next/standalone/node_modules /traced-node_modules
 
 FROM base AS runtime
-# "Create release" passes the full commit sha; /api/health reports its first 12
-# characters so the deploy can tell the new container from the old one.
-ARG APP_COMMIT=unknown
-ENV APP_COMMIT=$APP_COMMIT
 ENV NODE_ENV=production \
   HOSTI_DATA_DIR=/data \
   PORT=3000 \
@@ -41,7 +41,9 @@ ENV NODE_ENV=production \
 RUN mkdir -p /data && chown -R node:node /data
 WORKDIR /app/apps/web
 
-# Next standalone output includes traced packages and native better-sqlite3 files.
+# Traced packages and native better-sqlite3 files first: same bytes every release.
+COPY --from=build --chown=node:node /traced-node_modules /app/node_modules
+# The app: server build, no node_modules.
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone /app
 COPY --from=build --chown=node:node /app/apps/web/.next/static /app/apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/scripts /app/apps/web/scripts
@@ -56,6 +58,12 @@ RUN mkdir -p /app/node_modules/@hosti \
   && set -- /app/apps/web/.next/node_modules/better-sqlite3-* \
   && [ "$#" -eq 1 ] && [ -f "$1/package.json" ] \
   && ln -sfn "$(readlink -f "$1")" /app/node_modules/better-sqlite3
+
+# Last before USER: it changes every release, so nothing but metadata may follow it.
+# "Create release" passes the full commit sha; /api/health reports its first 12
+# characters so the deploy can tell the new container from the old one.
+ARG APP_COMMIT=unknown
+ENV APP_COMMIT=$APP_COMMIT
 
 USER node
 EXPOSE 3000

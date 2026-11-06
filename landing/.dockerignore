@@ -1,0 +1,13 @@
+# The build context is landing/, so the root .dockerignore does not apply.
+.git
+node_modules
+.next
+dist
+coverage
+test-results
+.dockerignore
+Dockerfile
+README.md
+og-image.html
+.env*
+*.log

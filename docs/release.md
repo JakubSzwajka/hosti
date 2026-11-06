@@ -4,8 +4,9 @@ This page documents the maintainer's own release pipeline. Self-hosters do not n
 
 A merge to `main` ships nothing. CI checks and tests it, and that is all. Prod
 changes only when someone runs **Create release** in GitHub Actions. This is
-the operator's gated release profile. The reference copy of the workflow lives
-in `JakubSzwajka/house-rules-stack`.
+the operator's gated release profile. The workflow follows the infra CI standard
+(`docs/ci/README.md` in the infra repo). Hosti's one allowed deviation is the
+second image, landing.
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
@@ -13,30 +14,42 @@ only by hand
 (`workflow_dispatch`), never on push or pull request.
 
 ```text
-merge to main ──> CI only (check, test, build). No image, no deploy.
+merge to main ──> CI only (static, test, image, landing, secrets). No push, no deploy.
 
 Create release (dispatch on main)   inputs: bump, dry_run, redeploy
   │
   ├─ build-and-tag            skipped when redeploy is set
+  │    preflight: every variable and secret name is set
+  │    CI gate: the newest push run of "CI" on this commit is green
   │    next vX.Y.Z from the newest v*.*.* tag (cli-v* tags are ignored)
   │    dry_run? ── yes ──> print version + commit subjects, stop
-  │    preflight LANDING_URL/healthz (status ok, 12 lowercase hex commit)
   │    build apps/web/Dockerfile and landing/Dockerfile with APP_COMMIT
   │    push immutable images prod-sha-<12> and landing-prod-sha-<12>
-  │    push version aliases, then git tag and GitHub Release
+  │    push version aliases, then create the GitHub Release at this commit
   │
   └─ deploy                   after a good build, or alone with redeploy
        vX.Y.Z ─> commit (refused if not on main) ─> both immutable tags
        check both images exist before changing either Dokploy app
-       preflight LANDING_URL/healthz before any Dokploy update
        deploy app and poll APP_URL/api/health until commit == <12>
        deploy landing and poll LANDING_URL/healthz until commit == <12>
        notify Discord (always, including partial failures)
 ```
 
 The build runs before the tag, so a failed build never leaves a tag or a
-release behind. Runs share one concurrency group, `hosti-release`. A second
-run waits and is never cancelled.
+release behind. The tag is made on the server by `gh release create --target`,
+with no `git push`. Both jobs run on the self-hosted `boat` runner. The image
+build reads and writes the Docker layer cache in the Actions cache service
+(`scope=release` for the app, `scope=landing` for landing). CI only reads it.
+Runs share one concurrency group, `hosti-release`. A second run waits and is
+never cancelled.
+
+## The CI gate
+
+A real release needs a green push run of the `CI` workflow on the same commit.
+After a squash merge the commit on `main` is new, so wait for that push run to
+pass before you release. A dry run reports the gate in the step summary and
+never fails on it. `deploy` and `redeploy` skip the gate, so a rollback does
+not depend on CI.
 
 ## Cut a release
 
@@ -67,17 +80,17 @@ failures stay in GitHub Actions and do not post there.
 gh workflow run "Create release" --ref main -f redeploy=vX.Y.Z
 ```
 
-`redeploy` skips the build and the tag. It first preflights the public landing
-origin, then resolves the selected tag to its commit and checks that both
-`prod-sha-<12>` and `landing-prod-sha-<12>` exist. Only then can it change a
-Dokploy application. It deploys the app first, waits for `/api/health`, then
+`redeploy` skips the build and the tag. It resolves the selected tag to its
+commit and checks that both `prod-sha-<12>` and `landing-prod-sha-<12>` exist.
+Only then can it change a Dokploy application. It deploys the app first, waits for `/api/health`, then
 deploys the landing image and waits for `/healthz`. Nothing is rebuilt. The
 same command with the current version redeploys it. Read the next section
 before you roll back.
 
-The preflight is intentional. If the public landing origin does not answer
-`/healthz` with the health contract below, a real release stops before the
-image build and tag, and a redeploy stops before any Dokploy update.
+There is no preflight of the live landing. A landing outage must not block a
+repair release or a redeploy, because the new image is what fixes it. The
+deploy still checks that both images exist before it changes either Dokploy
+app, and it waits for `/api/health` and `/healthz` to report the new commit.
 
 ## The database and rollbacks
 
@@ -131,6 +144,9 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Variable | `DOKPLOY_LANDING_APPLICATION_ID` | The Dokploy application that runs the landing image. Required for real releases and redeploys. |
 | Variable | `APP_URL` | Public origin of the app. The deploy polls `APP_URL/api/health`. |
 
+A preflight step in both jobs fails with one line per missing name, before any
+tag exists. It never prints a value. An empty `DISCORD_DEPLOY_WEBHOOK` only warns.
+
 These sit at repo level, with no `environment:`. Both Dokploy applications
 need image sources that can pull from GHCR, with auto deploy off.
 `LANDING_URL` is not a variable: the workflow hard-codes it as
@@ -156,13 +172,15 @@ Compose healthcheck uses the app route.
 
 ## Workflow notes
 
-The release workflow is maintained here rather than copied from the reference
-project. Compare them when the reference changes:
+The release workflow is a copy of `templates/ci/release-create.yml` in the infra
+repo. Compare it when the template changes:
 
 ```sh
-diff ../house-rules-stack/.github/workflows/release-create.yml .github/workflows/release-create.yml
+diff ~/DEV/priv/infra/templates/ci/release-create.yml .github/workflows/release-create.yml
 ```
 
-The Hosti-specific settings include the app Dockerfile, the landing Dockerfile
-and the fixed public landing origin. `RELEASE_MARK_LATEST: "false"` keeps the
+The Hosti-specific settings are the knobs in the top `env:` block: the app
+Dockerfile, the landing Dockerfile and context, and the fixed public landing
+origin. The extra steps are the landing build, the image check and the landing deploy
+and health wait. `RELEASE_MARK_LATEST: "false"` keeps the
 CLI install URL on the `cli-v*` release. See [Why `--latest=false`](#why---latestfalse).

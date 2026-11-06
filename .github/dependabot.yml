@@ -1,0 +1,52 @@
+# Copy to .github/dependabot.yml. The standard: docs/ci/README.md in the infra repo.
+#
+# Weekly, one grouped PR per ecosystem. The cooldown matches the repos' pnpm
+# minimumReleaseAge of 1440 minutes (1 day): a release must be a day old before a PR opens.
+version: 2
+updates:
+  # Action pins are full SHAs with a "# vX.Y.Z" comment. Dependabot bumps both.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Base images are pinned by tag plus digest. Dependabot bumps both.
+  # One block per directory that holds a Dockerfile: the app (apps/web) and landing.
+  - package-ecosystem: docker
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      docker:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /landing
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 1
+    groups:
+      docker-landing:
+        patterns: ["*"]
+
+  # npm is off by default. Turn it on only after the lockfile problem below is handled.
+  # In hosti, Dependabot npm PRs failed CI with ERR_PNPM_OUTDATED_LOCKFILE
+  # (audit apps-mixed.md): the frozen install rejects the lockfile Dependabot wrote.
+  # Before you enable this block, either make Dependabot update the lockfile for your pnpm
+  # version, or add a step on dependabot/* branches that runs `pnpm install --lockfile-only`.
+  # - package-ecosystem: npm
+  #   directory: /
+  #   schedule:
+  #     interval: weekly
+  #   cooldown:
+  #     default-days: 1
+  #   groups:
+  #     npm:
+  #       patterns: ["*"]

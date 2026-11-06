@@ -99,9 +99,10 @@ Self-hosters do not need it.
 | Container port | `80` |
 | Auto deploy | off |
 
-Before a real release, the workflow preflights the public `/healthz` and
-requires `{"status":"ok","commit":"<12 lowercase hex>"}`. It deploys the
-landing image after the app and waits for the same commit. It needs the repo
+The workflow deploys the landing image after the app and waits for the public
+`/healthz` to return `{"status":"ok","commit":"<12 lowercase hex>"}` with the
+release commit. It does not check the live landing before the release, so an
+outage cannot block the release that repairs it. It needs the repo
 variable `DOKPLOY_LANDING_APPLICATION_ID`.
 
 For a local check, build with a commit, then confirm `/healthz` returns JSON

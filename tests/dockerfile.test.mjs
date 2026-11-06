@@ -40,6 +40,99 @@ describe("runtime image packaging", () => {
   });
 });
 
+describe("image layer order", () => {
+  const instructions = (file) =>
+    read(file)
+      .split("\n")
+      .filter((line) => /^[A-Z]+ /.test(line))
+      .map((line) => line.split(" ")[0]);
+  const lineOf = (text, pattern) => text.split("\n").findIndex((line) => pattern.test(line));
+
+  it("pins every base image by tag and digest", () => {
+    for (const file of ["apps/web/Dockerfile", "landing/Dockerfile"]) {
+      const from = read(file)
+        .split("\n")
+        .filter((line) => /^FROM [^ ]+@sha256:[0-9a-f]{64}( AS \w+)?$/.test(line));
+      assert.ok(from.length > 0, `${file} has no digest-pinned FROM`);
+    }
+  });
+
+  it("puts APP_COMMIT last before USER, so a code-only release moves the fewest layers", () => {
+    const web = read("apps/web/Dockerfile");
+    const lines = web.split("\n");
+    const arg = lineOf(web, /^ARG APP_COMMIT/);
+    const user = lineOf(web, /^USER /);
+    assert.ok(arg > lineOf(web, /^COPY --from=build .*\/schema\.mjs/));
+    assert.equal(lines[arg + 1], "ENV APP_COMMIT=$APP_COMMIT");
+    assert.equal(
+      lines
+        .slice(arg + 2, user)
+        .join("")
+        .trim(),
+      "",
+    );
+    // Landing rewrites its Caddyfile with the commit, so one RUN may follow the ARG.
+    assert.deepEqual(instructions("landing/Dockerfile").slice(-5), [
+      "ARG",
+      "ENV",
+      "RUN",
+      "USER",
+      "EXPOSE",
+    ]);
+  });
+
+  it("copies Next's traced node_modules as its own layer before the app", () => {
+    const web = read("apps/web/Dockerfile");
+    assert.match(web, /mv apps\/web\/\.next\/standalone\/node_modules \/traced-node_modules/);
+    assert.ok(
+      lineOf(web, /^COPY --from=build .* \/traced-node_modules \/app\/node_modules/) <
+        lineOf(web, /^COPY --from=build .* \/app\/apps\/web\/\.next\/standalone \/app/),
+    );
+  });
+});
+
+describe("docker build contexts", () => {
+  const lines = (file) =>
+    read(file)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+
+  it("keeps secrets, VCS data, dependencies and build or test output out of the repository root context", () => {
+    const ignore = lines(".dockerignore");
+    for (const entry of [
+      ".git",
+      "node_modules",
+      "**/node_modules",
+      "**/.next",
+      "**/dist",
+      "**/coverage",
+      "**/test-results",
+      "**/.env*",
+    ]) {
+      assert.ok(ignore.includes(entry), `.dockerignore is missing ${entry}`);
+    }
+    // Tracked, non-secret env schemas stay available to consumers.
+    assert.ok(ignore.indexOf("!**/.env.schema") > ignore.indexOf("**/.env*"));
+    assert.ok(ignore.indexOf("!**/.env.example") > ignore.indexOf("**/.env*"));
+  });
+
+  it("keeps the same baseline out of the landing context", () => {
+    const ignore = lines("landing/.dockerignore");
+    for (const entry of [
+      ".git",
+      "node_modules",
+      ".next",
+      "dist",
+      "coverage",
+      "test-results",
+      ".env*",
+    ]) {
+      assert.ok(ignore.includes(entry), `landing/.dockerignore is missing ${entry}`);
+    }
+  });
+});
+
 describe("docker-compose.build.yml", () => {
   const override = read("docker-compose.build.yml");
 
