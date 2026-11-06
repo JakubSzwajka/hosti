@@ -91,6 +91,48 @@ describe("image layer order", () => {
   });
 });
 
+describe("docker build contexts", () => {
+  const lines = (file) =>
+    read(file)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+
+  it("keeps secrets, VCS data, dependencies and build or test output out of the repository root context", () => {
+    const ignore = lines(".dockerignore");
+    for (const entry of [
+      ".git",
+      "node_modules",
+      "**/node_modules",
+      "**/.next",
+      "**/dist",
+      "**/coverage",
+      "**/test-results",
+      "**/.env*",
+    ]) {
+      assert.ok(ignore.includes(entry), `.dockerignore is missing ${entry}`);
+    }
+    // Tracked, non-secret env schemas stay available to consumers.
+    assert.ok(ignore.indexOf("!**/.env.schema") > ignore.indexOf("**/.env*"));
+    assert.ok(ignore.indexOf("!**/.env.example") > ignore.indexOf("**/.env*"));
+  });
+
+  it("keeps the same baseline out of the landing context", () => {
+    const ignore = lines("landing/.dockerignore");
+    for (const entry of [
+      ".git",
+      "node_modules",
+      ".next",
+      "dist",
+      "coverage",
+      "test-results",
+      ".env*",
+    ]) {
+      assert.ok(ignore.includes(entry), `landing/.dockerignore is missing ${entry}`);
+    }
+  });
+});
+
 describe("docker-compose.build.yml", () => {
   const override = read("docker-compose.build.yml");
 

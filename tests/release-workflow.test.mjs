@@ -29,16 +29,16 @@ describe("gated two-image release workflow", () => {
     assert.doesNotMatch(workflow, /always\(\) && !cancelled\(\)/);
   });
 
-  it("preflights the live landing health before building or tagging", () => {
-    const preflight = position("Preflight landing health");
-    const appBuild = position(`file: ${githubExpression(" env.DOCKERFILE ")}`);
-    const gitTag = position('gh release create "$VERSION"');
-
-    assert.ok(preflight < appBuild);
-    assert.ok(preflight < gitTag);
-    assert.match(workflow, /endpoint="\$\{LANDING_URL%\/\}\$\{LANDING_HEALTH_PATH\}"/g);
-    assert.match(workflow, /\.status == "ok"/g);
-    assert.match(workflow, /test\("\^\[0-9a-f\]\{12\}\$"\)/g);
+  it("does not gate a release or a redeploy on the live landing health", () => {
+    assert.doesNotMatch(workflow, /Preflight landing health/);
+    assert.doesNotMatch(workflow, /Landing preflight failed/);
+    assert.doesNotMatch(workflow, /endpoint="\$\{LANDING_URL%\/\}/);
+    // The landing origin is only read by the post-deploy wait.
+    assert.equal(workflow.split("env.LANDING_URL").length - 1, 1);
+    assert.ok(position("env.LANDING_URL") > position("Deploy landing to Dokploy"));
+    assert.ok(
+      position("Wait for the landing commit on health") > position("Deploy landing to Dokploy"),
+    );
   });
 
   it("pushes app and landing immutable tags before creating the release tag", () => {
@@ -60,12 +60,10 @@ describe("gated two-image release workflow", () => {
 
   it("checks both immutable images before changing either Dokploy app", () => {
     const imageCheck = position("Check release images exist");
-    const preflight = position("Preflight landing health before Dokploy");
     const appDeploy = position("Deploy app to Dokploy");
     const landingDeploy = position("Deploy landing to Dokploy");
 
-    assert.ok(imageCheck < preflight);
-    assert.ok(preflight < appDeploy);
+    assert.ok(imageCheck < appDeploy);
     assert.ok(appDeploy < landingDeploy);
     assert.match(workflow, /docker manifest inspect "\$image"/);
     assert.match(

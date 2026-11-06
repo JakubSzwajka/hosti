@@ -132,19 +132,6 @@ jobs:
           else
             echo "CI gate: ${msg}" >&2; exit 1
           fi
-      # A release ships two images. Stop before any tag exists when landing is not serving the health contract.
-      - name: Preflight landing health
-        if: ${{ !inputs.dry_run }}
-        run: |
-          endpoint="${LANDING_URL%/}${LANDING_HEALTH_PATH}"
-          if ! body="$(curl -fsS --max-time 10 "$endpoint")"; then
-            echo "Landing preflight failed: ${endpoint} is not reachable." >&2
-            exit 1
-          fi
-          if ! jq -e 'type == "object" and .status == "ok" and (.commit | type == "string" and test("^[0-9a-f]{12}$"))' <<<"$body" >/dev/null; then
-            echo "Landing preflight failed: ${endpoint} must return status=ok and a 12-character lowercase commit." >&2
-            exit 1
-          fi
       - name: Next version
         id: version
         env:
@@ -277,17 +264,6 @@ jobs:
               exit 1
             }
           done
-      - name: Preflight landing health before Dokploy
-        run: |
-          endpoint="${LANDING_URL%/}${LANDING_HEALTH_PATH}"
-          if ! body="$(curl -fsS --max-time 10 "$endpoint")"; then
-            echo "Landing preflight failed: ${endpoint} is not reachable." >&2
-            exit 1
-          fi
-          if ! jq -e 'type == "object" and .status == "ok" and (.commit | type == "string" and test("^[0-9a-f]{12}$"))' <<<"$body" >/dev/null; then
-            echo "Landing preflight failed: ${endpoint} must return status=ok and a 12-character lowercase commit." >&2
-            exit 1
-          fi
       - name: Deploy app to Dokploy
         env:
           DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}

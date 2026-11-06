@@ -23,7 +23,6 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy
   │    CI gate: the newest push run of "CI" on this commit is green
   │    next vX.Y.Z from the newest v*.*.* tag (cli-v* tags are ignored)
   │    dry_run? ── yes ──> print version + commit subjects, stop
-  │    preflight LANDING_URL/healthz (status ok, 12 lowercase hex commit)
   │    build apps/web/Dockerfile and landing/Dockerfile with APP_COMMIT
   │    push immutable images prod-sha-<12> and landing-prod-sha-<12>
   │    push version aliases, then create the GitHub Release at this commit
@@ -31,7 +30,6 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy
   └─ deploy                   after a good build, or alone with redeploy
        vX.Y.Z ─> commit (refused if not on main) ─> both immutable tags
        check both images exist before changing either Dokploy app
-       preflight LANDING_URL/healthz before any Dokploy update
        deploy app and poll APP_URL/api/health until commit == <12>
        deploy landing and poll LANDING_URL/healthz until commit == <12>
        notify Discord (always, including partial failures)
@@ -82,17 +80,17 @@ failures stay in GitHub Actions and do not post there.
 gh workflow run "Create release" --ref main -f redeploy=vX.Y.Z
 ```
 
-`redeploy` skips the build and the tag. It first preflights the public landing
-origin, then resolves the selected tag to its commit and checks that both
-`prod-sha-<12>` and `landing-prod-sha-<12>` exist. Only then can it change a
-Dokploy application. It deploys the app first, waits for `/api/health`, then
+`redeploy` skips the build and the tag. It resolves the selected tag to its
+commit and checks that both `prod-sha-<12>` and `landing-prod-sha-<12>` exist.
+Only then can it change a Dokploy application. It deploys the app first, waits for `/api/health`, then
 deploys the landing image and waits for `/healthz`. Nothing is rebuilt. The
 same command with the current version redeploys it. Read the next section
 before you roll back.
 
-The preflight is intentional. If the public landing origin does not answer
-`/healthz` with the health contract below, a real release stops before the
-image build and tag, and a redeploy stops before any Dokploy update.
+There is no preflight of the live landing. A landing outage must not block a
+repair release or a redeploy, because the new image is what fixes it. The
+deploy still checks that both images exist before it changes either Dokploy
+app, and it waits for `/api/health` and `/healthz` to report the new commit.
 
 ## The database and rollbacks
 
@@ -183,6 +181,6 @@ diff ~/DEV/priv/infra/templates/ci/release-create.yml .github/workflows/release-
 
 The Hosti-specific settings are the knobs in the top `env:` block: the app
 Dockerfile, the landing Dockerfile and context, and the fixed public landing
-origin. The extra steps are the landing preflight, the landing build, the image
-check and the landing deploy and health wait. `RELEASE_MARK_LATEST: "false"` keeps the
+origin. The extra steps are the landing build, the image check and the landing deploy
+and health wait. `RELEASE_MARK_LATEST: "false"` keeps the
 CLI install URL on the `cli-v*` release. See [Why `--latest=false`](#why---latestfalse).

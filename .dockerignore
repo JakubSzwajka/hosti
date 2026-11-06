@@ -2,8 +2,23 @@ node_modules
 **/node_modules
 .next
 **/.next
+dist
+**/dist
+coverage
+**/coverage
+test-results
+**/test-results
+playwright-report
+**/playwright-report
+*.tsbuildinfo
+**/*.tsbuildinfo
 data
 .git
 .pi
 fixtures
 *.log
+# Local environment files never enter an image, at any depth.
+**/.env*
+# Tracked schema and example carry no secrets. Keep them available to consumers.
+!**/.env.schema
+!**/.env.example
