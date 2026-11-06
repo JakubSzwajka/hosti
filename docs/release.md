@@ -5,8 +5,8 @@ This page documents the maintainer's own release pipeline. Self-hosters do not n
 A merge to `main` ships nothing. CI checks and tests it, and that is all. Prod
 changes only when someone runs **Create release** in GitHub Actions. This is
 the operator's gated release profile. The workflow follows the infra CI standard
-(`docs/ci/README.md` in the infra repo). Hosti's one allowed deviation is the
-second image, landing.
+(`docs/ci/README.md` in the infra repo). Hosti's allowed deviations are the
+second image, landing, and the release on GitHub-hosted runners (a public repo).
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
