@@ -40,6 +40,57 @@ describe("runtime image packaging", () => {
   });
 });
 
+describe("image layer order", () => {
+  const instructions = (file) =>
+    read(file)
+      .split("\n")
+      .filter((line) => /^[A-Z]+ /.test(line))
+      .map((line) => line.split(" ")[0]);
+  const lineOf = (text, pattern) => text.split("\n").findIndex((line) => pattern.test(line));
+
+  it("pins every base image by tag and digest", () => {
+    for (const file of ["apps/web/Dockerfile", "landing/Dockerfile"]) {
+      const from = read(file)
+        .split("\n")
+        .filter((line) => /^FROM [^ ]+@sha256:[0-9a-f]{64}( AS \w+)?$/.test(line));
+      assert.ok(from.length > 0, `${file} has no digest-pinned FROM`);
+    }
+  });
+
+  it("puts APP_COMMIT last before USER, so a code-only release moves the fewest layers", () => {
+    const web = read("apps/web/Dockerfile");
+    const lines = web.split("\n");
+    const arg = lineOf(web, /^ARG APP_COMMIT/);
+    const user = lineOf(web, /^USER /);
+    assert.ok(arg > lineOf(web, /^COPY --from=build .*\/schema\.mjs/));
+    assert.equal(lines[arg + 1], "ENV APP_COMMIT=$APP_COMMIT");
+    assert.equal(
+      lines
+        .slice(arg + 2, user)
+        .join("")
+        .trim(),
+      "",
+    );
+    // Landing rewrites its Caddyfile with the commit, so one RUN may follow the ARG.
+    assert.deepEqual(instructions("landing/Dockerfile").slice(-5), [
+      "ARG",
+      "ENV",
+      "RUN",
+      "USER",
+      "EXPOSE",
+    ]);
+  });
+
+  it("copies Next's traced node_modules as its own layer before the app", () => {
+    const web = read("apps/web/Dockerfile");
+    assert.match(web, /mv apps\/web\/\.next\/standalone\/node_modules \/traced-node_modules/);
+    assert.ok(
+      lineOf(web, /^COPY --from=build .* \/traced-node_modules \/app\/node_modules/) <
+        lineOf(web, /^COPY --from=build .* \/app\/apps\/web\/\.next\/standalone \/app/),
+    );
+  });
+});
+
 describe("docker-compose.build.yml", () => {
   const override = read("docker-compose.build.yml");
 

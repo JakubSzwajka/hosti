@@ -1,0 +1,7 @@
+# The build context is landing/, so the root .dockerignore does not apply.
+.dockerignore
+Dockerfile
+README.md
+og-image.html
+.env*
+*.log
