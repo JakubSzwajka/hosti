@@ -29,7 +29,8 @@ concurrency:
 permissions:
   contents: read
 
-# Per-project knobs live here and in `runs-on` (boat; fallback ubuntu-24.04). Nothing else changes.
+# Per-project knobs live here and in `runs-on`. hosti is public, so the release runs on free
+# GitHub-hosted ubuntu-24.04 instead of boat. Nothing else changes.
 env:
   # The name: of the PR/main CI workflow. A release needs a green run of it on the same commit.
   CI_WORKFLOW: CI # per-project: the name: of the PR/main CI workflow; "" turns the gate off
@@ -55,7 +56,7 @@ defaults:
 jobs:
   build-and-tag:
     if: inputs.redeploy == ''
-    runs-on: boat # per-project
+    runs-on: ubuntu-24.04 # public repo: GitHub-hosted minutes are free
     timeout-minutes: 30
     permissions:
       actions: read # the CI gate lists workflow runs
@@ -175,7 +176,7 @@ jobs:
             ${{ env.EXTRA_BUILD_ARGS }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           # Layer cache in the Actions cache service. The release writes it, ci.yml only reads it.
-          # Fallback if boat does not serve the cache (no "importing cache manifest" hit in the log):
+          # Fallback if the runner does not serve the cache (no "importing cache manifest" hit in the log):
           #   cache-from: type=registry,ref=<image>:buildcache
           #   cache-to: type=registry,ref=<image>:buildcache,mode=max
           cache-from: type=gha,scope=release
@@ -212,7 +213,7 @@ jobs:
   deploy:
     needs: build-and-tag
     if: ${{ !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
-    runs-on: boat # per-project
+    runs-on: ubuntu-24.04 # public repo: GitHub-hosted minutes are free
     timeout-minutes: 20
     permissions:
       contents: read
