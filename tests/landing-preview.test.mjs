@@ -123,7 +123,7 @@ test("landing links a 180x180 apple-touch-icon that the image ships", () => {
 
 test("CI landing smoke runs the served preview assertions", () => {
   const ci = fs.readFileSync(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
-  assert.match(ci, /node \.\.\/tests\/landing-preview\.test\.mjs http:\/\/127\.0\.0\.1:18080/);
+  assert.match(ci, /node tests\/landing-preview\.test\.mjs http:\/\/127\.0\.0\.1:18080/);
 });
 
 const smokeUrl = process.argv[2];

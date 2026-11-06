@@ -1,75 +1,182 @@
 name: CI
 
+# Checks for a pnpm Node app. Copy to .github/workflows/ci.yml and set the knobs in env: below.
+# The standard and the rules: docs/ci/README.md in the infra repo.
+# Never switch the trigger to pull_request_target: it runs PR code with repository secrets.
 on:
   pull_request:
   push:
     branches: [main]
 
-# Nothing here writes to the repository.
-env:
-  TURBO_TELEMETRY_DISABLED: "1"
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
-# A new push to the same branch or PR makes the running job pointless.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+# Per-project knobs live here. Here we run every job on GitHub-hosted ubuntu-24.04. A job moves to
+# `boat` only with a reason recorded under "Allowed deviations" in docs/ci/README.md (board-app: test).
+# Projects rename or drop the steps they lack: no lint, no typecheck, no tests.
+# Node comes from .nvmrc, the same line the Dockerfile and package.json engines follow.
+# hosti has one guard script, `pnpm check`: pins, env schema, Biome, ESLint, typecheck, Dependency Cruiser.
+env:
+  CHECK_SCRIPT: check # per-project
+  TEST_SCRIPT: test # per-project
+  DOCKERFILE: apps/web/Dockerfile # per-project
+  BUILD_CONTEXT: . # per-project
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  verify:
-    name: Check, test, build
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+  # static and test run in parallel, each with its own install. Jobs stay independent (no needs:).
+  # A project may add a notify job with `needs: [static, test, image, landing, secrets]` and `if: failure()`.
+  static:
+    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    timeout-minutes: 15
     steps:
-      - name: Check out the repository
-        uses: actions/checkout@v7
-
-      # .nvmrc pins the Node line. package.json engines and the base image in
-      # apps/web/Dockerfile follow the same version.
-      - name: Set up Node
-        uses: actions/setup-node@v7
+      # Shallow checkout: this job reads no history.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
+          cache: pnpm
+      - name: Install
         run: pnpm install --frozen-lockfile
-
       - name: Check
-        run: pnpm check
+        run: pnpm run "$CHECK_SCRIPT"
 
+  test:
+    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    timeout-minutes: 15
+    steps:
+      # Shallow checkout: this job reads no history.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
       - name: Test
-        run: pnpm test
+        run: pnpm run "$TEST_SCRIPT"
 
-      - name: Build
-        run: pnpm build
+  image:
+    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # Builds the release image, pushes nothing. It reads the release layer cache and writes none,
+      # so a PR cannot fill or poison the cache. Fallback: cache-from: type=registry,ref=<image>:buildcache
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          push: false
+          build-args: APP_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=release
 
-      - name: Build Docker image
-        run: docker build -f apps/web/Dockerfile .
-
-      - name: Build and smoke-test landing image
-        working-directory: landing
+  # hosti deviation: the landing image is built and smoke-tested in CI too, because the
+  # release ships it. Reads its own cache scope, writes none.
+  landing:
+    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # tests/landing-preview.test.mjs runs on the Node in .nvmrc.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: landing
+          file: landing/Dockerfile
+          load: true
+          push: false
+          tags: hosti-landing-ci
+          build-args: APP_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=landing
+      - name: Smoke-test the landing image
         env:
           APP_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          docker build --build-arg "APP_COMMIT=${APP_COMMIT}" -t hosti-landing-ci .
           container="hosti-landing-ci-${GITHUB_RUN_ID}"
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
           docker run --detach --name "$container" --publish 127.0.0.1:18080:80 hosti-landing-ci
           for _ in {1..30}; do
-            if curl --silent --fail --max-time 2 http://127.0.0.1:18080/healthz >/tmp/landing-health.json; then
+            if curl --silent --fail --max-time 2 http://127.0.0.1:18080/healthz >"$RUNNER_TEMP/landing-health.json"; then
               break
             fi
             sleep 1
           done
-          test -s /tmp/landing-health.json
-          test "$(jq -r .status /tmp/landing-health.json)" = ok
-          test "$(jq -r .commit /tmp/landing-health.json)" = "${APP_COMMIT:0:12}"
-          node ../tests/landing-preview.test.mjs http://127.0.0.1:18080
+          test -s "$RUNNER_TEMP/landing-health.json"
+          test "$(jq -r .status "$RUNNER_TEMP/landing-health.json")" = ok
+          test "$(jq -r .commit "$RUNNER_TEMP/landing-health.json")" = "${APP_COMMIT:0:12}"
+          node tests/landing-preview.test.mjs http://127.0.0.1:18080
           headers="$(curl --silent --show-error --max-time 5 --dump-header - --output /dev/null 'http://127.0.0.1:18080/v/example?x=y')"
           grep -F $'HTTP/1.1 308' <<<"$headers"
           grep -F 'location: https://hosti-private.kubaszwajka.com/v/example?x=y' <<<"${headers,,}"
+
+  secrets:
+    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      # gitleaks reads the patches of the PR or push commits, so it needs every blob of that
+      # history. Keep a full clone: no `filter:`. A blobless clone cannot fetch old blobs later
+      # in a private repo, because persist-credentials: false removes the credentials.
+      # For a very large repo, replace fetch-depth: 0 with the number of PR commits plus one.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The open-source CLI needs no license secret, so fork and Dependabot PRs scan too.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          install_dir="$RUNNER_TEMP/gitleaks"
+          mkdir -p "$install_dir"
+          cd "$install_dir"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            --output gitleaks.tar.gz
+          echo "$GITLEAKS_SHA256  gitleaks.tar.gz" | sha256sum --check
+          tar -xzf gitleaks.tar.gz gitleaks
+          echo "$install_dir" >> "$GITHUB_PATH"
+      - name: Run gitleaks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # This workflow runs on pull_request and on push to main. A zero previous SHA means
+          # main was just created, so there is no older tip to start from: scan all history.
+          if [[ "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            BASE_SHA=""
+          fi
+          # Force-pushes may discard the previous tip even with a full checkout.
+          if [[ -n "$BASE_SHA" ]] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            gitleaks git --redact --log-opts="$BASE_SHA..$HEAD_SHA"
+          else
+            # A new main and an unavailable base both scan the full history of HEAD_SHA.
+            gitleaks git --redact --log-opts="$HEAD_SHA"
+          fi

@@ -2,6 +2,8 @@ name: Create release
 
 # The whole release in one file: build, tag, GitHub Release, deploy to Dokploy.
 # Nothing runs on push. Running this workflow on main is the approval.
+# Copy this file to .github/workflows/release-create.yml and set the knobs in env: below.
+# The standard and the rules: docs/ci/README.md in the infra repo.
 # Roll back: gh workflow run "Create release" -f redeploy=vX.Y.Z
 on:
   workflow_dispatch:
@@ -27,13 +29,22 @@ concurrency:
 permissions:
   contents: read
 
-# The CLI install URL releases/latest/download/hosti-cli.tgz must keep pointing at a cli-v* release.
+# Per-project knobs live here and in `runs-on` (boat; fallback ubuntu-24.04). Nothing else changes.
 env:
-  DOCKERFILE: apps/web/Dockerfile
+  # The name: of the PR/main CI workflow. A release needs a green run of it on the same commit.
+  CI_WORKFLOW: CI # per-project: the name: of the PR/main CI workflow; "" turns the gate off
+  DOCKERFILE: apps/web/Dockerfile # per-project
   # Not DOCKER_CONTEXT: Docker reads that name as its context selector.
-  BUILD_CONTEXT: .
-  RELEASE_MARK_LATEST: "false"
-  HEALTH_PATH: /api/health
+  BUILD_CONTEXT: . # per-project
+  # The CLI install URL releases/latest/download/hosti-cli.tgz must keep pointing at a cli-v* release.
+  RELEASE_MARK_LATEST: "false" # per-project
+  HEALTH_PATH: /api/health # per-project: must return JSON with a "commit" field
+  # Extra build args, one KEY=value per line, e.g. VITE_API_URL=/api. Keep secrets out of here.
+  EXTRA_BUILD_ARGS: "" # per-project
+  # hosti deviation (infra docs/ci/README.md, "Allowed deviations"): a second image, landing,
+  # built and deployed by the same release. Its health route returns the same JSON contract.
+  LANDING_DOCKERFILE: landing/Dockerfile
+  LANDING_CONTEXT: landing
   LANDING_HEALTH_PATH: /healthz
   LANDING_URL: https://hosti.kubaszwajka.com
 
@@ -44,26 +55,84 @@ defaults:
 jobs:
   build-and-tag:
     if: inputs.redeploy == ''
-    runs-on: ubuntu-24.04
+    runs-on: boat # per-project
     timeout-minutes: 30
     permissions:
+      actions: read # the CI gate lists workflow runs
       contents: write
       packages: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      # Fail here, before any tag exists, when the deploy step would fail for a missing name.
+      - name: Preflight
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+          DOKPLOY_LANDING_APPLICATION_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+          DISCORD_DEPLOY_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+        run: |
+          missing=0
+          for name in DOKPLOY_BASE_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID DOKPLOY_LANDING_APPLICATION_ID APP_URL; do
+            if [ -z "${!name}" ]; then echo "Missing or empty: ${name}" >&2; missing=1; fi
+          done
+          [ -n "$DISCORD_DEPLOY_WEBHOOK" ] || echo "::warning::DISCORD_DEPLOY_WEBHOOK is empty: no Discord line will be posted."
+          # An empty KEY= overrides the Dockerfile default. Warn by name, never print a value.
+          while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%$'\r'}"
+            case "$line" in *=*) ;; *) continue ;; esac
+            [ -z "${line#*=}" ] || continue
+            key="${line%%=*}"
+            key="${key#"${key%%[![:space:]]*}"}"
+            [ -n "$key" ] || continue
+            echo "::warning::Build arg ${key} is empty; it overrides the Dockerfile default."
+          done <<< "$EXTRA_BUILD_ARGS"
+          [ "$missing" = 0 ] || { echo "Set the names above under Settings > Secrets and variables > Actions, then run again." >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Check release configuration
-        if: ${{ !inputs.dry_run }}
+          persist-credentials: false
+      # Release only from green CI. The free plan has no required checks, so the release enforces it.
+      # A dry run reports the result and does not fail on it. deploy and redeploy never run this.
+      - name: CI gate
         env:
-          LANDING_APP_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          [ -n "$LANDING_APP_ID" ] || {
-            echo "DOKPLOY_LANDING_APPLICATION_ID is required for a real release." >&2
-            exit 1
-          }
+          if [ -z "$CI_WORKFLOW" ]; then
+            echo "::warning::CI gate is off"
+            echo "CI gate: off" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          sha12="${GITHUB_SHA:0:12}"
+          # The default shell is bash -eo pipefail: guard each lookup so a dry run still reports.
+          msg=""; run=""
+          if ! runs_json="$(gh api "repos/${GH_REPO}/actions/runs?head_sha=${GITHUB_SHA}&event=push&per_page=100")"; then
+            msg="Could not list CI runs for ${sha12}: gh api failed."
+          elif ! run="$(jq -c --arg n "$CI_WORKFLOW" '[.workflow_runs[] | select(.name == $n)] | sort_by(.created_at) | last // empty' <<< "$runs_json" 2>/dev/null)"; then
+            msg="Could not read the CI runs for ${sha12}: the API reply is not the expected JSON."
+          fi
+          if [ -n "$msg" ]; then :
+          elif [ -z "$run" ]; then
+            msg="No \"${CI_WORKFLOW}\" run found for ${sha12}. Push to main first and wait for it to pass."
+          elif [ "$(jq -r '.status' <<< "$run")" != completed ]; then
+            msg="CI is still running on ${sha12}; wait and run again."
+          elif [ "$(jq -r '.conclusion' <<< "$run")" != success ]; then
+            msg="CI did not pass on ${sha12} ($(jq -r '.conclusion' <<< "$run")): $(jq -r '.html_url' <<< "$run")"
+          fi
+          if [ -z "$msg" ]; then
+            echo "CI gate: \"${CI_WORKFLOW}\" passed on ${sha12}."
+            [ "$DRY_RUN" != "true" ] || echo "CI gate: \"${CI_WORKFLOW}\" passed on ${sha12}." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$DRY_RUN" = "true" ]; then
+            echo "::warning::CI gate would fail: ${msg}"
+            echo "CI gate would fail: ${msg}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "CI gate: ${msg}" >&2; exit 1
+          fi
+      # A release ships two images. Stop before any tag exists when landing is not serving the health contract.
       - name: Preflight landing health
         if: ${{ !inputs.dry_run }}
         run: |
@@ -102,7 +171,7 @@ jobs:
       - if: ${{ !inputs.dry_run }}
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - if: ${{ !inputs.dry_run }}
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -114,48 +183,75 @@ jobs:
           context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.DOCKERFILE }}
           push: true
-          build-args: APP_COMMIT=${{ github.sha }}
+          build-args: |
+            APP_COMMIT=${{ github.sha }}
+            ${{ env.EXTRA_BUILD_ARGS }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          # Layer cache in the Actions cache service. The release writes it, ci.yml only reads it.
+          # Fallback if boat does not serve the cache (no "importing cache manifest" hit in the log):
+          #   cache-from: type=registry,ref=<image>:buildcache
+          #   cache-to: type=registry,ref=<image>:buildcache,mode=max
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release
           tags: |
             ${{ steps.version.outputs.image }}:prod-sha-${{ steps.version.outputs.sha12 }}
             ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
             ${{ steps.version.outputs.image }}:latest
       # Build both images before the tag: a failed landing build leaves no tag or release.
+      # Its own cache scope, so the two images do not overwrite each other's cache.
       - if: ${{ !inputs.dry_run }}
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: landing
-          file: landing/Dockerfile
+          context: ${{ env.LANDING_CONTEXT }}
+          file: ${{ env.LANDING_DOCKERFILE }}
           push: true
           build-args: APP_COMMIT=${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=landing
+          cache-to: type=gha,mode=max,scope=landing
           tags: |
             ${{ steps.version.outputs.image }}:landing-prod-sha-${{ steps.version.outputs.sha12 }}
             ${{ steps.version.outputs.image }}:landing-${{ steps.version.outputs.version }}
+      # The tag and the release are made on the server at this commit. No git push, no stored credentials.
       - name: Tag and publish the GitHub Release
         if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$VERSION" -m "Release ${VERSION}"
-          git push origin "refs/tags/${VERSION}"
-          gh release create "$VERSION" --title "$VERSION" --generate-notes --latest="$RELEASE_MARK_LATEST"
+          gh release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --generate-notes --latest="$RELEASE_MARK_LATEST"
 
   deploy:
     needs: build-and-tag
-    if: ${{ always() && !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
-    runs-on: ubuntu-24.04
+    if: ${{ !cancelled() && !inputs.dry_run && (needs.build-and-tag.result == 'success' || inputs.redeploy != '') }}
+    runs-on: boat # per-project
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: read
+      packages: read # the image check below reads GHCR
     steps:
+      # A redeploy skips build-and-tag, so this job checks the names itself.
+      - name: Preflight
+        env:
+          DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+          DOKPLOY_LANDING_APPLICATION_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
+          DISCORD_DEPLOY_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
+        run: |
+          missing=0
+          for name in DOKPLOY_BASE_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID DOKPLOY_LANDING_APPLICATION_ID APP_URL; do
+            if [ -z "${!name}" ]; then echo "Missing or empty: ${name}" >&2; missing=1; fi
+          done
+          [ -n "$DISCORD_DEPLOY_WEBHOOK" ] || echo "::warning::DISCORD_DEPLOY_WEBHOOK is empty: no Discord line will be posted."
+          [ "$missing" = 0 ] || { echo "Set the names above under Settings > Secrets and variables > Actions, then run again." >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          filter: blob:none # this job reads tags and history only
+          persist-credentials: false
       - name: Resolve version to commit
         env:
           VERSION: ${{ inputs.redeploy || needs.build-and-tag.outputs.version }}
@@ -167,16 +263,8 @@ jobs:
           { echo "VERSION=${VERSION}"; echo "SHA12=${sha:0:12}"
             echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:prod-sha-${sha:0:12}"
             echo "LANDING_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:landing-prod-sha-${sha:0:12}"; } >> "$GITHUB_ENV"
-      - name: Check release configuration
-        env:
-          LANDING_APP_ID: ${{ vars.DOKPLOY_LANDING_APPLICATION_ID }}
-        run: |
-          [ -n "$LANDING_APP_ID" ] || {
-            echo "DOKPLOY_LANDING_APPLICATION_ID is required for a release or redeploy." >&2
-            exit 1
-          }
-      - name: Log in to GHCR for image checks
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      # A redeploy of an old tag may have no landing image. Check both before changing either app.
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -213,7 +301,9 @@ jobs:
           post application.update "$(jq -nc --arg id "$APP_ID" --arg img "$IMAGE" '{applicationId: $id, dockerImage: $img}')"
           post application.deploy "$(jq -nc --arg id "$APP_ID" --arg t "${VERSION} (prod-sha-${SHA12})" '{applicationId: $id, title: $t}')"
       # The old container keeps answering 200 until the new one is healthy, so wait for the new commit.
-      - name: Wait for the app commit on health
+      # Compare 12 characters: a service that reports the full 40-character commit still matches.
+      - name: Wait for the new commit on health
+        timeout-minutes: 12
         env:
           URL: ${{ vars.APP_URL }}
         run: |
@@ -221,10 +311,11 @@ jobs:
           while [ "$SECONDS" -lt "$deadline" ]; do
             seen="$(curl -fsS --max-time 10 "${URL%/}${HEALTH_PATH}" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true)"
             echo "commit ${seen:-none}, want ${SHA12}"
-            [ "$seen" = "$SHA12" ] && exit 0
+            [ -n "$seen" ] && [ "${seen:0:12}" = "$SHA12" ] && exit 0
             sleep 10
           done
           echo "${URL%/}${HEALTH_PATH} never served commit ${SHA12} with HTTP 200." >&2; exit 1
+      # The app is healthy first, then landing. A landing failure leaves a new app and an old landing.
       - name: Deploy landing to Dokploy
         env:
           DOKPLOY_BASE_URL: ${{ vars.DOKPLOY_BASE_URL }}
@@ -238,6 +329,7 @@ jobs:
           post application.update "$(jq -nc --arg id "$LANDING_APP_ID" --arg img "$LANDING_IMAGE" '{applicationId: $id, dockerImage: $img}')"
           post application.deploy "$(jq -nc --arg id "$LANDING_APP_ID" --arg t "${VERSION} (landing-prod-sha-${SHA12})" '{applicationId: $id, title: $t}')"
       - name: Wait for the landing commit on health
+        timeout-minutes: 12
         env:
           URL: ${{ env.LANDING_URL }}
         run: |
@@ -245,10 +337,31 @@ jobs:
           while [ "$SECONDS" -lt "$deadline" ]; do
             seen="$(curl -fsS --max-time 10 "${URL%/}${LANDING_HEALTH_PATH}" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true)"
             echo "landing commit ${seen:-none}, want ${SHA12}"
-            [ "$seen" = "$SHA12" ] && exit 0
+            [ -n "$seen" ] && [ "${seen:0:12}" = "$SHA12" ] && exit 0
             sleep 10
           done
           echo "${URL%/}${LANDING_HEALTH_PATH} never served commit ${SHA12} with HTTP 200." >&2; exit 1
+      # The tag already exists when a deploy fails. Print the exact way back.
+      - name: Print the rollback command
+        if: failure()
+        continue-on-error: true
+        run: |
+          [ -n "${VERSION:-}" ] || exit 0
+          git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null || exit 0
+          prev="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | awk -v v="$VERSION" 'f { print; exit } $0 == v { f = 1 }')"
+          {
+            echo "### Deploy of ${VERSION} failed. The tag and release still exist."
+            echo
+            if [ -n "$prev" ]; then
+              echo "Roll back to the previous release:"
+              echo
+              echo '```'
+              echo "gh workflow run \"Create release\" -f redeploy=${prev}"
+              echo '```'
+            else
+              echo "There is no earlier release to roll back to."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Notify Discord
         if: always() && github.ref == 'refs/heads/main'
         continue-on-error: true
