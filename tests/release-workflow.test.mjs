@@ -23,8 +23,9 @@ describe("gated two-image release workflow", () => {
     assert.match(workflow, /Nothing built, tagged or deployed\./);
     assert.match(
       workflow,
-      /for name in DOKPLOY_BASE_URL .* DOKPLOY_LANDING_APPLICATION_ID APP_URL; do/g,
+      /for name in DOKPLOY_BASE_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID APP_URL; do/g,
     );
+    assert.doesNotMatch(workflow, /DOKPLOY_LANDING_APPLICATION_ID/);
     assert.match(workflow, /if: \$\{\{ !cancelled\(\) && !inputs\.dry_run/);
     assert.doesNotMatch(workflow, /always\(\) && !cancelled\(\)/);
   });
@@ -33,12 +34,9 @@ describe("gated two-image release workflow", () => {
     assert.doesNotMatch(workflow, /Preflight landing health/);
     assert.doesNotMatch(workflow, /Landing preflight failed/);
     assert.doesNotMatch(workflow, /endpoint="\$\{LANDING_URL%\/\}/);
-    // The landing origin is only read by the post-deploy wait.
-    assert.equal(workflow.split("env.LANDING_URL").length - 1, 1);
-    assert.ok(position("env.LANDING_URL") > position("Deploy landing to Dokploy"));
-    assert.ok(
-      position("Wait for the landing commit on health") > position("Deploy landing to Dokploy"),
-    );
+    // The landing origin is only printed in the operator's deploy summary.
+    assert.equal(workflow.split("${LANDING_URL%/}").length - 1, 1);
+    assert.ok(position("${LANDING_URL%/}") > position("Print the landing deploy command"));
   });
 
   it("pushes app and landing immutable tags before creating the release tag", () => {
@@ -58,21 +56,15 @@ describe("gated two-image release workflow", () => {
     assert.match(workflow, /--latest="\$RELEASE_MARK_LATEST"/);
   });
 
-  it("checks both immutable images before changing either Dokploy app", () => {
+  it("checks both immutable images before deploying the app to Dokploy", () => {
     const imageCheck = position("Check release images exist");
     const appDeploy = position("Deploy app to Dokploy");
-    const landingDeploy = position("Deploy landing to Dokploy");
 
     assert.ok(imageCheck < appDeploy);
-    assert.ok(appDeploy < landingDeploy);
     assert.match(workflow, /docker manifest inspect "\$image"/);
     assert.match(
       workflow,
       /LANDING_IMAGE=ghcr\.io\/\$\{GITHUB_REPOSITORY,,\}:landing-prod-sha-\$\{sha:0:12\}/,
-    );
-    assert.match(
-      workflow,
-      /DOKPLOY_LANDING_APPLICATION_ID: \$\{\{ vars\.DOKPLOY_LANDING_APPLICATION_ID \}\}/g,
     );
   });
 
@@ -83,17 +75,22 @@ describe("gated two-image release workflow", () => {
     assert.match(ci, /hosti-private\.kubaszwajka\.com\/v\/example\?x=y/);
   });
 
-  it("waits for the app before deploying landing and checks both commit-bearing health routes", () => {
+  it("waits for the app health, then tells the operator to deploy landing with Alchemy", () => {
     const appHealth = position("Wait for the new commit on health");
-    const landingDeploy = position("Deploy landing to Dokploy");
-    const landingHealth = position("Wait for the landing commit on health");
+    const landingCommand = position("Print the landing deploy command");
 
-    assert.ok(appHealth < landingDeploy);
-    assert.ok(landingDeploy < landingHealth);
+    assert.ok(appHealth < landingCommand);
+    assert.doesNotMatch(workflow, /Deploy landing to Dokploy/);
+    assert.doesNotMatch(workflow, /Wait for the landing commit on health/);
     assert.match(workflow, /HEALTH_PATH: \/api\/health/);
     assert.match(workflow, /LANDING_HEALTH_PATH: \/healthz/);
-    assert.match(workflow, /URL: \$\{\{ env\.LANDING_URL \}\}/);
-    assert.match(workflow, /landing commit \$\{seen:-none\}, want \$\{SHA12\}/);
+    assert.match(workflow, /LANDING_DEPLOY_HOST: hosti\.kubaszwajka\.com/);
+    assert.match(
+      workflow,
+      /echo "alchemy\/landing\/deploy\.sh deploy \$\{VERSION\} \$\{LANDING_DEPLOY_HOST\}"/,
+    );
+    assert.match(workflow, /serves commit \$\{SHA12\}/);
+    assert.match(workflow, /tee -a "\$GITHUB_STEP_SUMMARY"/);
     assert.match(workflow, /\[ "\$\{seen:0:12\}" = "\$SHA12" \]/g);
   });
 });
