@@ -7,6 +7,9 @@ changes only when someone runs **Create release** in GitHub Actions. This is
 the operator's gated release profile. The workflow follows the infra CI standard
 (`docs/ci/README.md` in the infra repo). Hosti's allowed deviations are the
 second image, landing, and the release on GitHub-hosted runners (a public repo).
+The workflow builds the landing image but does not deploy it. The operator
+deploys landing from omarchy with the Alchemy stack in
+[alchemy/landing](../alchemy/landing/README.md).
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
@@ -29,10 +32,14 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy
   │
   └─ deploy                   after a good build, or alone with redeploy
        vX.Y.Z ─> commit (refused if not on main) ─> both immutable tags
-       check both images exist before changing either Dokploy app
+       check both images exist before the app deploy
        deploy app and poll APP_URL/api/health until commit == <12>
-       deploy landing and poll LANDING_URL/healthz until commit == <12>
+       print the landing deploy command in the job summary
        notify Discord (always, including partial failures)
+
+omarchy (operator, after the deploy job)
+  alchemy/landing/deploy.sh deploy vX.Y.Z hosti.kubaszwajka.com
+       Swarm service hosti-landing ─> image landing-vX.Y.Z
 ```
 
 The build runs before the tag, so a failed build never leaves a tag or a
@@ -83,15 +90,42 @@ gh workflow run "Create release" --ref main -f redeploy=vX.Y.Z
 
 `redeploy` skips the build and the tag. It resolves the selected tag to its
 commit and checks that both `prod-sha-<12>` and `landing-prod-sha-<12>` exist.
-Only then can it change a Dokploy application. It deploys the app first, waits for `/api/health`, then
-deploys the landing image and waits for `/healthz`. Nothing is rebuilt. The
-same command with the current version redeploys it. Read the next section
-before you roll back.
+Only then can it change the Dokploy application. It deploys the app and waits
+for `/api/health`. Nothing is rebuilt. The same command with the current
+version redeploys it. Read the next section before you roll back.
+
+The workflow does not deploy landing. To roll back landing, deploy the
+previous version from omarchy:
+
+```sh
+alchemy/landing/deploy.sh deploy vX.Y.Z hosti.kubaszwajka.com
+```
+
+The job summary of every deploy run prints this command with the version it
+deployed. Then check that `https://hosti.kubaszwajka.com/healthz` reports the
+release commit.
 
 There is no preflight of the live landing. A landing outage must not block a
 repair release or a redeploy, because the new image is what fixes it. The
-deploy still checks that both images exist before it changes either Dokploy
-app, and it waits for `/api/health` and `/healthz` to report the new commit.
+deploy still checks that both images exist before it changes the Dokploy app.
+
+## Landing cutover from Dokploy
+
+Until the cutover, the Dokploy landing app still serves
+`hosti.kubaszwajka.com`, and no release updates it. To move landing to the
+Alchemy stack:
+
+1. [ ] Deploy to the trial host:
+   `alchemy/landing/deploy.sh deploy vX.Y.Z hosti-next.kubaszwajka.com`.
+   Check `https://hosti-next.kubaszwajka.com/healthz`.
+2. [ ] Deploy the same version to `hosti.kubaszwajka.com`. This removes the
+   `hosti-next` DNS record.
+3. [ ] In Dokploy, remove the domain from the landing app, then stop it. Until
+   then two Traefik routers match the host.
+4. [ ] Check `https://hosti.kubaszwajka.com/healthz`.
+
+The full steps and the way back are in
+[alchemy/landing/README.md](../alchemy/landing/README.md#cutover-from-dokploy).
 
 ## The database and rollbacks
 
@@ -110,11 +144,11 @@ start against a newer schema. Before you release such a change:
 3. [ ] Plan the way back as "restore the backup, then redeploy the older
    version", not "redeploy the older version".
 
-The workflow deploys the app before the landing image. A failed landing deploy
-can therefore leave the new app serving with the old landing page. It does not
-auto-rollback either application. The release operator must inspect the partial
-deploy and choose a compatible pair. Follow the migration rule above before
-using an older app image.
+The workflow deploys the app, and the operator deploys landing afterwards.
+Until the operator runs `alchemy/landing/deploy.sh`, the new app serves with
+the old landing page. Neither side rolls back the other. The release operator
+must choose a compatible pair. Follow the migration rule above before using an
+older app image.
 
 A rollback needs a landing image that serves the health contract. A release
 older than the first one built from the health-aware landing code has no such
@@ -142,16 +176,15 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Secret | `DISCORD_DEPLOY_WEBHOOK` | A plain Discord #deploys channel webhook URL. Empty means no post. |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
 | Variable | `DOKPLOY_APPLICATION_ID` | The Dokploy application that runs the Hosti app image. |
-| Variable | `DOKPLOY_LANDING_APPLICATION_ID` | The Dokploy application that runs the landing image. Required for real releases and redeploys. |
 | Variable | `APP_URL` | Public origin of the app. The deploy polls `APP_URL/api/health`. |
 
 A preflight step in both jobs fails with one line per missing name, before any
 tag exists. It never prints a value. An empty `DISCORD_DEPLOY_WEBHOOK` only warns.
 
-These sit at repo level, with no `environment:`. Both Dokploy applications
-need image sources that can pull from GHCR, with auto deploy off.
-`LANDING_URL` is not a variable: the workflow hard-codes it as
-`https://hosti.kubaszwajka.com`. See `landing/README.md`.
+These sit at repo level, with no `environment:`. The Dokploy application
+needs an image source that can pull from GHCR, with auto deploy off.
+`LANDING_URL` and `LANDING_DEPLOY_HOST` are not variables: the workflow
+hard-codes them for the summary line. See `landing/README.md`.
 
 ## The health contract
 
@@ -169,7 +202,8 @@ Dokploy source build, reports `unknown`, and the deploy's health wait fails on
 it. The old container keeps answering 200 until the new one is healthy, which
 is why the deploy waits for the new `commit`, not for any 200. The landing Caddy
 image substitutes its `APP_COMMIT` build argument into the JSON response. The
-Compose healthcheck uses the app route.
+Compose healthcheck uses the app route. The landing Swarm service checks
+`/healthz` inside the container with busybox `wget`.
 
 ## Workflow notes
 
@@ -182,6 +216,6 @@ diff ~/DEV/priv/infra/templates/ci/release-create.yml .github/workflows/release-
 
 The Hosti-specific settings are the knobs in the top `env:` block: the app
 Dockerfile, the landing Dockerfile and context, and the fixed public landing
-origin. The extra steps are the landing build, the image check and the landing deploy
-and health wait. `RELEASE_MARK_LATEST: "false"` keeps the
+origin. The extra steps are the landing build, the image check and the printed
+landing deploy command. `RELEASE_MARK_LATEST: "false"` keeps the
 CLI install URL on the `cli-v*` release. See [Why `--latest=false`](#why---latestfalse).

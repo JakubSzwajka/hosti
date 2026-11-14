@@ -16,6 +16,7 @@
       "!apps/web/.next",
       "!.agent_sources",
       "!data",
+      "!**/.alchemy",
       "!fixtures",
       "!**/*.tsbuildinfo",
       "!**/package-lock.json"

@@ -89,21 +89,31 @@ TLS ends at Traefik, so the container speaks plain HTTP.
 ## Deploy
 
 "Create release" builds `landing/Dockerfile` with context `landing/` and pushes
-the image to GHCR as `landing-prod-sha-<12>`. The maintainer's pipeline runs it
-as a separate image-based application. See [docs/release.md](../docs/release.md).
-Self-hosters do not need it.
+the image to GHCR as `landing-prod-sha-<12>` and `landing-vX.Y.Z`. It does not
+deploy it. The operator deploys landing from omarchy with the Alchemy stack in
+[alchemy/landing](../alchemy/landing/README.md). See
+[docs/release.md](../docs/release.md). Self-hosters do not need it.
+
+```bash
+alchemy/landing/deploy.sh plan   vX.Y.Z hosti.kubaszwajka.com
+alchemy/landing/deploy.sh deploy vX.Y.Z hosti.kubaszwajka.com
+```
 
 | Setting | Value |
 | --- | --- |
-| Source | Docker image `ghcr.io/jakubszwajka/hosti:landing-prod-sha-<12>`, pinned by each release |
-| Container port | `80` |
-| Auto deploy | off |
+| Swarm service | `hosti-landing`, 1 replica on `node.labels.tier==dev`, network `dokploy-network` |
+| Image | `ghcr.io/jakubszwajka/hosti:landing-vX.Y.Z`, named by each deploy |
+| Container port | `80`, routed by Dokploy's Traefik from service labels |
+| Healthcheck | busybox `wget` on `/healthz` inside the container |
 
-The workflow deploys the landing image after the app and waits for the public
-`/healthz` to return `{"status":"ok","commit":"<12 lowercase hex>"}` with the
-release commit. It does not check the live landing before the release, so an
-outage cannot block the release that repairs it. It needs the repo
-variable `DOKPLOY_LANDING_APPLICATION_ID`.
+The job summary of each release prints the deploy command with its version.
+After the deploy, check that the public `/healthz` returns
+`{"status":"ok","commit":"<12 lowercase hex>"}` with the release commit.
+
+To roll back, deploy the previous version with the same command. Until the
+cutover, the old Dokploy landing app still serves `hosti.kubaszwajka.com`.
+The cutover steps are in
+[alchemy/landing/README.md](../alchemy/landing/README.md#cutover-from-dokploy).
 
 For a local check, build with a commit, then confirm `/healthz` returns JSON
 with that commit and `/v/example?x=y` redirects to `hosti-private` with the
