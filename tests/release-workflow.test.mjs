@@ -30,13 +30,29 @@ describe("gated two-image release workflow", () => {
     assert.doesNotMatch(workflow, /always\(\) && !cancelled\(\)/);
   });
 
+  it("keeps Discord notices enabled by default and lets dispatch skip only the notice", () => {
+    assert.match(
+      workflow,
+      /notify:\n {8}description: Post the deployment result to Discord\n {8}type: boolean\n {8}default: true/,
+    );
+    assert.ok(
+      workflow.includes(
+        `- name: Notify Discord\n        if: ${githubExpression(" always() && github.ref == 'refs/heads/main' && inputs.notify ")}`,
+      ),
+    );
+    assert.match(workflow, /WEBHOOK: \$\{\{ secrets\.DISCORD_DEPLOY_WEBHOOK \}\}/);
+    assert.match(workflow, /\| curl -fsS -X POST/);
+    assert.match(workflow, /if: \$\{\{ !cancelled\(\) && !inputs\.dry_run/);
+  });
+
   it("does not gate a release or a redeploy on the live landing health", () => {
     assert.doesNotMatch(workflow, /Preflight landing health/);
     assert.doesNotMatch(workflow, /Landing preflight failed/);
     assert.doesNotMatch(workflow, /endpoint="\$\{LANDING_URL%\/\}/);
     // The landing origin is only printed in the operator's deploy summary.
-    assert.equal(workflow.split("${LANDING_URL%/}").length - 1, 1);
-    assert.ok(position("${LANDING_URL%/}") > position("Print the landing deploy command"));
+    const landingUrlExpression = "$" + "{LANDING_URL%/}";
+    assert.equal(workflow.split(landingUrlExpression).length - 1, 1);
+    assert.ok(position(landingUrlExpression) > position("Print the landing deploy command"));
   });
 
   it("pushes app and landing immutable tags before creating the release tag", () => {

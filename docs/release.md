@@ -19,7 +19,7 @@ only by hand
 ```text
 merge to main ──> CI only (static, test, image, landing, secrets). No push, no deploy.
 
-Create release (dispatch on main)   inputs: bump, dry_run, redeploy
+Create release (dispatch on main)   inputs: bump, dry_run, redeploy, notify
   │
   ├─ build-and-tag            skipped when redeploy is set
   │    preflight: every variable and secret name is set
@@ -35,7 +35,7 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy
        check both images exist before the app deploy
        deploy app and poll APP_URL/api/health until commit == <12>
        print the landing deploy command in the job summary
-       notify Discord (always, including partial failures)
+       notify Discord (default: yes, including partial failures)
 
 omarchy (operator, after the deploy job)
   alchemy/landing/deploy.sh deploy vX.Y.Z hosti.kubaszwajka.com
@@ -67,6 +67,10 @@ not depend on CI.
    the last tag. A dry run builds, tags and deploys nothing.
 2. [ ] Ship it: `gh workflow run "Create release" --ref main -f bump=patch`.
    Use `minor` or `major` as needed. The Actions UI offers the same inputs.
+
+The `notify` input defaults to `true`. Set `-f notify=false` to skip only the
+Discord notice. The build, deploy, health check and release gates still run.
+Dry runs do not deploy or post a notice, whatever `notify` is set to.
 
 Running the workflow is the approval. A private repo on GitHub Free gets no
 environment reviewers, so nothing else stands between a merge and prod.
