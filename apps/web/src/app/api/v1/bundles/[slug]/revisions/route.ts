@@ -64,6 +64,10 @@ function headerText(request: Request, name: string): string | null {
       );
     }
   }
-  const trimmed = decoded.trim().slice(0, MAX_HEADER_TEXT);
+  let trimmed = decoded.trim().slice(0, MAX_HEADER_TEXT);
+  const lastCodeUnit = trimmed.charCodeAt(trimmed.length - 1);
+  if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) {
+    trimmed = trimmed.slice(0, -1);
+  }
   return trimmed || null;
 }

@@ -69,13 +69,24 @@ describe("push metadata", () => {
       bundles: { slug: string; title: string; collection: string | null }[];
     };
     const bundle = body.bundles.find((entry) => entry.slug === "unicode-report");
+    expect(bundle).toBeDefined();
+    if (!bundle) throw new Error("Expected the pushed bundle in the API response");
     expect(bundle).toMatchObject({ title, collection });
     const html = renderToStaticMarkup(
-      <SearchProvider items={bundle ? [{ slug: bundle.slug, title: bundle.title }] : []}>
-        <MatchTitle slug="unicode-report" title={title} />
+      <SearchProvider items={[{ slug: bundle.slug, title: bundle.title }]}>
+        <MatchTitle slug="unicode-report" title={bundle.title} />
       </SearchProvider>,
     );
-    expect(html).toContain(title);
+    expect(html).toContain(bundle.title);
+  });
+
+  it("does not split an emoji at the title length limit", async () => {
+    const title = `${"a".repeat(199)}🚀`;
+    const expected = "a".repeat(199);
+    const response = await push("title-boundary", title);
+
+    expect(response.status).toBe(201);
+    expect(findBundle("title-boundary")?.title).toBe(expected);
   });
 
   it.each(["100%20 complete", "utf8:%41", "utf8:%FF", "utf8:100%"])(

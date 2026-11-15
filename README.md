@@ -668,6 +668,14 @@ curl -X POST localhost:3000/api/v1/bundles/squad-2026/revisions \
 curl localhost:3000/api/v1/bundles -H "Authorization: Bearer $HOSTI_PUSH_TOKEN"
 ```
 
+For non-ASCII metadata, send percent-encoded UTF-8 in `X-Hosti-Title-UTF8`
+and/or `X-Hosti-Collection-UTF8`. These headers take precedence over the
+original `X-Hosti-Title` and `X-Hosti-Collection` headers. Malformed encoded
+metadata is rejected with 400 `bad_metadata_encoding`. Original headers remain
+literal, so ASCII values and percent sequences keep their existing meaning.
+Upgrade the server to v0.8.2 or later before using a CLI that sends these
+UTF-8 headers.
+
 Pushing an unknown slug creates the bundle. Pushing it again creates the next
 revision and moves `current` onto it. A push never changes the sharing
 state, so a new bundle is `private` and answers 404 at `/v/<slug>/` until the
