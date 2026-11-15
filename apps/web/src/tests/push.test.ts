@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { encodeMetadataHeader } from "@hosti/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeTar, tarFixture, useTempDataDir } from "./test-fixtures";
 
@@ -19,8 +20,20 @@ async function push(
     Authorization: `Bearer ${init.token ?? token}`,
     "Content-Type": "application/gzip",
   });
-  if (init.title) headers.set("X-Hosti-Title", init.title);
-  if (init.collection) headers.set("X-Hosti-Collection", init.collection);
+  if (init.title) {
+    const encoded = [...init.title].some((character) => character.charCodeAt(0) > 0x7f);
+    headers.set(
+      encoded ? "X-Hosti-Title-UTF8" : "X-Hosti-Title",
+      encoded ? encodeMetadataHeader(init.title) : init.title,
+    );
+  }
+  if (init.collection) {
+    const encoded = [...init.collection].some((character) => character.charCodeAt(0) > 0x7f);
+    headers.set(
+      encoded ? "X-Hosti-Collection-UTF8" : "X-Hosti-Collection",
+      encoded ? encodeMetadataHeader(init.collection) : init.collection,
+    );
+  }
   const request = new Request(`http://localhost:3000/api/v1/bundles/${slug}/revisions`, {
     method: "POST",
     headers,

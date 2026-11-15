@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
+import { decodeMetadataHeader } from "@hosti/shared";
 import { archiveSource } from "@/app/_http/archive";
 import { requirePushScope } from "@/app/_http/push-access";
 import { runAppUseCase } from "@/app/_http/run-use-case";
@@ -49,8 +50,20 @@ export async function POST(request: Request, context: Context): Promise<Response
 const MAX_HEADER_TEXT = 200;
 
 function headerText(request: Request, name: string): string | null {
-  const raw = request.headers.get(name);
+  const encoded = request.headers.get(`${name}-utf8`);
+  const raw = encoded ?? request.headers.get(name);
   if (!raw) return null;
-  const trimmed = raw.trim().slice(0, MAX_HEADER_TEXT);
+  let decoded = raw;
+  if (encoded !== null) {
+    try {
+      decoded = decodeMetadataHeader(encoded);
+    } catch {
+      throw new PushError(
+        "bad_metadata_encoding",
+        `The ${name}-UTF8 header contains malformed UTF-8 metadata`,
+      );
+    }
+  }
+  const trimmed = decoded.trim().slice(0, MAX_HEADER_TEXT);
   return trimmed || null;
 }

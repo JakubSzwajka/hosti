@@ -5,6 +5,7 @@ import { createServer, type IncomingMessage, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { decodeMetadataHeader } from "@hosti/shared";
 
 const run = promisify(execFile);
 const BIN = path.resolve(import.meta.dirname, "../index.ts");
@@ -25,6 +26,7 @@ export type Stub = {
   setCatalog: (entries: Entry[]) => void;
   setPruneAnswer: (answer: { status: number; body: unknown }) => void;
   lastSharingBody: () => string;
+  lastPushMetadata: () => { title: string | undefined; collection: string | undefined } | null;
   configHome: () => string;
   setCreateAnswer: (answer: Answer | null) => void;
   setPollAnswers: (answers: Answer[]) => void;
@@ -64,6 +66,7 @@ export function makeStub(): Stub {
   let catalog: Entry[] = [];
   let pruneAnswer: { status: number; body: unknown } = { status: 200, body: {} };
   let lastSharingBody = "";
+  let lastPushMetadata: { title: string | undefined; collection: string | undefined } | null = null;
 
   const sharingOf = (entry: Entry) => ({
     mode: entry.mode,
@@ -94,6 +97,7 @@ export function makeStub(): Stub {
       pruneAnswer = answer;
     },
     lastSharingBody: () => lastSharingBody,
+    lastPushMetadata: () => lastPushMetadata,
     configHome: () => configHome,
     setCreateAnswer: (answer) => {
       createAnswer = answer;
@@ -113,6 +117,7 @@ export function makeStub(): Stub {
       pollAnswers = [];
       refusal = null;
       seen = [];
+      lastPushMetadata = null;
       created = null;
       await fs.rm(path.join(configHome, "hosti.json"), { force: true });
       await fs.rm(path.join(binDir, "opened.log"), { force: true });
@@ -157,6 +162,35 @@ export function makeStub(): Stub {
           response.writeHead(status, { "content-type": "application/json" });
           response.end(JSON.stringify(body));
         };
+
+        if (/^\/api\/v1\/bundles\/[^/]+\/revisions$/.test(url) && method === "POST") {
+          const title = request.headers["x-hosti-title"];
+          const encodedTitle = request.headers["x-hosti-title-utf8"];
+          const collection = request.headers["x-hosti-collection"];
+          const encodedCollection = request.headers["x-hosti-collection-utf8"];
+          lastPushMetadata = {
+            title:
+              typeof encodedTitle === "string"
+                ? decodeMetadataHeader(encodedTitle)
+                : typeof title === "string"
+                  ? title
+                  : undefined,
+            collection:
+              typeof encodedCollection === "string"
+                ? decodeMetadataHeader(encodedCollection)
+                : typeof collection === "string"
+                  ? collection
+                  : undefined,
+          };
+          await bodyOf(request);
+          return json(201, {
+            bundle: "atlas",
+            revision: 1,
+            adminUrl: `${origin}/b/atlas`,
+            sharing: { mode: "private", shareSlug: "atlas", hasPin: false },
+            shareUrl: null,
+          });
+        }
 
         if (url.startsWith("/api/v1/agent-authorizations") || url === "/api/v1/whoami") {
           const body = await bodyOf(request);
