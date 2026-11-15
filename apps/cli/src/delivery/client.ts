@@ -26,6 +26,11 @@ export class ApiError extends Error {
   }
 }
 
+function setMetadataHeader(headers: Headers, name: string, value: string): void {
+  const isAscii = [...value].every((character) => character.charCodeAt(0) <= 0x7f);
+  headers.set(isAscii ? name : `${name}-UTF8`, isAscii ? value : encodeURIComponent(value));
+}
+
 export type PushInput = {
   slug: string;
   body: Buffer;
@@ -98,8 +103,8 @@ export function createClient(config: Config) {
   return {
     push(input: PushInput): Promise<PushResponse> {
       const headers = new Headers({ "Content-Type": "application/gzip" });
-      if (input.title) headers.set("X-Hosti-Title", input.title);
-      if (input.collection) headers.set("X-Hosti-Collection", input.collection);
+      if (input.title) setMetadataHeader(headers, "X-Hosti-Title", input.title);
+      if (input.collection) setMetadataHeader(headers, "X-Hosti-Collection", input.collection);
       return call<PushResponse>(`/api/v1/bundles/${input.slug}/revisions`, {
         method: "POST",
         headers,

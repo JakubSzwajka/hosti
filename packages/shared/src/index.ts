@@ -1,3 +1,11 @@
+export function encodeMetadataHeader(value: string): string {
+  return encodeURIComponent(value);
+}
+
+export function decodeMetadataHeader(value: string): string {
+  return decodeURIComponent(value);
+}
+
 export type PushLimits = {
   maxCompressedBytes: number;
   maxFiles: number;

@@ -23,6 +23,10 @@ on:
         description: "Existing vX.Y.Z to deploy again (rollback). Skips build and tag."
         type: string
         default: ""
+      notify:
+        description: Post the deployment result to Discord
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.event.repository.name }}-release
@@ -329,7 +333,7 @@ jobs:
             fi
           } | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Notify Discord
-        if: always() && github.ref == 'refs/heads/main'
+        if: ${{ always() && github.ref == 'refs/heads/main' && inputs.notify }}
         continue-on-error: true
         env:
           WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
