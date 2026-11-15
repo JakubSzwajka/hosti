@@ -26,7 +26,18 @@ const identityAndLoginLayer = LoginThrottle.layer.pipe(Layer.provideMerge(identi
 const runtimeLayer = Layer.mergeAll(identityAndLoginLayer, Storage.layer, Serving.layer).pipe(
   Layer.provideMerge(platformLayer),
 );
-const runtime = ManagedRuntime.make(runtimeLayer);
+const makeRuntime = () => ManagedRuntime.make(runtimeLayer);
+
+type RuntimeHolder = { __hostiRuntime?: ReturnType<typeof makeRuntime> };
+
+function processRuntime(): ReturnType<typeof makeRuntime> {
+  const holder = globalThis as RuntimeHolder;
+  // Next bundles pages and routes apart; one runtime per process keeps in-memory state shared.
+  holder.__hostiRuntime ??= makeRuntime();
+  return holder.__hostiRuntime;
+}
+
+const runtime = processRuntime();
 
 export type UseCaseResult<A, E> = { ok: true; value: A } | { ok: false; error: E };
 
