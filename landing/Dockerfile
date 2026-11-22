@@ -1,6 +1,6 @@
 # The static landing page, served by Caddy on :80.
 # Build context: landing/. Only the site files go into the web root.
-FROM caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+FROM caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY index.html icon.svg og-image.png apple-touch-icon.png /srv/
