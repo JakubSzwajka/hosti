@@ -54,18 +54,29 @@ async function inspectArchive(archive: Buffer): Promise<{ fileCount: number; byt
   return { fileCount, bytes };
 }
 
-function assertSafeDestination(destination: string): void {
-  const resolved = path.resolve(destination);
-  const home = path.resolve(os.homedir());
-  const cwd = path.resolve(process.cwd());
+async function assertSafeDestination(
+  logicalDestination: string,
+  physicalDestination: string,
+): Promise<void> {
+  const destinations = [path.resolve(logicalDestination), path.resolve(physicalDestination)];
+  const logicalHome = path.resolve(os.homedir());
+  const logicalCwd = path.resolve(process.cwd());
+  const protectedPaths = [
+    logicalHome,
+    await fs.realpath(logicalHome),
+    logicalCwd,
+    await fs.realpath(logicalCwd),
+  ];
   const contains = (parent: string, child: string) =>
     child === parent || child.startsWith(`${parent}${path.sep}`);
   if (
-    resolved === path.parse(resolved).root ||
-    contains(resolved, home) ||
-    contains(resolved, cwd)
+    destinations.some(
+      (destination) =>
+        destination === path.parse(destination).root ||
+        protectedPaths.some((protectedPath) => contains(destination, protectedPath)),
+    )
   ) {
-    throw new PullError(`Refusing dangerous output path ${resolved}`);
+    throw new PullError(`Refusing dangerous output path ${physicalDestination}`);
   }
 }
 
@@ -82,7 +93,7 @@ async function physicalDestination(destination: string): Promise<string> {
 
 async function ensureDestination(destination: string, force: boolean): Promise<string> {
   const resolved = await physicalDestination(destination);
-  assertSafeDestination(resolved);
+  await assertSafeDestination(destination, resolved);
   const existing = await fs.lstat(resolved).catch((error: NodeJS.ErrnoException) => {
     if (error.code === "ENOENT") return null;
     throw error;

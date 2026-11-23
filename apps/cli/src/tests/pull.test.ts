@@ -182,6 +182,59 @@ describe("hosti pull", () => {
     );
   });
 
+  it("refuses a home reached through a symlinked parent without replacing its contents", async () => {
+    const realParent = path.join(root, "real-home-parent");
+    const aliasParent = path.join(root, "alias-home-parent");
+    const home = path.join(realParent, "home");
+    await fs.mkdir(home, { recursive: true });
+    await fs.symlink(realParent, aliasParent, "dir");
+    const marker = path.join(home, "keep.txt");
+    await fs.writeFile(marker, "unchanged");
+    const result = await stub.hosti(
+      ["pull", "atlas", "--out", path.join(aliasParent, "home"), "--force"],
+      {
+        HOME: path.join(aliasParent, "home"),
+        XDG_CONFIG_HOME: path.join(root, "synthetic-xdg-home-parent"),
+      },
+    );
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Refusing dangerous output path");
+    expect(await fs.readFile(marker, "utf8")).toBe("unchanged");
+  });
+
+  it("refuses an ancestor of a home reached through a symlinked parent", async () => {
+    const realParent = path.join(root, "ancestor-real-home-parent");
+    const aliasParent = path.join(root, "ancestor-alias-home-parent");
+    const home = path.join(realParent, "home");
+    await fs.mkdir(home, { recursive: true });
+    await fs.symlink(realParent, aliasParent, "dir");
+    const marker = path.join(home, "keep.txt");
+    await fs.writeFile(marker, "unchanged");
+    const result = await stub.hosti(["pull", "atlas", "--out", realParent, "--force"], {
+      HOME: path.join(aliasParent, "home"),
+      XDG_CONFIG_HOME: path.join(root, "synthetic-xdg-ancestor-home"),
+    });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Refusing dangerous output path");
+    expect(await fs.readFile(marker, "utf8")).toBe("unchanged");
+  });
+
+  it("refuses a real home path when HOME is a final symlink", async () => {
+    const home = path.join(root, "real-home");
+    const homeAlias = path.join(root, "home-alias");
+    await fs.mkdir(home);
+    await fs.symlink(home, homeAlias, "dir");
+    const marker = path.join(home, "keep.txt");
+    await fs.writeFile(marker, "unchanged");
+    const result = await stub.hosti(["pull", "atlas", "--out", home, "--force"], {
+      HOME: homeAlias,
+      XDG_CONFIG_HOME: path.join(root, "synthetic-xdg-home-alias"),
+    });
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Refusing dangerous output path");
+    expect(await fs.readFile(marker, "utf8")).toBe("unchanged");
+  });
+
   it("refuses a symlink destination", async () => {
     const actual = path.join(root, "actual-directory");
     const link = path.join(root, "linked-directory");
