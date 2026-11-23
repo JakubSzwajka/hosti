@@ -9,6 +9,7 @@ import { makeStub } from "./stub-server.ts";
 const stub = makeStub();
 let root = "";
 let archive: Buffer;
+let collidingNameArchive: Buffer;
 
 function maliciousArchive(name: string, type: string): Buffer {
   const header = Buffer.alloc(512);
@@ -20,6 +21,7 @@ function maliciousArchive(name: string, type: string): Buffer {
   header.write("00000000000\0", 136, 12, "ascii");
   header.fill(0x20, 148, 156);
   header.write(type, 156, 1, "ascii");
+  if (type === "1" || type === "2") header.write("target", 157, 100, "utf8");
   header.write("ustar\0", 257, 6, "ascii");
   header.write("00", 263, 2, "ascii");
   const checksum = header.reduce((sum, byte) => sum + byte, 0);
@@ -41,6 +43,17 @@ beforeAll(async () => {
     chunks.push(Buffer.from(chunk));
   }
   archive = Buffer.concat(chunks);
+  await fs.writeFile(
+    path.join(root, "source", ".hosti-archive.tar.gz"),
+    Buffer.from("stored archive name"),
+  );
+  const namedChunks: Buffer[] = [];
+  for await (const chunk of create({ gzip: true, cwd: path.join(root, "source") }, [
+    ".hosti-archive.tar.gz",
+  ])) {
+    namedChunks.push(Buffer.from(chunk));
+  }
+  collidingNameArchive = Buffer.concat(namedChunks);
 });
 
 afterAll(async () => {
@@ -66,6 +79,17 @@ describe("hosti pull", () => {
     expect(result.stdout.trim().split("\n").at(-1)).toBe(output);
     expect(await fs.readFile(path.join(output, "assets", "data.bin"))).toEqual(
       Buffer.from([0, 1, 2, 255]),
+    );
+  });
+
+  it("restores a stored file named like the private archive input", async () => {
+    stub.setCatalog([{ slug: "atlas", mode: "private" }]);
+    stub.setArchive(collidingNameArchive, 8);
+    const output = path.join(root, "archive-name");
+    const result = await stub.hosti(["pull", "atlas", "--out", output]);
+    expect(result.code).toBe(0);
+    expect(await fs.readFile(path.join(output, ".hosti-archive.tar.gz"), "utf8")).toBe(
+      "stored archive name",
     );
   });
 
@@ -136,17 +160,20 @@ describe("hosti pull", () => {
 
   it.each([
     ["../escape.txt", "0"],
+    ["absolute-escape", "0"],
     ["symbolic-link", "2"],
     ["hard-link", "1"],
     ["device", "3"],
   ])("rejects unsafe archive entry %s", async (name, type) => {
     stub.setCatalog([{ slug: "atlas", mode: "private" }]);
-    stub.setArchive(maliciousArchive(name, type), 3);
-    const output = path.join(root, `unsafe-${type}`);
+    const archiveName = name === "absolute-escape" ? path.join(root, name) : name;
+    stub.setArchive(maliciousArchive(archiveName, type), 3);
+    const output = path.join(root, `unsafe-${Buffer.from(name).toString("hex")}-${type}`);
     await fs.mkdir(output);
     await fs.writeFile(path.join(output, "keep.txt"), "unchanged");
     const result = await stub.hosti(["pull", "atlas", "--out", output, "--force"]);
     expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Unsafe archive");
     expect(await fs.readFile(path.join(output, "keep.txt"), "utf8")).toBe("unchanged");
     expect(
       await fs.access(path.join(root, "escape.txt")).then(

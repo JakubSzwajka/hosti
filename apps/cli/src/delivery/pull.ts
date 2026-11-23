@@ -133,19 +133,16 @@ export async function pull(context: PullContext): Promise<void> {
   const counts = await inspectArchive(archive);
   const parent = path.dirname(destination);
   await fs.mkdir(parent, { recursive: true });
-  const stage = await fs.mkdtemp(path.join(parent, `.${path.basename(destination)}-hosti-`));
+  const container = await fs.mkdtemp(path.join(parent, `.${path.basename(destination)}-hosti-`));
+  const stage = path.join(container, "tree");
   try {
-    const archivePath = path.join(stage, ".hosti-archive.tar.gz");
-    try {
-      await fs.writeFile(archivePath, archive, { flag: "wx", mode: 0o600 });
-      await extract({ file: archivePath, cwd: stage, strict: true, preservePaths: false });
-    } finally {
-      await fs.rm(archivePath, { force: true });
-    }
+    await fs.mkdir(stage);
+    const archivePath = path.join(container, "archive.tar.gz");
+    await fs.writeFile(archivePath, archive, { flag: "wx", mode: 0o600 });
+    await extract({ file: archivePath, cwd: stage, strict: true, preservePaths: false });
     await installStage(stage, destination, flags.force ?? false);
-  } catch (error) {
-    await fs.rm(stage, { recursive: true, force: true });
-    throw error;
+  } finally {
+    await fs.rm(container, { recursive: true, force: true });
   }
   say(context.out, "revision", String(revision));
   say(context.out, "files", String(counts.fileCount));
