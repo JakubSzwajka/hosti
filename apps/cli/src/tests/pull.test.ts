@@ -62,6 +62,15 @@ afterAll(async () => {
 });
 
 describe("hosti pull", () => {
+  it("accepts every slug shape allowed by the server", async () => {
+    stub.setCatalog([{ slug: "a--b", mode: "private" }]);
+    stub.setArchive(archive, 7);
+    const output = path.join(root, "double-dash");
+    const result = await stub.hosti(["pull", "a--b", "--out", output]);
+    expect(result.code).toBe(0);
+    expect(stub.seen().at(-1)?.url).toBe("/api/v1/bundles/a--b/revisions/current/archive");
+  });
+
   it("downloads current and prints the revision summary with output path last", async () => {
     stub.setCatalog([{ slug: "atlas", mode: "private" }]);
     stub.setArchive(archive, 7);
@@ -124,6 +133,29 @@ describe("hosti pull", () => {
     expect(await fs.readFile(path.join(output, "index.html"), "utf8")).toBe("<h1>pulled</h1>");
   });
 
+  it("rejects an archive revision header that differs from the explicit selection", async () => {
+    stub.setCatalog([{ slug: "atlas", mode: "private" }]);
+    stub.setArchive(archive, 3);
+    const result = await stub.hosti([
+      "pull",
+      "atlas",
+      "--revision",
+      "2",
+      "--out",
+      path.join(root, "mismatch"),
+    ]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("invalid revision header");
+  });
+
+  it("rejects an unsafe revision header", async () => {
+    stub.setCatalog([{ slug: "atlas", mode: "private" }]);
+    stub.setArchive(archive, Number.MAX_SAFE_INTEGER + 1);
+    const result = await stub.hosti(["pull", "atlas", "--out", path.join(root, "unsafe-header")]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("invalid revision header");
+  });
+
   it("preserves the destination when the archive is invalid", async () => {
     stub.setCatalog([{ slug: "atlas", mode: "private" }]);
     stub.setArchive(Buffer.from("not a gzip archive"), 3);
@@ -133,6 +165,21 @@ describe("hosti pull", () => {
     const result = await stub.hosti(["pull", "atlas", "--out", output, "--force"]);
     expect(result.code).toBe(1);
     expect(await fs.readFile(path.join(output, "keep.txt"), "utf8")).toBe("unchanged");
+  });
+
+  it("allows an output path through a symlinked ancestor", async () => {
+    const actual = path.join(root, "physical-parent");
+    const linked = path.join(root, "linked-parent");
+    await fs.mkdir(actual);
+    await fs.symlink(actual, linked, "dir");
+    stub.setCatalog([{ slug: "atlas", mode: "private" }]);
+    stub.setArchive(archive, 9);
+    const output = path.join(linked, "bundle");
+    const result = await stub.hosti(["pull", "atlas", "--out", output]);
+    expect(result.code).toBe(0);
+    expect(await fs.readFile(path.join(actual, "bundle", "index.html"), "utf8")).toBe(
+      "<h1>pulled</h1>",
+    );
   });
 
   it("refuses a symlink destination", async () => {

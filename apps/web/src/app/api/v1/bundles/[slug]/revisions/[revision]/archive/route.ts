@@ -2,8 +2,7 @@ import { requirePushScope } from "@/app/_http/push-access";
 import { runAppUseCase } from "@/app/_http/run-use-case";
 import { errorResponse, failureResponse } from "@/server/api-responses";
 import { revisionArchiveResponse } from "@/server/serving/revision-archive";
-import { listRevisions } from "@/use-cases/list-revisions";
-import { showBundle } from "@/use-cases/show-bundle";
+import { resolveRevisionArchive } from "@/use-cases/resolve-revision-archive";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,54 +15,17 @@ export async function GET(request: Request, context: Context): Promise<Response>
 
   const { slug, revision } = await context.params;
   try {
-    const shown = await runAppUseCase(showBundle(slug));
-    if (!shown) return errorResponse("no_such_bundle", `No bundle is called "${slug}"`, 404);
-
-    const revisions = await runAppUseCase(listRevisions(shown.record.id));
-    const seq =
-      revision === "current"
-        ? revisions.find((item) => item.current)?.seq
-        : parseRevision(revision);
-    if (seq === undefined) {
-      if (revision !== "current" && parseRevision(revision) === undefined) {
-        return errorResponse(
-          "bad_revision",
-          "Revision must be current or a positive safe integer",
-          400,
-        );
-      }
-      return missingRevision(
-        slug,
-        revision,
-        revisions.map((item) => item.seq),
-      );
+    const resolved = await runAppUseCase(resolveRevisionArchive(slug, revision));
+    if (!resolved) return errorResponse("no_such_bundle", `No bundle is called "${slug}"`, 404);
+    const { seq, kept } = resolved;
+    if (seq === undefined || !kept.includes(seq)) {
+      return missingRevision(slug, seq === undefined ? revision : String(seq), kept);
     }
-    if (!revisions.some((item) => item.seq === seq)) {
-      return missingRevision(
-        slug,
-        String(seq),
-        revisions.map((item) => item.seq),
-      );
-    }
-
     const response = await revisionArchiveResponse(slug, seq);
-    return (
-      response ??
-      missingRevision(
-        slug,
-        String(seq),
-        revisions.map((item) => item.seq),
-      )
-    );
+    return response ?? missingRevision(slug, String(seq), kept);
   } catch (error) {
     return failureResponse(error);
   }
-}
-
-function parseRevision(value: string): number | undefined {
-  if (!/^[1-9]\d*$/.test(value)) return undefined;
-  const seq = Number(value);
-  return Number.isSafeInteger(seq) ? seq : undefined;
 }
 
 function missingRevision(slug: string, requested: string, kept: number[]): Response {

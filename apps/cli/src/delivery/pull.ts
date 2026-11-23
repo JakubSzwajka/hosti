@@ -69,37 +69,32 @@ function assertSafeDestination(destination: string): void {
   }
 }
 
-async function rejectSymlinkAncestors(destination: string): Promise<void> {
-  let current = path.parse(destination).root;
-  for (const part of destination.slice(current.length).split(path.sep).filter(Boolean)) {
-    current = path.join(current, part);
-    try {
-      if ((await fs.lstat(current)).isSymbolicLink()) {
-        throw new PullError(`Output path contains a symlink: ${current}`);
-      }
-    } catch (error) {
-      if (error instanceof PullError) throw error;
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
+async function physicalDestination(destination: string): Promise<string> {
+  const parent = path.dirname(destination);
+  try {
+    return path.join(await fs.realpath(parent), path.basename(destination));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    const physicalParent = await physicalDestination(parent);
+    return path.join(physicalParent, path.basename(destination));
   }
 }
 
-async function ensureDestination(destination: string, force: boolean): Promise<void> {
-  assertSafeDestination(destination);
-  await rejectSymlinkAncestors(destination);
-  const existing = await fs.lstat(destination).catch((error: NodeJS.ErrnoException) => {
+async function ensureDestination(destination: string, force: boolean): Promise<string> {
+  const resolved = await physicalDestination(destination);
+  assertSafeDestination(resolved);
+  const existing = await fs.lstat(resolved).catch((error: NodeJS.ErrnoException) => {
     if (error.code === "ENOENT") return null;
     throw error;
   });
-  if (!existing) return;
-  if (!existing.isDirectory())
-    throw new PullError(`Output path is not a directory: ${destination}`);
-  if (force) return;
-  if ((await fs.readdir(destination)).length > 0) {
-    throw new PullError(
-      `Output directory is not empty: ${destination}; pass --force to replace it`,
-    );
+  if (!existing) return resolved;
+  if (existing.isSymbolicLink()) throw new PullError(`Output path is a symlink: ${resolved}`);
+  if (!existing.isDirectory()) throw new PullError(`Output path is not a directory: ${resolved}`);
+  if (force) return resolved;
+  if ((await fs.readdir(resolved)).length > 0) {
+    throw new PullError(`Output directory is not empty: ${resolved}; pass --force to replace it`);
   }
+  return resolved;
 }
 
 async function installStage(stage: string, destination: string, force: boolean): Promise<void> {
@@ -126,9 +121,11 @@ async function installStage(stage: string, destination: string, force: boolean):
 
 export async function pull(context: PullContext): Promise<void> {
   const { target: slug, flags, client } = context;
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new PullError(`Invalid bundle slug: ${slug}`);
-  const destination = path.resolve(flags.out ?? slug);
-  await ensureDestination(destination, flags.force ?? false);
+  if (!/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/.test(slug)) {
+    throw new PullError(`Invalid bundle slug: ${slug}`);
+  }
+  const requestedDestination = path.resolve(flags.out ?? slug);
+  const destination = await ensureDestination(requestedDestination, flags.force ?? false);
   const { archive, revision } = await client.pull(slug, flags.revision);
   const counts = await inspectArchive(archive);
   const parent = path.dirname(destination);

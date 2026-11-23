@@ -147,10 +147,16 @@ export function createClient(config: Config) {
         );
       }
       const header = response.headers.get("X-Hosti-Revision");
-      if (!header || !/^[1-9][0-9]*$/.test(header)) {
+      const selected = Number(header);
+      if (
+        !header ||
+        !/^[1-9][0-9]*$/.test(header) ||
+        !Number.isSafeInteger(selected) ||
+        (revision !== undefined && selected !== Number(revision))
+      ) {
         throw new ApiError("The server returned an invalid revision header", response.status);
       }
-      return { archive: Buffer.from(await response.arrayBuffer()), revision: Number(header) };
+      return { archive: Buffer.from(await response.arrayBuffer()), revision: selected };
     },
 
     bundle(slug: string): Promise<BundleResponse> {

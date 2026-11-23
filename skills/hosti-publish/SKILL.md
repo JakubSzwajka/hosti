@@ -164,14 +164,16 @@ whole destination directory. It removes stale files only after extraction
 succeeds. A failed download or extraction leaves the existing destination
 unchanged.
 
-Pull restores what the server stored, not the original source directory. Push
-exclusions such as `.git`, `node_modules`, `.DS_Store` and `._` sidecars are
-not restored. On push, Hosti renames a sole root `.html` file to
-`index.html` when `index.html` is absent. Pull restores that stored name.
+Pull restores the stored file tree, not the original source directory. Hosti
+creates the tar.gz when the archive route is requested. Push exclusions such as
+`.git`, `node_modules`, `.DS_Store` and `._` sidecars are not restored. On push,
+Hosti renames a sole root `.html` file to `index.html` when `index.html` is
+absent. Pull writes that stored name without renaming it.
 
 The API route is `GET /api/v1/bundles/<slug>/revisions/<seq|current>/archive`.
-It returns a tar.gz attachment named `<slug>-r<seq>.tar.gz` and the
-`X-Hosti-Revision: <seq>` header. Unknown or pruned revisions return 404.
+It creates a tar.gz from the stored file tree and returns an attachment named
+`<slug>-r<seq>.tar.gz` with `X-Hosti-Revision: <seq>`. Unknown or pruned
+revisions return 404.
 
 ## 10. Delete only with scope and word
 

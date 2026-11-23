@@ -13,8 +13,11 @@ deploys landing from omarchy with the Alchemy stack in
 
 The whole release is one file, `.github/workflows/release-create.yml`. It
 uses pinned Docker actions and inline shell, with no helper scripts. It starts
-only by hand
-(`workflow_dispatch`), never on push or pull request.
+only by hand (`workflow_dispatch`), never on push or pull request.
+
+Deploy a server release with the revision archive route before publishing a
+CLI release that uses `hosti pull`. The CLI cannot restore revisions until the
+server route is available.
 
 ```text
 merge to main ──> CI only (static, test, image, landing, secrets). No push, no deploy.

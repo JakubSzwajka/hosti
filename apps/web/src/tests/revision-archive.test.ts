@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import path from "node:path";
+import { create, extract } from "tar";
 import { gunzipSync } from "node:zlib";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { tarFixture, useTempDataDir } from "./test-fixtures";
@@ -23,6 +25,32 @@ async function archive(slug: string, revision: string, auth = token): Promise<Re
 
 async function publish(slug: string, fixture: string): Promise<void> {
   const response = await push(token, slug, await tarFixture(fixture));
+  if (response.status !== 201) throw new Error(await response.text());
+}
+
+async function listFiles(root: string, prefix = ""): Promise<string[]> {
+  const entries = await fs.readdir(path.join(root, prefix), { withFileTypes: true });
+  const paths = await Promise.all(
+    entries.map(async (entry) => {
+      const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+      return entry.isDirectory() ? listFiles(root, name) : [name];
+    }),
+  );
+  return paths.flat().sort();
+}
+
+async function publishTree(slug: string, files: Record<string, Buffer | string>): Promise<void> {
+  const root = path.join(dataDir, `source-${slug}`);
+  for (const [name, bytes] of Object.entries(files)) {
+    const file = path.join(root, name);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, bytes);
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of create({ gzip: true, cwd: root, portable: true }, ["."])) {
+    chunks.push(Buffer.from(chunk));
+  }
+  const response = await push(token, slug, Buffer.concat(chunks));
   if (response.status !== 201) throw new Error(await response.text());
 }
 
@@ -51,6 +79,7 @@ describe("revision archive API", () => {
       'attachment; filename="archive-bytes-r2.tar.gz"',
     );
     expect(current.headers.get("x-hosti-revision")).toBe("2");
+    expect(current.headers.get("cache-control")).toBe("private, no-store");
     expect(current.body).not.toBeNull();
     const currentTar = gunzipSync(Buffer.from(await current.arrayBuffer()));
     expect(currentTar.includes(Buffer.from("Squad 2026"))).toBe(true);
@@ -64,11 +93,13 @@ describe("revision archive API", () => {
     expect(explicitTar.includes(Buffer.from("Squad 2026"))).toBe(false);
   });
 
-  it("reports missing bundles and invalid or pruned revisions as 404", async () => {
+  it("reports missing bundles, invalid revisions and pruned revisions with their correct status", async () => {
     expect((await archive("not-published", "current")).status).toBe(404);
-    const invalid = await archive("archive-bytes", "not-a-sequence");
-    expect(invalid.status).toBe(400);
-    expect((await invalid.json()).message).toContain("positive safe integer");
+    for (const revision of ["0", "01", "-1", "1.5", "nope", "9007199254740992"]) {
+      const invalid = await archive("archive-bytes", revision);
+      expect(invalid.status, revision).toBe(400);
+      expect((await invalid.json()).message).toContain("positive safe integer");
+    }
     const missing = await archive("archive-bytes", "99");
     expect(missing.status).toBe(404);
     expect((await missing.json()).message).toContain(
@@ -80,7 +111,45 @@ describe("revision archive API", () => {
     await publish("archive-pruned", "page-with-assets");
     const pruned = await archive("archive-pruned", "1");
     expect(pruned.status).toBe(404);
-    expect((await pruned.json()).message).toContain("Kept revisions: 3, 2");
+    const prunedMessage = (await pruned.json()).message as string;
+    expect(prunedMessage).toContain("Kept revisions: 3, 2.");
+    expect(prunedMessage.match(/Kept revisions: ([^.]+)/)?.[1]).toBe("3, 2");
+  });
+
+  it("archives the stored tree bytes and the renamed sole HTML entry", async () => {
+    const binary = Buffer.from([0, 1, 2, 255]);
+    await publishTree("archive-tree", {
+      "index.html": "<h1>tree</h1>",
+      "nested/data.bin": binary,
+      "nested/page.html": "<p>nested</p>",
+    });
+    const response = await archive("archive-tree", "current");
+    expect(response.status).toBe(200);
+    const extracted = path.join(dataDir, "extracted-tree");
+    await fs.mkdir(extracted);
+    const archiveFile = path.join(dataDir, "tree.tar");
+    await fs.writeFile(archiveFile, gunzipSync(Buffer.from(await response.arrayBuffer())));
+    await extract({ cwd: extracted, file: archiveFile });
+    expect(await listFiles(extracted)).toEqual([
+      "index.html",
+      "nested/data.bin",
+      "nested/page.html",
+    ]);
+    expect(await fs.readFile(path.join(extracted, "index.html"), "utf8")).toBe("<h1>tree</h1>");
+    expect(await fs.readFile(path.join(extracted, "nested/data.bin"))).toEqual(binary);
+    expect(await fs.readFile(path.join(extracted, "nested/page.html"), "utf8")).toBe(
+      "<p>nested</p>",
+    );
+
+    await publishTree("archive-single", { "only.html": "<h1>single</h1>" });
+    const single = await archive("archive-single", "current");
+    const singleRoot = path.join(dataDir, "extracted-single");
+    await fs.mkdir(singleRoot);
+    const singleArchive = path.join(dataDir, "single.tar");
+    await fs.writeFile(singleArchive, gunzipSync(Buffer.from(await single.arrayBuffer())));
+    await extract({ cwd: singleRoot, file: singleArchive });
+    expect(await fs.readdir(singleRoot)).toEqual(["index.html"]);
+    expect(await fs.readFile(path.join(singleRoot, "index.html"), "utf8")).toBe("<h1>single</h1>");
   });
 
   it("requires publish and leaves private sharing state unchanged", async () => {

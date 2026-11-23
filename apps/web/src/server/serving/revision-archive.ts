@@ -14,6 +14,7 @@ export async function revisionArchiveResponse(slug: string, seq: number): Promis
       "Content-Type": "application/gzip",
       "Content-Disposition": `attachment; filename="${slug}-r${seq}.tar.gz"`,
       "X-Hosti-Revision": String(seq),
+      "Cache-Control": "private, no-store",
     },
   });
 }

@@ -304,11 +304,11 @@ the destination only after download and extraction succeed. Files left over
 from the old directory are removed on replacement.
 
 A push token with `publish` can pull a private bundle. Pulling does not change
-sharing state. Hosti returns the server's stored archive, not a copy of the
-original source directory. Push exclusions such as `.git`, `node_modules`,
-`.DS_Store` and `._` sidecars are not restored. On push, Hosti renames a sole
-root `.html` file to `index.html` when `index.html` is absent. Pull restores
-that stored name.
+sharing state. Pull restores the stored file tree, not the original source
+directory. Hosti creates a tar.gz when the archive route is requested. Push
+exclusions such as `.git`, `node_modules`, `.DS_Store` and `._` sidecars are not
+restored. On push, Hosti renames a sole root `.html` file to `index.html` when
+`index.html` is absent. Pull writes the stored `index.html` without renaming it.
 
 The archive API is `GET /api/v1/bundles/<slug>/revisions/<seq|current>/archive`.
 It requires `publish` and returns `X-Hosti-Revision: <seq>` with the tar.gz
@@ -355,8 +355,8 @@ pnpm --filter @hosti/cli run pack:tgz
 npm install -g ./apps/cli/hosti-cli.tgz
 ```
 
-The CLI talks HTTP only: it never opens the SQLite file. The archive route
-must exist on the server before `hosti pull` can use it.
+The CLI talks HTTP only: it never opens the SQLite file. Deploy the server
+archive route before publishing a CLI release that uses `hosti pull`.
 
 `push` takes a directory or one `.html` file. It leaves out `.git`,
 `node_modules`, `.DS_Store` and `._` sidecars, and it warns about references
