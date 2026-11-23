@@ -1,6 +1,6 @@
 ---
 name: hosti-publish
-description: Publish a static site to a Hosti catalog and share it. Use when asked to publish, host or share a report, a dashboard, a slide deck, a static site or any folder of static files, or to get a URL for one.
+description: Publish to a Hosti catalog, share a bundle or restore a stored revision. Use when asked to publish, host or share a report, a dashboard, a slide deck, a static site or any folder of static files, pull a revision, or get a URL for one.
 ---
 
 # Publish to Hosti
@@ -9,8 +9,8 @@ Hosti is a self-hosted catalog for static bundles. A bundle is a folder of
 files with an index.html at its root. Pushing it gives it a URL.
 
 You work through the `hosti` command. This skill covers pushing a bundle,
-sharing it, rotating its link and opening it. It covers deleting only under
-the rule in step 9.
+sharing it, rotating its link, opening it and restoring a stored revision. It
+covers deleting only under the rule in step 10.
 
 ## 1. Get the CLI
 
@@ -147,7 +147,33 @@ for it. Then give them the new URL.
 The last line is the link to hand over: the share URL, or the owner's admin
 page while the bundle is private. --open also opens it in a browser.
 
-## 9. Delete only with scope and word
+## 9. Pull a stored revision
+
+A push token with the `publish` scope can read stored archives, even when the
+bundle is private. Pull does not change sharing state.
+
+    hosti pull squad-2026
+    hosti pull squad-2026 --revision 3 --out ./restore/squad-2026
+
+Pull uses the current revision by default and writes to `./<slug>`. Use
+`--revision N` to select a kept revision, and `--out <dir>` to choose another
+destination. It refuses a non-empty destination unless you pass `--force`.
+
+With `--force`, pull stages and extracts the archive before replacing the
+whole destination directory. It removes stale files only after extraction
+succeeds. A failed download or extraction leaves the existing destination
+unchanged.
+
+Pull restores what the server stored, not the original source directory. Push
+exclusions such as `.git`, `node_modules`, `.DS_Store` and `._` sidecars are
+not restored. On push, Hosti renames a sole root `.html` file to
+`index.html` when `index.html` is absent. Pull restores that stored name.
+
+The API route is `GET /api/v1/bundles/<slug>/revisions/<seq|current>/archive`.
+It returns a tar.gz attachment named `<slug>-r<seq>.tar.gz` and the
+`X-Hosti-Revision: <seq>` header. Unknown or pruned revisions return 404.
+
+## 10. Delete only with scope and word
 
 Delete a bundle only when both are true:
 
@@ -161,7 +187,7 @@ A delete takes the files and every revision with it.
 If the token lacks the scope, the command exits 1 and its last line says how
 the owner can grant it. Tell the owner. Do not ask for a new login on your own.
 
-## 10. When a command fails
+## 11. When a command fails
 
 Every command prints the server's reason on its last line and exits non-zero.
 Read that line before you do anything else.

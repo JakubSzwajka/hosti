@@ -117,8 +117,13 @@ needs its scope: `share` for the sharing routes, `delete` for the delete, and
 PUT    /api/v1/bundles/<slug>/sharing         set the state: private, link, pin
 POST   /api/v1/bundles/<slug>/sharing/rotate  mint a fresh share slug
 GET    /api/v1/bundles/<slug>                 the bundle and its sharing state
+GET    /api/v1/bundles/<slug>/revisions/<seq|current>/archive  read a stored revision archive
 DELETE /api/v1/bundles/<slug>                 forget the bundle, files and all
 ```
+
+The archive route needs the `publish` scope, including for a private bundle.
+It returns the stored tar.gz and its `X-Hosti-Revision` sequence header. A
+pruned or unknown revision returns 404. It does not change sharing state.
 
 The body of the `PUT` is `{"mode": "private" | "link" | "pin", "pin"?: "4821"}`.
 Asking for `pin` with no pin stored and none in the body is refused. Setting

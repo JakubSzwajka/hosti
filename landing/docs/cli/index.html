@@ -90,7 +90,8 @@ hosti share &lt;slug&gt; --mode private|link|pin [--pin 4821]
 hosti rotate &lt;slug&gt;
 hosti rm &lt;slug&gt; [--yes]
 hosti open &lt;slug&gt; [--open]
-hosti prune &lt;slug&gt;</code></pre>
+hosti prune &lt;slug&gt;
+hosti pull &lt;slug&gt; [--revision N] [--out &lt;dir&gt;] [--force]</code></pre>
 
           <h3>push</h3>
           <pre><code>hosti push ./out --slug squad-2026 --title "Squad 2026" --collection reports</code></pre>
@@ -126,6 +127,14 @@ hosti share squad-2026 --mode private</code></pre>
 
           <h3>prune</h3>
           <p>Trims a bundle to the newest few revisions and prints which it kept and which it removed. The count is the server's <code>HOSTI_KEEP_REVISIONS</code>. The CLI has no flag for it.</p>
+
+          <h3>pull</h3>
+          <pre><code>hosti pull squad-2026
+hosti pull squad-2026 --revision 3 --out ./restore/squad-2026
+hosti pull squad-2026 --force</code></pre>
+          <p><code>pull</code> downloads the current stored revision, or the sequence named by <code>--revision N</code>. It writes to <code>./&lt;slug&gt;</code> by default; use <code>--out &lt;dir&gt;</code> to choose another path. It refuses a non-empty destination unless you pass <code>--force</code>. With <code>--force</code>, it stages the archive beside the destination and replaces the whole directory only after download and extraction succeed. Replacement removes stale files.</p>
+          <p>A token with the <code>publish</code> scope can pull a private bundle. Pull does not change sharing state. It restores the server's stored tree, not the original source directory. Push exclusions such as <code>.git</code>, <code>node_modules</code>, <code>.DS_Store</code> and <code>._</code> sidecars are not restored. On push, Hosti renames a sole root <code>.html</code> file to <code>index.html</code> when <code>index.html</code> is absent. Pull restores that stored name.</p>
+          <p>The archive route is <code>GET /api/v1/bundles/&lt;slug&gt;/revisions/&lt;seq|current&gt;/archive</code>. It requires <code>publish</code> and returns <code>X-Hosti-Revision: &lt;seq&gt;</code> with an attachment named <code>&lt;slug&gt;-r&lt;seq&gt;.tar.gz</code>. An unknown or pruned revision returns 404.</p>
 
           <h2>Settings</h2>
           <p>Each setting resolves in this order:</p>
