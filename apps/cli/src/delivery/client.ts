@@ -124,6 +124,35 @@ export function createClient(config: Config) {
       return call<PrunedRevisionsResponse>(`/api/v1/bundles/${slug}/prune`, { method: "POST" });
     },
 
+    async pull(slug: string, revision?: string): Promise<{ archive: Buffer; revision: number }> {
+      const sequence = revision ?? "current";
+      const pathname = `/api/v1/bundles/${encodeURIComponent(slug)}/revisions/${sequence}/archive`;
+      let response: Response;
+      try {
+        response = await fetch(`${config.url}${pathname}`, {
+          headers: { Authorization: `Bearer ${config.token}` },
+        });
+      } catch (error) {
+        throw new ApiError(`Cannot reach ${config.url}: ${(error as Error).message}`);
+      }
+      if (!response.ok) {
+        let failure: Partial<ErrorResponse> = {};
+        try {
+          failure = (await response.json()) as ErrorResponse;
+        } catch {}
+        throw new ApiError(
+          failure.message ?? `${response.status} from ${pathname}`,
+          response.status,
+          failure.error ?? "http_error",
+        );
+      }
+      const header = response.headers.get("X-Hosti-Revision");
+      if (!header || !/^[1-9][0-9]*$/.test(header)) {
+        throw new ApiError("The server returned an invalid revision header", response.status);
+      }
+      return { archive: Buffer.from(await response.arrayBuffer()), revision: Number(header) };
+    },
+
     bundle(slug: string): Promise<BundleResponse> {
       return call<BundleResponse>(`/api/v1/bundles/${slug}`);
     },

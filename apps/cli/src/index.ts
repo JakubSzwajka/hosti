@@ -7,6 +7,7 @@ import { ConfigError, resolveConfig } from "./delivery/config.ts";
 import { COMMAND_TABLE, CommandError } from "./delivery/commands.ts";
 import { login, logout } from "./delivery/login.ts";
 import { PackError } from "./delivery/pack.ts";
+import { PullError } from "./delivery/pull.ts";
 import { stderr, stdout } from "./delivery/output.ts";
 
 const EXIT_FAILURE = 1;
@@ -77,7 +78,12 @@ export async function run(argv: string[]): Promise<number> {
       stderr(error.message);
       return EXIT_USAGE;
     }
-    if (error instanceof ApiError || error instanceof PackError || error instanceof CommandError) {
+    if (
+      error instanceof ApiError ||
+      error instanceof PackError ||
+      error instanceof PullError ||
+      error instanceof CommandError
+    ) {
       stderr(error.message);
       return EXIT_FAILURE;
     }
