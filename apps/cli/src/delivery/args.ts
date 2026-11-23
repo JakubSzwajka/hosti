@@ -11,11 +11,31 @@ export const COMMANDS = [
   "rm",
   "open",
   "prune",
+  "pull",
 ] as const;
 export type Command = (typeof COMMANDS)[number];
 
-const SWITCHES = new Set(["allow-absolute", "allow-delete", "yes", "open", "help", "version"]);
-const VALUE_FLAGS = new Set(["slug", "title", "collection", "mode", "pin", "url", "token", "name"]);
+const SWITCHES = new Set([
+  "allow-absolute",
+  "allow-delete",
+  "yes",
+  "open",
+  "force",
+  "help",
+  "version",
+]);
+const VALUE_FLAGS = new Set([
+  "slug",
+  "title",
+  "collection",
+  "mode",
+  "pin",
+  "url",
+  "token",
+  "name",
+  "revision",
+  "out",
+]);
 
 export type Flags = {
   slug?: string;
@@ -26,6 +46,9 @@ export type Flags = {
   url?: string;
   token?: string;
   name?: string;
+  revision?: string;
+  out?: string;
+  force?: boolean;
   allowAbsolute?: boolean;
   allowDelete?: boolean;
   yes?: boolean;
@@ -117,6 +140,16 @@ export function parseInvocation(argv: string[]): Invocation {
     if (!target) throw new UsageError("push needs a path: hosti push ./dist --slug my-bundle");
     if (!flags.slug) throw new UsageError("push needs --slug");
   }
+  if (command === "pull") {
+    if (flags.revision !== undefined && !/^[1-9][0-9]*$/.test(flags.revision)) {
+      throw new UsageError("--revision must be a positive integer");
+    }
+  } else {
+    if (flags.revision !== undefined)
+      throw new UsageError(`--revision means nothing to ${command}`);
+    if (flags.out !== undefined) throw new UsageError(`--out means nothing to ${command}`);
+    if (flags.force) throw new UsageError(`--force means nothing to ${command}`);
+  }
   if (command !== "push" && command !== "ls" && !NO_ARGUMENT.includes(command) && !target) {
     throw new UsageError(`${command} needs a slug: hosti ${command} my-bundle`);
   }
@@ -154,6 +187,7 @@ export const HELP = `hosti - push static bundles to a Hosti server
   hosti rm <slug> [--yes]
   hosti open <slug> [--open]
   hosti prune <slug>
+  hosti pull <slug> [--revision N] [--out <dir>] [--force]
 
 A bundle has one sharing state and at most one link:
   private  nothing answers at the share URL
