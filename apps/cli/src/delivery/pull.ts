@@ -54,6 +54,16 @@ async function inspectArchive(archive: Buffer): Promise<{ fileCount: number; byt
   return { fileCount, bytes };
 }
 
+async function realpathOrLogical(target: string): Promise<string> {
+  try {
+    return await fs.realpath(target);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return target;
+    throw error;
+  }
+}
+
 async function assertSafeDestination(
   logicalDestination: string,
   physicalDestination: string,
@@ -63,9 +73,9 @@ async function assertSafeDestination(
   const logicalCwd = path.resolve(process.cwd());
   const protectedPaths = [
     logicalHome,
-    await fs.realpath(logicalHome),
+    await realpathOrLogical(logicalHome),
     logicalCwd,
-    await fs.realpath(logicalCwd),
+    await realpathOrLogical(logicalCwd),
   ];
   const contains = (parent: string, child: string) =>
     child === parent || child.startsWith(`${parent}${path.sep}`);

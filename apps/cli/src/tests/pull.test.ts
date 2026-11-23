@@ -62,6 +62,22 @@ afterAll(async () => {
 });
 
 describe("hosti pull", () => {
+  it.each(["missing", "not-directory"])("pulls when HOME is %s", async (state) => {
+    stub.setCatalog([{ slug: "atlas", mode: "private" }]);
+    stub.setArchive(archive, 7);
+    if (state === "not-directory") await fs.writeFile(path.join(root, "home-blocker"), "file");
+    const home = path.join(root, state === "missing" ? "missing-home" : "home-blocker/home");
+    const output = path.join(root, `output-${state}`);
+    const result = await stub.hosti(["pull", "atlas", "--out", output], {
+      HOME: home,
+      HOSTI_URL: stub.origin(),
+      HOSTI_TOKEN: "hosti_test",
+      XDG_CONFIG_HOME: path.join(root, "explicit-xdg"),
+    });
+    expect(result.code).toBe(0);
+    expect(await fs.readFile(path.join(output, "index.html"), "utf8")).toBe("<h1>pulled</h1>");
+  });
+
   it("accepts every slug shape allowed by the server", async () => {
     stub.setCatalog([{ slug: "a--b", mode: "private" }]);
     stub.setArchive(archive, 7);
@@ -90,7 +106,6 @@ describe("hosti pull", () => {
       Buffer.from([0, 1, 2, 255]),
     );
   });
-
   it("restores a stored file named like the private archive input", async () => {
     stub.setCatalog([{ slug: "atlas", mode: "private" }]);
     stub.setArchive(collidingNameArchive, 8);
