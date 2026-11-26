@@ -56,8 +56,23 @@ describe("what the command means", () => {
   });
 
   it("needs a slug for the commands that name one", () => {
-    for (const command of ["share", "rotate", "rm", "open", "prune"]) {
+    for (const command of ["share", "rotate", "rm", "open", "prune", "pull"]) {
       expect(() => parseInvocation([command])).toThrow(/needs a slug/);
+    }
+  });
+
+  it("reads pull options and requires a positive revision", () => {
+    expect(
+      parseInvocation(["pull", "atlas", "--revision", "3", "--out", "./copy", "--force"]),
+    ).toMatchObject({
+      command: "pull",
+      target: "atlas",
+      flags: { revision: "3", out: "./copy", force: true },
+    });
+    for (const revision of ["0", "-1", "1.5", "abc"]) {
+      expect(() => parseInvocation(["pull", "atlas", "--revision", revision])).toThrow(
+        /positive integer/,
+      );
     }
   });
 

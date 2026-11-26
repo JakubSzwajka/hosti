@@ -18,10 +18,11 @@ for example `garmin-q3`.
 _Avoid_: site, artifact, report, project.
 
 **Revision**:
-One archive landing on a bundle, from `hosti push` or from the owner dropping
-one on the catalog. The same slug again creates a new revision and moves the
-`current` pointer. It then prunes: the newest few revisions stay and the rest
-are deleted, files and rows both.
+One file tree unpacked onto a bundle, from `hosti push` or from the owner
+uploading an archive in the catalog. The same slug again creates a new revision
+and moves the `current` pointer. It then prunes: the newest few revisions stay
+and the rest are deleted, files and rows both. Hosti creates a tar.gz from the
+stored tree only when the archive route is requested.
 _Avoid_: version, build, deploy.
 
 **Catalog**:
@@ -117,8 +118,15 @@ needs its scope: `share` for the sharing routes, `delete` for the delete, and
 PUT    /api/v1/bundles/<slug>/sharing         set the state: private, link, pin
 POST   /api/v1/bundles/<slug>/sharing/rotate  mint a fresh share slug
 GET    /api/v1/bundles/<slug>                 the bundle and its sharing state
+GET    /api/v1/bundles/<slug>/revisions/<seq|current>/archive  read a stored revision archive
 DELETE /api/v1/bundles/<slug>                 forget the bundle, files and all
 ```
+
+The archive route needs the `publish` scope, including for a private bundle.
+It creates a tar.gz from the stored file tree and returns its
+`X-Hosti-Revision` sequence header. A pruned or unknown revision returns 404.
+It does not change sharing state. A sole root HTML file may have been renamed
+to `index.html` when the revision was pushed; pull writes that stored name.
 
 The body of the `PUT` is `{"mode": "private" | "link" | "pin", "pin"?: "4821"}`.
 Asking for `pin` with no pin stored and none in the body is refused. Setting
