@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  logging: { incomingRequests: { ignore: [/^\/api\/mcp\//, /^\/mcp(?:\?|$)/] } },
   skipTrailingSlashRedirect: true,
   serverExternalPackages: ["better-sqlite3"],
   outputFileTracingRoot: new URL("../../", import.meta.url).pathname,

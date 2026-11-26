@@ -3,7 +3,7 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { Catalog, CatalogError, catalogSchemaSql } from "@hosti/catalog";
 import { BundlesError } from "@hosti/bundles";
-import { Storage, StorageError } from "@hosti/storage";
+import { Storage, StorageError, Transfers, type RevisionIdentity } from "@hosti/storage";
 import { Identity, IdentityInputError, LoginThrottle } from "@hosti/identity";
 import { Serving } from "@hosti/serving";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
@@ -12,6 +12,7 @@ import { PushError } from "@/server/errors";
 import { dataDir } from "@/server/config";
 import { NodeIdentityCrypto } from "@/server/node-crypto";
 import { NodeArchiveCodec } from "@/server/storage/node-archive-codec";
+import { NodeRevisionIdentity } from "@/server/storage/node-revision-identity";
 
 const platformLayer = Layer.mergeAll(
   NodeCrypto.layer,
@@ -19,13 +20,17 @@ const platformLayer = Layer.mergeAll(
   NodePath.layer,
   NodeArchiveCodec.layer,
   NodeIdentityCrypto,
+  NodeRevisionIdentity,
 );
 const catalogLayer = Catalog.layer(dataDir(), catalogSchemaSql);
 const identityLayer = Identity.layer.pipe(Layer.provideMerge(catalogLayer));
 const identityAndLoginLayer = LoginThrottle.layer.pipe(Layer.provideMerge(identityLayer));
-const runtimeLayer = Layer.mergeAll(identityAndLoginLayer, Storage.layer, Serving.layer).pipe(
-  Layer.provideMerge(platformLayer),
-);
+const runtimeLayer = Layer.mergeAll(
+  identityAndLoginLayer,
+  Storage.layer,
+  Transfers.layer,
+  Serving.layer,
+).pipe(Layer.provideMerge(platformLayer));
 const makeRuntime = () => ManagedRuntime.make(runtimeLayer);
 
 type RuntimeHolder = { __hostiRuntime?: ReturnType<typeof makeRuntime> };
@@ -44,6 +49,8 @@ export type UseCaseResult<A, E> = { ok: true; value: A } | { ok: false; error: E
 export type UseCaseRequirements =
   | Catalog
   | Storage
+  | Transfers
+  | RevisionIdentity
   | Identity
   | Serving
   | LoginThrottle

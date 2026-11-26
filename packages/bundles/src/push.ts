@@ -8,18 +8,19 @@ import {
 } from "@hosti/shared";
 import { Catalog } from "@hosti/catalog";
 import { Effect, type Stream } from "effect";
-import { Storage, type ArchiveFormat, type StorageError } from "@hosti/storage";
+import { Storage, type ArchiveFormat, type StorageError, type UnpackLimits } from "@hosti/storage";
 import { BundlesError } from "./bundles-error";
 import { describeSharing, shareUrl } from "./sharing";
 import { catalogBundlesError, storageBundlesError } from "./internal/errors";
 import { pruneRevisions } from "./retention";
 
-export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD;
+export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD | { kind: "mcp"; name: string };
 
 export type StoreRevisionInput = {
   slug: string;
   source: Stream.Stream<Uint8Array, StorageError>;
   format?: ArchiveFormat;
+  limits?: Partial<UnpackLimits>;
   title: string | null;
   collection: string | null;
   bundlesRoot: string;
@@ -63,6 +64,7 @@ export const storeRevision = Effect.fn("Bundles.storeRevision")(function* (
       seq,
       source: input.source,
       ...(input.format === undefined ? {} : { format: input.format }),
+      ...(input.limits === undefined ? {} : { limits: input.limits }),
     })
     .pipe(Effect.mapError(storageBundlesError));
 

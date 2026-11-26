@@ -21,6 +21,10 @@ services:
       # share link cannot take a PIN without the secret.
       HOSTI_OWNER_PASSWORD_HASH: ${HOSTI_OWNER_PASSWORD_HASH:?set HOSTI_OWNER_PASSWORD_HASH in .env, make it with pnpm --silent owner:hash}
       HOSTI_SECRET: ${HOSTI_SECRET:?set HOSTI_SECRET in .env, generate with openssl rand -hex 32}
+      HOSTI_MCP_URL: ${HOSTI_MCP_URL:-}
+      CLERK_ISSUER: ${CLERK_ISSUER:-}
+      HOSTI_OWNER_CLERK_USER_ID: ${HOSTI_OWNER_CLERK_USER_ID:-}
+      HOSTI_MCP_DELETE_CLIENT_IDS: ${HOSTI_MCP_DELETE_CLIENT_IDS:-}
       PORT: "3000"
     # No host port is published. A reverse proxy on the same Docker network
     # (Dokploy, Traefik, Caddy) targets service `web` on container port 3000,
