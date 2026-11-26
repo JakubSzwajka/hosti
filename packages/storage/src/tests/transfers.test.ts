@@ -88,13 +88,15 @@ it.layer(Transfers.layer.pipe(Layer.provideMerge(platform)))("persistent transfe
       const crypto = yield* Crypto.Crypto;
       const first = yield* transfers.issue(root, upload);
       const directory = path.join(root, "mcp-transfers");
-      for (let index = 1; index < MAX_TRANSFERS; index++) {
+      for (let index = 1; index < MAX_TRANSFERS - 1; index++) {
         const grant: Transfer = { ...first, id: yield* crypto.randomUUIDv4 };
         yield* fs.writeFileString(path.join(directory, `${grant.id}.json`), JSON.stringify(grant), {
           flag: "wx",
           mode: 0o600,
         });
       }
+      expect(yield* fs.readDirectory(directory)).toHaveLength(255);
+      expect((yield* transfers.issue(root, upload)).input.slug).toBe("test");
       expect(yield* fs.readDirectory(directory)).toHaveLength(256);
       expect((yield* transfers.issue(root, upload).pipe(Effect.flip)).status).toBe(429);
       yield* TestClock.adjust(TRANSFER_TTL_MS);
