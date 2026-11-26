@@ -6,6 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { decodeMetadataHeader } from "@hosti/shared";
+import { sendArchiveResponse } from "./archive-response.ts";
+import { bundleOf, sharingOf } from "./stub-data.ts";
 
 const run = promisify(execFile);
 const BIN = path.resolve(import.meta.dirname, "../index.ts");
@@ -25,6 +27,7 @@ export type Stub = {
   origin: () => string;
   setCatalog: (entries: Entry[]) => void;
   setPruneAnswer: (answer: { status: number; body: unknown }) => void;
+  setArchive: (archive: Buffer | null, revision?: number) => void;
   lastSharingBody: () => string;
   lastPushMetadata: () => { title: string | undefined; collection: string | undefined } | null;
   configHome: () => string;
@@ -65,25 +68,10 @@ export function makeStub(): Stub {
   let origin = "";
   let catalog: Entry[] = [];
   let pruneAnswer: { status: number; body: unknown } = { status: 200, body: {} };
+  let archiveAnswer: Buffer | null = null;
+  let archiveRevision = 4;
   let lastSharingBody = "";
   let lastPushMetadata: { title: string | undefined; collection: string | undefined } | null = null;
-
-  const sharingOf = (entry: Entry) => ({
-    mode: entry.mode,
-    shareSlug: entry.shareSlug ?? entry.slug,
-    hasPin: entry.mode === "pin",
-  });
-
-  const bundle = (entry: Entry) => ({
-    slug: entry.slug,
-    title: entry.slug,
-    collection: null,
-    createdAt: "2026-09-17T10:00:00.000Z",
-    updatedAt: "2026-09-17T10:00:00.000Z",
-    currentRevision: { seq: 1, byteSize: 10, fileCount: 1, createdAt: "2026-09-17T10:00:00.000Z" },
-    revisionCount: 1,
-    sharing: sharingOf(entry),
-  });
 
   const shareUrlOf = (entry: Entry): string | null =>
     entry.mode === "private" ? null : `${origin}/v/${entry.shareSlug ?? entry.slug}/`;
@@ -95,6 +83,10 @@ export function makeStub(): Stub {
     },
     setPruneAnswer: (answer) => {
       pruneAnswer = answer;
+    },
+    setArchive: (archive, revision = 4) => {
+      archiveAnswer = archive;
+      archiveRevision = revision;
     },
     lastSharingBody: () => lastSharingBody,
     lastPushMetadata: () => lastPushMetadata,
@@ -237,9 +229,27 @@ export function makeStub(): Stub {
           json(404, { error: "no_such_bundle", message: `No bundle is called "${slug}"` });
 
         if (url === "/api/v1/bundles") {
-          json(200, { bundles: catalog.map(bundle) });
+          json(200, { bundles: catalog.map(bundleOf) });
           return;
         }
+        const archiveRoute = url.match(
+          /^\/api\/v1\/bundles\/([^/]+)\/revisions\/(current|[1-9][0-9]*)\/archive$/,
+        );
+        if (archiveRoute && method === "GET") {
+          seen.push({ method, url, authorization, body: "" });
+          if (
+            await sendArchiveResponse(
+              response,
+              archiveRoute[1] as string,
+              catalog,
+              archiveAnswer,
+              archiveRevision,
+              missing,
+            )
+          )
+            return;
+        }
+
         if (url.endsWith("/prune")) {
           json(pruneAnswer.status, pruneAnswer.body);
           return;
@@ -266,7 +276,7 @@ export function makeStub(): Stub {
         if (one) {
           const entry = catalog.find((each) => each.slug === one[1]);
           if (!entry) return missing(one[1] as string);
-          json(200, { bundle: bundle(entry), shareUrl: shareUrlOf(entry) });
+          json(200, { bundle: bundleOf(entry), shareUrl: shareUrlOf(entry) });
           return;
         }
 
