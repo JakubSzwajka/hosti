@@ -70,6 +70,7 @@ describe("the exit code an agent reads", () => {
     const result = await hosti([]);
     expect(result.stdout).toContain("hosti share <slug> --mode private|link|pin");
     expect(result.stdout).toContain("hosti rotate <slug>");
+    expect(result.stdout).toContain("hosti pull <slug> [--revision N]");
     expect(result.stdout).toContain("four to eight digits");
     // The words the one-link model took away are gone from the help too.
     expect(result.stdout).not.toContain("--unlisted");

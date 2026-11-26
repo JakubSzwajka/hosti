@@ -252,7 +252,7 @@ A push token carries scopes, and the server checks them:
 
 | Scope | Allows |
 | --- | --- |
-| `publish` | list bundles, read one, push a revision (creating the bundle if new), prune |
+| `publish` | list bundles, read bundles and stored revision archives, push a revision (creating the bundle if new), prune |
 | `share` | set the sharing state to `private`, `link` or `pin`, set a pin, rotate the share link |
 | `delete` | delete a bundle, with its revisions and files |
 
@@ -275,6 +275,8 @@ hosti rm atlas
 hosti open squad-2026
 hosti open squad-2026 --open
 hosti prune squad-2026
+hosti pull squad-2026
+hosti pull squad-2026 --revision 3 --out ./restore/squad-2026
 ```
 
 `share` is the only way the sharing state moves. `--mode pin` needs a pin: send
@@ -293,6 +295,25 @@ platform's browser as well. An unknown slug exits 1.
 `prune` trims a bundle to the newest few revisions and says which it kept and
 which it took away. The count is the server's, from `HOSTI_KEEP_REVISIONS`;
 the CLI has no flag for it, because the endpoint takes none.
+
+`pull` downloads the current stored revision, or the sequence named by
+`--revision N`, into `./<slug>` by default. Use `--out <dir>` to choose another
+directory. It refuses a non-empty destination unless you pass `--force`.
+With `--force`, it stages the full archive beside the destination and replaces
+the destination only after download and extraction succeed. Files left over
+from the old directory are removed on replacement.
+
+A push token with `publish` can pull a private bundle. Pulling does not change
+sharing state. Pull restores the stored file tree, not the original source
+directory. Hosti creates a tar.gz when the archive route is requested. Push
+exclusions such as `.git`, `node_modules`, `.DS_Store` and `._` sidecars are not
+restored. On push, Hosti renames a sole root `.html` file to `index.html` when
+`index.html` is absent. Pull writes the stored `index.html` without renaming it.
+
+The archive API is `GET /api/v1/bundles/<slug>/revisions/<seq|current>/archive`.
+It requires `publish` and returns `X-Hosti-Revision: <seq>` with the tar.gz
+attachment named `<slug>-r<seq>.tar.gz`. A private bundle is readable through
+this route. An unknown or pruned revision returns 404.
 
 `ls` prints `private`, `link` or `pin`, the same three words the catalog uses.
 Nothing ever prints the digits of a pin, because Hosti holds a hash and cannot
@@ -334,7 +355,8 @@ pnpm --filter @hosti/cli run pack:tgz
 npm install -g ./apps/cli/hosti-cli.tgz
 ```
 
-The CLI talks HTTP only: it never opens the SQLite file.
+The CLI talks HTTP only: it never opens the SQLite file. Deploy the server
+archive route before publishing a CLI release that uses `hosti pull`.
 
 `push` takes a directory or one `.html` file. It leaves out `.git`,
 `node_modules`, `.DS_Store` and `._` sidecars, and it warns about references
