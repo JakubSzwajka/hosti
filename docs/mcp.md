@@ -112,11 +112,17 @@ A grant binds the directory device, inode and nanosecond birth time observed at 
 The catalog must still contain that revision when the grant is used.
 Before streaming, Hosti compares that generation with the opened directory handle.
 Pruning or deleting a revision revokes its download grants.
-Recreating the same slug and sequence cannot expose replacement bytes, even with an older writer.
+Hosti refuses a replacement directory if its device, inode or birth time differs from the grant's identity.
+This protection assumes that replacement directories do not repeat all three values during a grant's lifetime.
+Inode reuse within a coarse birth-time tick remains a residual risk, including with an older writer.
 No revision sidecar is read or written. Legacy writes never need MCP metadata storage.
 Grants from the sidecar-based implementation fail closed after this change.
 Linux `/proc/self/fd` keeps archive streaming tied to the checked directory.
 MCP downloads require Linux and filesystem support for nonzero directory birth times.
+A nonzero value alone does not prove real, high-resolution birth-time support.
+Before release, confirm that support and birth-time resolution on the actual persistent volume.
+Check rapid directory deletion and recreation for repeated device, inode and birth-time tuples.
+Do not release MCP downloads on a volume that cannot support the identity uniqueness assumption.
 Missing generation information fails closed; macOS MCP downloads are not supported.
 Downloads do not change sharing or retention.
 Responses are attachments with no-store, nosniff and no-referrer.

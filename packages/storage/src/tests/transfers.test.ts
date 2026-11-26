@@ -2,9 +2,15 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { expect, it } from "@effect/vitest";
-import { Effect, FileSystem, Layer, Path, Exit } from "effect";
+import { Crypto, Effect, FileSystem, Layer, Path, Exit } from "effect";
 import { TestClock } from "effect/testing";
-import { Transfers, TRANSFER_TTL_MS, MAX_TRANSFERS, type TransferInput } from "../index";
+import {
+  Transfers,
+  TRANSFER_TTL_MS,
+  MAX_TRANSFERS,
+  type Transfer,
+  type TransferInput,
+} from "../index";
 
 const platform = Layer.mergeAll(NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer);
 const upload: TransferInput = {
@@ -78,10 +84,22 @@ it.layer(Transfers.layer.pipe(Layer.provideMerge(platform)))("persistent transfe
       const transfers = yield* Transfers;
       const fs = yield* FileSystem.FileSystem;
       const root = yield* fs.makeTempDirectoryScoped();
-      for (let index = 0; index < MAX_TRANSFERS; index++) yield* transfers.issue(root, upload);
+      const path = yield* Path.Path;
+      const crypto = yield* Crypto.Crypto;
+      const first = yield* transfers.issue(root, upload);
+      const directory = path.join(root, "mcp-transfers");
+      for (let index = 1; index < MAX_TRANSFERS; index++) {
+        const grant: Transfer = { ...first, id: yield* crypto.randomUUIDv4 };
+        yield* fs.writeFileString(path.join(directory, `${grant.id}.json`), JSON.stringify(grant), {
+          flag: "wx",
+          mode: 0o600,
+        });
+      }
+      expect(yield* fs.readDirectory(directory)).toHaveLength(256);
       expect((yield* transfers.issue(root, upload).pipe(Effect.flip)).status).toBe(429);
       yield* TestClock.adjust(TRANSFER_TTL_MS);
       expect((yield* transfers.issue(root, upload)).input.slug).toBe("test");
+      expect(yield* fs.readDirectory(directory)).toHaveLength(1);
     }),
   );
 
