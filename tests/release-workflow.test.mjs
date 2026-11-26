@@ -30,18 +30,23 @@ describe("gated two-image release workflow", () => {
     assert.doesNotMatch(workflow, /always\(\) && !cancelled\(\)/);
   });
 
-  it("keeps Discord notices enabled by default and lets dispatch skip only the notice", () => {
+  it("keeps Slack notices enabled by default and lets dispatch skip only the notice", () => {
     assert.match(
       workflow,
-      /notify:\n {8}description: Post the deployment result to Discord\n {8}type: boolean\n {8}default: true/,
+      /notify:\n {8}description: Post the deployment result to Slack\n {8}type: boolean\n {8}default: true/,
     );
-    assert.ok(
-      workflow.includes(
-        `- name: Notify Discord\n        if: ${githubExpression(" always() && github.ref == 'refs/heads/main' && inputs.notify ")}`,
-      ),
+    assert.match(
+      workflow,
+      /- name: Notify Slack\n        if: \$\{\{ always\(\) && github\.ref == 'refs\/heads\/main' && inputs\.notify \}\}\n        continue-on-error: true/,
     );
-    assert.match(workflow, /WEBHOOK: \$\{\{ secrets\.DISCORD_DEPLOY_WEBHOOK \}\}/);
-    assert.match(workflow, /\| curl -fsS -X POST/);
+    assert.match(workflow, /SLACK_BOT_TOKEN: \$\{\{ secrets\.SLACK_BOT_TOKEN \}\}/);
+    assert.match(
+      workflow,
+      /jq -n --arg c C0CN3MPU3J4 --arg t "\$msg" '\{channel:\$c,text:\$t\}' \| curl -sf -X POST https:\/\/slack\.com\/api\/chat\.postMessage/,
+    );
+    assert.match(workflow, /Authorization: Bearer \$SLACK_BOT_TOKEN/);
+    assert.match(workflow, /jq -e \.ok/);
+    assert.doesNotMatch(workflow, /discord/i);
     assert.match(workflow, /if: \$\{\{ !cancelled\(\) && !inputs\.dry_run/);
   });
 

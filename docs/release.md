@@ -25,7 +25,7 @@ merge to main ──> CI only (static, test, image, landing, secrets). No push, 
 Create release (dispatch on main)   inputs: bump, dry_run, redeploy, notify
   │
   ├─ build-and-tag            skipped when redeploy is set
-  │    preflight: every variable and secret name is set
+  │    preflight: required deploy configuration is set
   │    CI gate: the newest push run of "CI" on this commit is green
   │    next vX.Y.Z from the newest v*.*.* tag (cli-v* tags are ignored)
   │    dry_run? ── yes ──> print version + commit subjects, stop
@@ -38,7 +38,7 @@ Create release (dispatch on main)   inputs: bump, dry_run, redeploy, notify
        check both images exist before the app deploy
        deploy app and poll APP_URL/api/health until commit == <12>
        print the landing deploy command in the job summary
-       notify Discord (default: yes, including partial failures)
+       notify Slack (default: yes, including partial failures)
 
 omarchy (operator, after the deploy job)
   alchemy/landing/deploy.sh deploy vX.Y.Z hosti.kubaszwajka.com
@@ -72,7 +72,7 @@ not depend on CI.
    Use `minor` or `major` as needed. The Actions UI offers the same inputs.
 
 The `notify` input defaults to `true`. Set `-f notify=false` to skip only the
-Discord notice. The build, deploy, health check and release gates still run.
+Slack notice. The build, deploy, health check and release gates still run.
 Dry runs do not deploy or post a notice, whatever `notify` is set to.
 
 Running the workflow is the approval. A private repo on GitHub Free gets no
@@ -84,10 +84,9 @@ The Git tag `vX.Y.Z` is the app version. The `version` fields in the
 workflow, `release-cli.yml`. The two never mix: "Create release" only reads
 tags that match `v[0-9]*.[0-9]*.[0-9]*`, and `cli-v0.1.0` does not.
 
-Only the deploy job posts to Discord. It reads
-`✅ hosti prod deploy succeeded — vX.Y.Z (<12>) — <run url>`, or
-`❌ hosti prod deploy failed — …` for any other deploy outcome. Build and tag
-failures stay in GitHub Actions and do not post there.
+Only the deploy job posts to Slack. It sends the repository, branch, deploy
+status, and Actions run URL. Build and tag failures stay in GitHub Actions and
+do not post there.
 
 ## Redeploy or roll back
 
@@ -180,13 +179,15 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Kind | Name | Note |
 |---|---|---|
 | Secret | `DOKPLOY_API_KEY` | Dokploy API key for the deploy. |
-| Secret | `DISCORD_DEPLOY_WEBHOOK` | A plain Discord #deploys channel webhook URL. Empty means no post. |
+| Secret | `SLACK_BOT_TOKEN` | Slack bot token with `chat:write` access to `#deploys` (`C0CN3MPU3J4`). |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
 | Variable | `DOKPLOY_APPLICATION_ID` | The Dokploy application that runs the Hosti app image. |
 | Variable | `APP_URL` | Public origin of the app. The deploy polls `APP_URL/api/health`. |
 
-A preflight step in both jobs fails with one line per missing name, before any
-tag exists. It never prints a value. An empty `DISCORD_DEPLOY_WEBHOOK` only warns.
+A preflight step in both jobs checks the Dokploy settings and `APP_URL`. It
+fails with one line per missing name, before any tag exists, and never prints a
+value. It does not check `SLACK_BOT_TOKEN`. A missing or invalid token fails
+only the `Notify Slack` step, which has `continue-on-error: true`.
 
 These sit at repo level, with no `environment:`. The Dokploy application
 needs an image source that can pull from GHCR, with auto deploy off.

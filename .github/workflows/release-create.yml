@@ -24,7 +24,7 @@ on:
         type: string
         default: ""
       notify:
-        description: Post the deployment result to Discord
+        description: Post the deployment result to Slack
         type: boolean
         default: true
 
@@ -79,13 +79,11 @@ jobs:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
           APP_URL: ${{ vars.APP_URL }}
-          DISCORD_DEPLOY_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
         run: |
           missing=0
           for name in DOKPLOY_BASE_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID APP_URL; do
             if [ -z "${!name}" ]; then echo "Missing or empty: ${name}" >&2; missing=1; fi
           done
-          [ -n "$DISCORD_DEPLOY_WEBHOOK" ] || echo "::warning::DISCORD_DEPLOY_WEBHOOK is empty: no Discord line will be posted."
           # An empty KEY= overrides the Dockerfile default. Warn by name, never print a value.
           while IFS= read -r line || [ -n "$line" ]; do
             line="${line%$'\r'}"
@@ -232,13 +230,11 @@ jobs:
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
           DOKPLOY_APPLICATION_ID: ${{ vars.DOKPLOY_APPLICATION_ID }}
           APP_URL: ${{ vars.APP_URL }}
-          DISCORD_DEPLOY_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
         run: |
           missing=0
           for name in DOKPLOY_BASE_URL DOKPLOY_API_KEY DOKPLOY_APPLICATION_ID APP_URL; do
             if [ -z "${!name}" ]; then echo "Missing or empty: ${name}" >&2; missing=1; fi
           done
-          [ -n "$DISCORD_DEPLOY_WEBHOOK" ] || echo "::warning::DISCORD_DEPLOY_WEBHOOK is empty: no Discord line will be posted."
           [ "$missing" = 0 ] || { echo "Set the names above under Settings > Secrets and variables > Actions, then run again." >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -332,17 +328,11 @@ jobs:
               echo "There is no earlier release to roll back to."
             fi
           } | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Notify Discord
+      - name: Notify Slack
         if: ${{ always() && github.ref == 'refs/heads/main' && inputs.notify }}
         continue-on-error: true
         env:
-          WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK }}
-          STATUS: ${{ job.status }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
-          [ -n "$WEBHOOK" ] || exit 0
-          outcome="❌ ${GITHUB_REPOSITORY#*/} prod deploy failed"
-          [ "$STATUS" = "success" ] && outcome="✅ ${GITHUB_REPOSITORY#*/} prod deploy succeeded"
-          text="${outcome} — ${VERSION:-unknown} (${SHA12:-unknown}) — ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          jq -nc --arg c "$text" '{content: $c}' \
-            | curl -fsS -X POST -H 'content-type: application/json' -d @- "$WEBHOOK" >/dev/null 2>&1 \
-            || echo "Discord notify failed; ignoring." >&2
+          msg="${{ github.repository }} ${{ github.ref_name }} deploy: ${{ job.status }} — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          jq -n --arg c C0CN3MPU3J4 --arg t "$msg" '{channel:$c,text:$t}' | curl -sf -X POST https://slack.com/api/chat.postMessage -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H 'Content-Type: application/json; charset=utf-8' --data-binary @- | jq -e .ok
