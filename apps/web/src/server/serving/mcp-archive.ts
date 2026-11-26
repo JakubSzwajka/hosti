@@ -1,30 +1,26 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 import { Readable } from "node:stream";
 import { create } from "tar";
-import { bundlesDir, dataDir } from "@/server/config";
+import { directoryIdentity } from "@hosti/storage";
+import { bundlesDir } from "@/server/config";
+import { runStoragePromise } from "@/server/runtime";
 
 export async function mcpArchiveResponse(
   slug: string,
   seq: number,
   identity: string,
 ): Promise<Response | null> {
-  const bundleRoot = path.join(bundlesDir(), slug);
-  const root = path.join(bundleRoot, `r${seq}`);
+  const root = await runStoragePromise((storage) => storage.revisionDir(bundlesDir(), slug, seq));
   const directory = await fs.open(root, "r").catch(() => null);
   if (!directory) return null;
   try {
-    const opened = await directory.stat();
-    const current = await fs.stat(root);
-    const storedIdentity = await fs.readFile(
-      path.join(dataDir(), "mcp-transfers", "revisions", slug, `r${seq}`),
-      "utf8",
-    );
+    const opened = await directory.stat({ bigint: true });
+    const current = await fs.stat(root, { bigint: true });
     if (
       !opened.isDirectory() ||
       current.ino !== opened.ino ||
       current.dev !== opened.dev ||
-      storedIdentity !== identity
+      directoryIdentity(opened) !== identity
     ) {
       await directory.close();
       return null;

@@ -1,7 +1,7 @@
-import { Clock, Effect, FileSystem, Path, Schema, Semaphore } from "effect";
+import { Clock, Context, Effect, FileSystem, Layer, Path, Schema, Semaphore } from "effect";
 import * as Crypto from "effect/Crypto";
 import { PUSH_LIMITS, isValidSlug, readCollection } from "@hosti/shared";
-import { storageError } from "./storage-error";
+import { storageError, type StorageError } from "./storage-error";
 
 const common = {
   subject: Schema.NonEmptyString,
@@ -39,7 +39,7 @@ const allocation = Semaphore.makeUnsafe(1);
 const busy = () => storageError("transfer_limit", "Transfer capacity reached. Retry later", 429);
 const validId = (id: string) => /^[a-f0-9-]{36}$/.test(id);
 
-export const issueTransfer = Effect.fn("Storage.issueTransfer")(function* (
+const issueTransfer = Effect.fn("Storage.issueTransfer")(function* (
   dataDir: string,
   input: TransferInput,
 ) {
@@ -51,7 +51,7 @@ export const issueTransfer = Effect.fn("Storage.issueTransfer")(function* (
     decoded.subject.length > 256 ||
     decoded.clientId.length > 256 ||
     (decoded.kind === "upload" &&
-      (decoded.clientName.length > 80 ||
+      (Array.from(decoded.clientName).length > 80 ||
         (decoded.title?.length ?? 0) > 200 ||
         (decoded.collection !== null && readCollection(decoded.collection) === undefined) ||
         decoded.maxBytes < 1 ||
@@ -106,7 +106,7 @@ export const issueTransfer = Effect.fn("Storage.issueTransfer")(function* (
   );
 });
 
-export const readTransfer = Effect.fn("Storage.readTransfer")(function* (
+const readTransfer = Effect.fn("Storage.readTransfer")(function* (
   dataDir: string,
   id: string,
   kind: "upload" | "download",
@@ -130,10 +130,7 @@ export const readTransfer = Effect.fn("Storage.readTransfer")(function* (
   return grant;
 });
 
-export const reserveUpload = Effect.fn("Storage.reserveUpload")(function* (
-  dataDir: string,
-  id: string,
-) {
+const reserveUpload = Effect.fn("Storage.reserveUpload")(function* (dataDir: string, id: string) {
   const grant = yield* readTransfer(dataDir, id, "upload");
   if (grant.input.kind !== "upload") return yield* invalid();
   const fs = yield* FileSystem.FileSystem;
@@ -149,19 +146,35 @@ export const reserveUpload = Effect.fn("Storage.reserveUpload")(function* (
   return { ...grant, input: grant.input };
 });
 
-export const revisionIdentity = Effect.fn("Storage.revisionIdentity")(function* (
-  bundlesRoot: string,
-  slug: string,
-  seq: number,
-) {
-  if (!isValidSlug(slug) || !Number.isSafeInteger(seq) || seq < 1) return yield* invalid();
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const crypto = yield* Crypto.Crypto;
-  const dir = path.join(path.dirname(bundlesRoot), "mcp-transfers", "revisions", slug);
-  yield* fs.makeDirectory(dir, { recursive: true, mode: 0o700 }).pipe(Effect.mapError(ioError));
-  const file = path.join(dir, `r${seq}`);
-  const identity = yield* crypto.randomUUIDv4.pipe(Effect.mapError(ioError));
-  yield* fs.writeFileString(file, identity, { flag: "wx", mode: 0o600 }).pipe(Effect.ignore);
-  return yield* fs.readFileString(file).pipe(Effect.mapError(invalid));
-});
+export class Transfers extends Context.Service<
+  Transfers,
+  {
+    issue(dataDir: string, input: TransferInput): Effect.Effect<Transfer, StorageError>;
+    read(
+      dataDir: string,
+      id: string,
+      kind: "upload" | "download",
+    ): Effect.Effect<Transfer, StorageError>;
+    reserveUpload(
+      dataDir: string,
+      id: string,
+    ): Effect.Effect<Transfer & { input: typeof UploadTransfer.Type }, StorageError>;
+  }
+>()("@hosti/storage/Transfers") {
+  static readonly layer = Layer.effect(
+    Transfers,
+    Effect.gen(function* () {
+      const dependencies = yield* Effect.context<
+        FileSystem.FileSystem | Path.Path | Crypto.Crypto
+      >();
+      return Transfers.of({
+        issue: (dataDir, input) =>
+          issueTransfer(dataDir, input).pipe(Effect.provideContext(dependencies)),
+        read: (dataDir, id, kind) =>
+          readTransfer(dataDir, id, kind).pipe(Effect.provideContext(dependencies)),
+        reserveUpload: (dataDir, id) =>
+          reserveUpload(dataDir, id).pipe(Effect.provideContext(dependencies)),
+      });
+    }),
+  );
+}

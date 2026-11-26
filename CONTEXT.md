@@ -18,9 +18,9 @@ for example `garmin-q3`.
 _Avoid_: site, artifact, report, project.
 
 **Revision**:
-One file tree unpacked onto a bundle, from `hosti push` or from the owner
-uploading an archive in the catalog. The same slug again creates a new revision
-and moves the `current` pointer. It then prunes: the newest few revisions stay
+One file tree unpacked onto a bundle, from `hosti push`, an MCP transfer grant,
+or the owner uploading an archive in the catalog. The same slug again creates
+a new revision and moves the `current` pointer. It then prunes: the newest few revisions stay
 and the rest are deleted, files and rows both. Hosti creates a tar.gz from the
 stored tree only when the archive route is requested.
 _Avoid_: version, build, deploy.
@@ -87,10 +87,12 @@ the clear token and the polling secret. It is never a push token itself.
 _Avoid_: device code, pairing, token request.
 
 **Scope**:
-One named power a push token carries. There are three. `publish` lists, reads,
-pushes and prunes. `share` sets the sharing state and the pin, and rotates.
-`delete` deletes a bundle. Every token has `publish`. `delete` is granted only
-when the agent asked for it and the owner ticked it.
+One named power a push token or MCP client carries. There are three. `publish`
+lists, reads, pushes and prunes. `share` sets the sharing state and the pin, and
+rotates. `delete` deletes a bundle. Every token has `publish`. An agent
+connection grants `delete` only when requested and approved by the owner.
+Every admitted MCP client has `publish` and `share`. It has `delete` only when
+the owner explicitly allowlists its verified client ID.
 _Avoid_: permission, role, right.
 
 **Admin session**:
@@ -103,25 +105,32 @@ _Avoid_: login, user account.
 ## How the pieces sit
 
 ```
-POST /api/v1/bundles/<slug>/revisions      GET /v/<share-slug>/<path>
-        | push token                               | link or pin
-POST /upload                                       |
-        | admin session + mutation token           |
-        v                                          v
+POST /mcp (owner OAuth) -> push tool -> upload grant
+                                           |
+PUT /api/mcp/uploads/<id> (transfer grant)   |
+POST /api/v1/bundles/<slug>/revisions       |   GET /v/<share-slug>/<path>
+        | push token                       |            | link or pin
+POST /upload                               |            |
+        | admin session + mutation token   |            |
+        +----------------------------------+            |
+        v                                               v
    unpack to r<n>  ->  entry file check  ->  flip current
-        |                                          |
-        +----------- /data/bundles/<slug>/ --------+
+        |                                               |
+        +-------------- /data/bundles/<slug>/ -----------+
         |
-        +----------- /data/hosti.db (metadata)
+        +-------------- /data/hosti.db (metadata)
+
+POST /mcp -> get_download_link -> GET /api/mcp/downloads/<id>
+                                      | transfer grant, exact revision
 ```
 
-The two ways in differ only in who they let through and what the bytes are
+The ways in differ only in who they let through and what the bytes are
 wrapped in. A tarball is read by one reader and a zip by another, and both hand
 every entry to one sink, so the limits and the path rules cannot drift apart.
 
 A push stops at the left column. Nothing on the right answers while the bundle
-is private, and sharing has its own endpoints, all on the push token. Each route
-needs its scope: `share` for the sharing routes, `delete` for the delete, and
+is private. Sharing has push-token endpoints and owner-authenticated MCP tools.
+Each route needs its scope: `share` for the sharing routes, `delete` for the delete, and
 `publish` for the rest:
 
 ```

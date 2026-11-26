@@ -129,6 +129,7 @@ describe("MCP tools and binary transfers", () => {
   });
 
   it("pins current at issue and rejects tampering and method confusion", async () => {
+    await publish("mcp-main");
     const grant = await call("get_download_link", { slug: "mcp-main" });
     await publish("mcp-main", "multi-page");
     const response = await pull(grant.url);
@@ -196,6 +197,7 @@ describe("MCP tools and binary transfers", () => {
   });
 
   it("refuses unsafe archives and expiry without moving current", async () => {
+    await publish("mcp-race");
     const grant = await call("push", { slug: "mcp-unsafe" });
     const unsafe = makeTar([{ name: "../escape.html", content: "bad" }]);
     expect((await upload(grant.url, unsafe)).status).toBe(400);
@@ -215,6 +217,7 @@ describe("MCP tools and binary transfers", () => {
   });
 
   it("preserves sharing and pin semantics through rotate and private transitions", async () => {
+    await publish("mcp-main");
     const linked = await call("set_sharing", { slug: "mcp-main", mode: "link" });
     const rotated = await call("rotate_link", { slug: "mcp-main" });
     expect(rotated.sharing.mode).toBe("link");
@@ -228,6 +231,8 @@ describe("MCP tools and binary transfers", () => {
   });
 
   it("denies pruned targets and enforces delete allowlist plus explicit confirmation", async () => {
+    await publish("mcp-main");
+    await publish("mcp-main");
     const old = await call("get_download_link", { slug: "mcp-main", revision: 1 });
     await publish("mcp-main");
     expect((await call("prune", { slug: "mcp-main" })).kept).toEqual([3, 2]);
@@ -237,20 +242,23 @@ describe("MCP tools and binary transfers", () => {
     );
     const current = await call("get_download_link", { slug: "mcp-main" });
     process.env.HOSTI_MCP_DELETE_CLIENT_IDS = clientId;
-    expect((await call("delete_bundle", { slug: "mcp-main", confirm: "wrong" })).error).toBe(
-      "confirmation_required",
-    );
-    expect((await call("delete_bundle", { slug: "mcp-main", confirm: "mcp-main" })).deleted).toBe(
-      true,
-    );
-    await publish("mcp-main");
-    expect((await pull(current.url)).status).toBe(404);
-    const reused = await call("get_download_link", { slug: "mcp-main", revision: 1 });
-    expect((await call("delete_bundle", { slug: "mcp-main", confirm: "mcp-main" })).deleted).toBe(
-      true,
-    );
-    await publish("mcp-main", "multi-page");
-    expect((await pull(reused.url)).status).toBe(404);
-    process.env.HOSTI_MCP_DELETE_CLIENT_IDS = "";
+    try {
+      expect((await call("delete_bundle", { slug: "mcp-main", confirm: "wrong" })).error).toBe(
+        "confirmation_required",
+      );
+      expect((await call("delete_bundle", { slug: "mcp-main", confirm: "mcp-main" })).deleted).toBe(
+        true,
+      );
+      await publish("mcp-main");
+      expect((await pull(current.url)).status).toBe(404);
+      const reused = await call("get_download_link", { slug: "mcp-main", revision: 1 });
+      expect((await call("delete_bundle", { slug: "mcp-main", confirm: "mcp-main" })).deleted).toBe(
+        true,
+      );
+      await publish("mcp-main", "multi-page");
+      expect((await pull(reused.url)).status).toBe(404);
+    } finally {
+      process.env.HOSTI_MCP_DELETE_CLIENT_IDS = "";
+    }
   });
 });

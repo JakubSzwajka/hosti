@@ -1,4 +1,4 @@
-import { readTransfer } from "@hosti/storage";
+import { Transfers } from "@hosti/storage";
 import { Effect } from "effect";
 
 export const readMcpTransfer = Effect.fn("readMcpTransfer")(function* (
@@ -6,5 +6,6 @@ export const readMcpTransfer = Effect.fn("readMcpTransfer")(function* (
   id: string,
   kind: "upload" | "download",
 ) {
-  return yield* readTransfer(dataDir, id, kind);
+  const transfers = yield* Transfers;
+  return yield* transfers.read(dataDir, id, kind);
 });

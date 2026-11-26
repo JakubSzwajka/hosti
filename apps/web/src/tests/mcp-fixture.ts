@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { generateKeyPair, exportJWK, SignJWT } from "jose";
-import { afterAll, beforeAll, expect } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect } from "vitest";
 import { tarFixture, useTempDataDir } from "./test-fixtures";
 import { POST, DELETE } from "@/app/mcp/route";
 import { PUT } from "@/app/api/mcp/uploads/[id]/route";
@@ -20,6 +20,7 @@ export let token: string;
 export let session: string;
 let counter = 0;
 const saved = { ...process.env };
+const dataDirs: string[] = [];
 const sessions: string[] = [];
 
 export async function signed(overrides: Record<string, unknown> = {}, key = keys.privateKey) {
@@ -74,8 +75,8 @@ export async function initialize(auth = token, name = "  Hosti\n MCP proof  ") {
   return { response, id };
 }
 
-export async function call(name: string, args: object = {}) {
-  const response = await rpc("tools/call", { name, arguments: args });
+export async function call(name: string, args: object = {}, sessionId = session) {
+  const response = await rpc("tools/call", { name, arguments: args }, token, sessionId);
   expect(response.status).toBe(200);
   const text = await response.text();
   const json = JSON.parse(
@@ -110,7 +111,6 @@ export async function publish(slug: string, fixture = "single-file") {
 }
 
 beforeAll(async () => {
-  dataDir = await useTempDataDir();
   keys = await generateKeyPair("RS256");
   otherKeys = await generateKeyPair("RS256");
   jwks = { keys: [{ ...(await exportJWK(keys.publicKey)), kid: "first", alg: "RS256" }] };
@@ -124,6 +124,7 @@ beforeAll(async () => {
   issuerUrl = `http://127.0.0.1:${address.port}`;
   process.env.CLERK_ISSUER = issuerUrl;
   process.env.HOSTI_MCP_URL = `${base}/mcp`;
+  process.env.HOSTI_PUBLIC_URL = "https://public.hosti.test/";
   process.env.HOSTI_OWNER_CLERK_USER_ID = owner;
   process.env.HOSTI_MCP_DELETE_CLIENT_IDS = "";
   process.env.HOSTI_SECRET = "synthetic-local-test-secret-not-production";
@@ -133,6 +134,11 @@ beforeAll(async () => {
   expect(initialized.response.status).toBe(200);
   expect(initialized.id).toBeTruthy();
   session = initialized.id ?? "";
+});
+
+beforeEach(async () => {
+  dataDir = await useTempDataDir();
+  dataDirs.push(dataDir);
 });
 
 afterAll(async () => {
@@ -150,6 +156,7 @@ afterAll(async () => {
   for (const key of [
     "CLERK_ISSUER",
     "HOSTI_MCP_URL",
+    "HOSTI_PUBLIC_URL",
     "HOSTI_OWNER_CLERK_USER_ID",
     "HOSTI_MCP_DELETE_CLIENT_IDS",
     "HOSTI_SECRET",
@@ -159,5 +166,5 @@ afterAll(async () => {
     if (saved[key] === undefined) delete process.env[key];
     else process.env[key] = saved[key];
   }
-  await fs.rm(dataDir, { recursive: true, force: true });
+  await Promise.all(dataDirs.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });

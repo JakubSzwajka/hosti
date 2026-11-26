@@ -79,12 +79,6 @@ function removeRevisionDir(
     yield* fs
       .remove(dir, { recursive: true, force: true })
       .pipe(Effect.mapError(internalBundlesError));
-    yield* fs
-      .remove(
-        path.join(path.dirname(bundlesRoot), "mcp-transfers", "revisions", bundleSlug, `r${seq}`),
-        { force: true },
-      )
-      .pipe(Effect.mapError(internalBundlesError));
     return true;
   });
 }

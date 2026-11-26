@@ -83,6 +83,9 @@ The runner checks both metadata paths, anonymous challenges, signed-token refusa
 Its `Hosti MCP proof` client uploads `mcp-proof` with curl, then downloads and checks file hashes.
 The fixture includes `index.html`, nested text and binary bytes.
 It exercises sharing, link rotation, an owner-supplied synthetic pin, retention and delete refusal.
+The pin page request uses `Accept: text/html` and requires the gate form at HTTP 200.
+The same locked URL with `*/*`, and a locked nested asset, must return 404.
+Wrong transfer methods return 405 and tampered signatures return 404 before valid use.
 It kills its own Next process during a reserved upload, then restarts that process.
 It checks interrupted, used, failed and unused upload grants after restart.
 The old download grant still returns its original revision after the restart and a later push.
@@ -97,9 +100,14 @@ Do not retain raw request logs, keys, pins, signatures or credentials.
 Run the security tests for expiry, key rotation, unsafe archives, limits and revision reuse:
 
 ```bash
-pnpm --filter @hosti/web exec vitest run src/tests/mcp.test.ts
+pnpm --filter @hosti/web exec vitest run src/tests/mcp.test.ts src/tests/mcp-regressions.test.ts
 pnpm --filter @hosti/storage exec vitest run src/tests/transfers.test.ts
 ```
+
+Regression tests use different public and MCP origins, a pre-feature writer recreation,
+and an obstructed MCP metadata path with MCP disabled.
+They also check the streamed grant byte limit and Unicode client-name boundary.
+Download generation checks require Linux `/proc/self/fd` and directory birth times.
 
 Production Clerk JWT access tokens and the audience claim are enabled; PKCE is required.
 Real deployed Clerk/OpenBot OAuth remains CANNOT PROVE here and belongs to Majster.

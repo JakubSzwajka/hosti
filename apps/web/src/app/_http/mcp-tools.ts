@@ -2,7 +2,7 @@ import { Effect, Layer, Schema } from "effect";
 import { McpServer, Tool, Toolkit } from "effect/unstable/ai";
 import { sharingBody } from "@hosti/bundles";
 import { PUSH_LIMITS } from "@hosti/shared";
-import { bundlesDir, dataDir, keepRevisions } from "@/server/config";
+import { bundlesDir, dataDir, keepRevisions, publicBaseUrl } from "@/server/config";
 import { PushError } from "@/server/errors";
 import { listCatalog } from "@/use-cases/list-catalog";
 import { showBundle } from "@/use-cases/show-bundle";
@@ -15,7 +15,7 @@ import { issueUploadTransfer } from "@/use-cases/issue-upload-transfer";
 import { issueDownloadTransfer } from "@/use-cases/issue-download-transfer";
 import { runAppUseCase } from "./run-use-case";
 import { isMcpDeleteClient, type McpPrincipal } from "./mcp-auth";
-import { mcpResource, transferUrl } from "./mcp-capability";
+import { transferUrl } from "./mcp-capability";
 
 const slug = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64));
 const metadata = Schema.String.check(Schema.isMaxLength(200));
@@ -103,8 +103,8 @@ function required<A>(value: A | null): A {
   return value;
 }
 
-export function mcpTools(principal: McpPrincipal, clientName: string) {
-  const baseUrl = mcpResource().origin;
+export function mcpTools(principal: McpPrincipal, clientName: string, requestOrigin: string) {
+  const baseUrl = publicBaseUrl(new Request(requestOrigin));
   const call = <A>(work: () => Promise<A>) =>
     Effect.tryPromise({
       try: work,

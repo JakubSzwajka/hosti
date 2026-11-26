@@ -3,12 +3,11 @@ import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { archiveSource } from "@/app/_http/archive";
 import {
   admittedTransfer,
-  mcpResource,
   verifyTransferRequest,
   transferFailure,
 } from "@/app/_http/mcp-capability";
 import { runAppUseCase } from "@/app/_http/run-use-case";
-import { bundlesDir, dataDir, keepRevisions } from "@/server/config";
+import { bundlesDir, dataDir, keepRevisions, publicBaseUrl } from "@/server/config";
 import { jsonResponse } from "@/server/api-responses";
 import { PushError } from "@/server/errors";
 import { reserveMcpUpload } from "@/use-cases/reserve-mcp-upload";
@@ -44,7 +43,8 @@ export async function PUT(request: Request, context: Context): Promise<Response>
         pushedBy: { kind: "mcp", name: `mcp:${grant.input.clientName}` },
         source: archiveSource(source, "bad_tarball", "Cannot read archive"),
         bundlesRoot: bundlesDir(),
-        baseUrl: mcpResource().origin,
+        baseUrl: publicBaseUrl(request),
+        limits: { maxCompressedBytes: grant.input.maxBytes },
         keep: keepRevisions(),
       }),
     );

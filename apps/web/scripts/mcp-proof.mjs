@@ -57,6 +57,13 @@ try {
     (await proof.call("get_bundle", { slug: "mcp-proof" })).error === "not_found",
     "grant creates no revision",
   );
+  check((await proof.curl(first.url, "GET")).status === 405, "upload rejects GET");
+  check((await proof.curl(first.url, "HEAD")).status === 405, "upload rejects HEAD");
+  check(
+    (await proof.curl(first.url.replace("sig=", "sig=x"), "PUT", proof.archive)).status === 404,
+    "tampered upload rejected without consuming grant",
+  );
+  pass("upload wrong methods 405 and tampered signature 404 before valid PUT");
   const uploaded = await proof.curl(first.url, "PUT", proof.archive);
   check(
     uploaded.status === 201 && JSON.parse(uploaded.body).revision === 1,
@@ -69,8 +76,13 @@ try {
     "private and attributed push",
   );
   const oldDownload = await proof.call("get_download_link", { slug: "mcp-proof" });
+  check((await proof.curl(oldDownload.url, "HEAD")).status === 405, "download rejects HEAD");
+  check(
+    (await proof.curl(oldDownload.url.replace("sig=", "sig=x"), "GET")).status === 404,
+    "tampered download rejected",
+  );
   await proof.verifyDownload(oldDownload.url);
-  pass("curl upload and matching nested/binary download hashes");
+  pass("download HEAD 405 and tampered signature 404; valid GET matches nested/binary hashes");
   stage = "sharing";
   const shared = await proof.call("set_sharing", { slug: "mcp-proof", mode: "link" });
   check((await fetch(shared.shareUrl)).status === 200, "link serves");
@@ -81,6 +93,18 @@ try {
   );
   const pinned = await proof.call("set_sharing", { slug: "mcp-proof", mode: "pin", pin: "4821" });
   check(pinned.sharing.hasPin, "pin present");
+  const gate = await fetch(pinned.shareUrl, { headers: { Accept: "text/html" } });
+  const gateHtml = await gate.text();
+  check(
+    gate.status === 200 && gateHtml.includes('name="pin"') && gateHtml.includes("/unlock"),
+    "HTML page request displays pin gate",
+  );
+  check(
+    (await fetch(pinned.shareUrl, { headers: { Accept: "*/*" } })).status === 404 &&
+      (await fetch(new URL("nested/note.txt", pinned.shareUrl))).status === 404,
+    "locked non-page and asset requests stay private",
+  );
+  pass("pin page Accept:text/html 200 with form; */* and locked nested asset 404");
   const privateState = await proof.call("set_sharing", { slug: "mcp-proof", mode: "private" });
   check(
     !privateState.sharing.hasPin && (await fetch(rotated.shareUrl)).status === 404,

@@ -21,7 +21,7 @@ const MAX_REQUEST_BYTES = 64 * 1024;
 const SESSION_TTL = 30 * 60_000;
 let initializing = 0;
 
-function makeTransport(principal: McpPrincipal, name: string) {
+function makeTransport(principal: McpPrincipal, name: string, requestOrigin: string) {
   const server = McpServer.layerHttp({
     name: "Hosti",
     version: "1.0.0",
@@ -29,9 +29,12 @@ function makeTransport(principal: McpPrincipal, name: string) {
     protocols: [McpProtocol.v2025_11_25, McpProtocol.v2025_06_18, McpProtocol.v2025_03_26],
     allowedOrigins: [mcpResource().origin],
   });
-  return HttpRouter.toWebHandler(mcpTools(principal, name).pipe(Layer.provideMerge(server)), {
-    disableLogger: true,
-  });
+  return HttpRouter.toWebHandler(
+    mcpTools(principal, name, requestOrigin).pipe(Layer.provideMerge(server)),
+    {
+      disableLogger: true,
+    },
+  );
 }
 
 function denied(status: number): Response {
@@ -132,17 +135,16 @@ async function dispatchMcp(request: Request): Promise<Response> {
     let name: string;
     try {
       const init = Schema.decodeUnknownSync(Schema.fromJsonString(Initialization))(body);
-      name =
-        Array.from(init.params.clientInfo.name.normalize("NFKC"))
-          .filter((char) => !/\p{C}/u.test(char))
-          .join("")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 80) || "unknown";
+      const normalized = Array.from(init.params.clientInfo.name.normalize("NFKC"))
+        .filter((char) => !/\p{C}/u.test(char))
+        .join("")
+        .replace(/\s+/g, " ")
+        .trim();
+      name = Array.from(normalized).slice(0, 80).join("") || "unknown";
     } catch {
       return Response.json({ error: "initialize_required" }, { status: 400 });
     }
-    const transport = makeTransport(principal, name);
+    const transport = makeTransport(principal, name, new URL(request.url).origin);
     const response = await transport.handler(
       new Request(request.url, { method: "POST", headers: request.headers, body }),
     );

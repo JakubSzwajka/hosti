@@ -1,10 +1,8 @@
 export { ArchiveCodec } from "./archive-codec";
 export { Storage } from "./storage";
+export { RevisionIdentity, directoryIdentity } from "./revision-identity";
 export {
-  issueTransfer,
-  readTransfer,
-  reserveUpload,
-  revisionIdentity,
+  Transfers,
   TRANSFER_TTL_MS,
   MAX_TRANSFERS,
   UploadTransfer,

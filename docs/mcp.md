@@ -64,8 +64,12 @@ A collection filter of `null` selects bundles without a collection.
 Titles are limited to 200 characters. Existing slug and collection rules apply.
 A push never changes sharing. Hosti never returns a pin or pin hash.
 
+Share links, admin links and upload-result links use `HOSTI_PUBLIC_URL`.
+Without that setting, they use the request origin, as existing API routes do.
+Capability links always use the configured `HOSTI_MCP_URL` origin.
+
 Each MCP revision records `mcp:<client-name>` in `pushedBy`.
-Hosti normalizes the initialization name, removes controls and caps it at 80 characters.
+Hosti normalizes the initialization name, removes controls and caps it at 80 Unicode codepoints.
 This is declared attribution, not an authenticated bot identity.
 One shared OpenBot name cannot identify individual bots.
 Hosti stores verified subject and client ID separately in transfer state.
@@ -90,7 +94,10 @@ State lives under `HOSTI_DATA_DIR/mcp-transfers`, outside served bundles.
 It contains no bearer tokens, push tokens, pins or signatures.
 Keep this directory on the same persistent volume as the catalog.
 Expired state is cleaned when a new grant is issued.
-One process allows at most 256 outstanding grants, including consumed uploads until expiry.
+The outstanding-grant check counts shared files, including consumed uploads until expiry.
+Each process serializes its own allocations and refuses issuance at 256 grants.
+The allocation lock is not shared between processes.
+With N overlapping processes, simultaneous allocation can exceed 256 by up to N-1 grants.
 
 An upload atomically reserves its persistent single-use marker before reading the archive.
 Concurrent replay and restart replay cannot create another revision.
@@ -101,13 +108,34 @@ Archive bytes stream through the existing validation and storage.
 An invalid archive never becomes current. PUT cannot change the grant's metadata or attribution.
 
 Downloads are reusable until expiry. Current is fixed when the grant is issued.
-Each revision has a random identity file outside its served tree.
-Legacy revisions get an identity when first requested.
+A grant binds the directory device, inode and nanosecond birth time observed at issue.
+The catalog must still contain that revision when the grant is used.
+Before streaming, Hosti compares that generation with the opened directory handle.
 Pruning or deleting a revision revokes its download grants.
-Recreating the same slug and sequence cannot expose replacement bytes.
-Linux directory handles keep archive streaming tied to the checked directory.
+Recreating the same slug and sequence cannot expose replacement bytes, even with an older writer.
+No revision sidecar is read or written. Legacy writes never need MCP metadata storage.
+Grants from the sidecar-based implementation fail closed after this change.
+Linux `/proc/self/fd` keeps archive streaming tied to the checked directory.
+MCP downloads require Linux and filesystem support for nonzero directory birth times.
+Missing generation information fails closed; macOS MCP downloads are not supported.
 Downloads do not change sharing or retention.
 Responses are attachments with no-store, nosniff and no-referrer.
+
+## Transport boundary and limits
+
+Effect MCP runs a transport-only HTTP handler for each session in delivery.
+This is the approved exception to the delivery rule against running Effects.
+It hosts protocol state and tool dispatch, not domain services.
+Tools cross `app/_http/run-use-case.ts` into the single domain ManagedRuntime.
+There is no second domain runtime and no internal HTTP or CLI hop.
+Transfer service methods capture their filesystem, path and crypto dependencies.
+
+Discovery supports simple cross-origin GET requests, not custom-header browser preflights.
+Missing email scope returns 403 without a step-up scope challenge.
+The bearer scheme requires `Bearer ` with that exact case.
+The 15-second MCP body timeout currently returns 413, like the byte limit.
+Titles keep the existing text policy; the 200-character cap does not remove controls.
+These limits do not change the native-client flow.
 
 ## Local proof and production handoff
 
@@ -115,6 +143,9 @@ Run `pnpm build`, then `node apps/web/scripts/mcp-proof.mjs`.
 The runner starts an isolated real Next server on an unused port and a local JWKS issuer.
 It signs synthetic JWTs and uses actual curl PUT and GET without printing grants or credentials.
 It verifies nested and binary file hashes, sharing, replay, restart persistence, retention and delete scope.
+The pin check sends `Accept: text/html` and requires the HTML gate form.
+Locked `*/*` requests and assets must still return 404.
+The runner also observes wrong transfer methods and tampered signatures before valid use.
 It kills only its own server during a reserved upload and proves that replay stays refused.
 It removes only its own temporary data and stops only its own processes.
 See [the proof setup skill](../.agents/skills/prove-setup/SKILL.md) for the exact evidence command and CLI setup.
@@ -139,5 +170,8 @@ done
 
 Stop the probe with Ctrl-C and keep its transcript.
 Do not replace a running instance with a stop-first manual restart.
+Before release, Majster must check one real Clerk OAuth access token without retaining its clear value.
+Confirm string `aud` equals the exact resource, no `sid` or delegation claim exists, and `email` is present.
+Do not loosen RS256, audience or session-credential checks without a separate policy decision.
 After release, Majster must prove real Clerk/OpenBot OAuth and curl transfer on deployed Hosti.
 Local signed-JWT proof does not prove Clerk's login UI or OpenBot compatibility.

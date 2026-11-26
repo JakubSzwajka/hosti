@@ -1,6 +1,6 @@
 import { BundlesError } from "@hosti/bundles";
 import { Catalog } from "@hosti/catalog";
-import { issueTransfer, revisionIdentity } from "@hosti/storage";
+import { Storage, Transfers, RevisionIdentity } from "@hosti/storage";
 import { Effect } from "effect";
 
 export const issueDownloadTransfer = Effect.fn("issueDownloadTransfer")(function* (input: {
@@ -28,8 +28,12 @@ export const issueDownloadTransfer = Effect.fn("issueDownloadTransfer")(function
       status: 404,
     });
   }
-  const identity = yield* revisionIdentity(input.bundlesRoot, input.slug, seq);
-  return yield* issueTransfer(input.dataDir, {
+  const storage = yield* Storage;
+  const identities = yield* RevisionIdentity;
+  const transfers = yield* Transfers;
+  const directory = yield* storage.revisionDir(input.bundlesRoot, input.slug, seq);
+  const identity = yield* identities.read(directory);
+  return yield* transfers.issue(input.dataDir, {
     kind: "download",
     slug: input.slug,
     seq,
