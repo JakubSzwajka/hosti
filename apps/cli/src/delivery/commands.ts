@@ -3,6 +3,7 @@ import { scanForAbsoluteRefs } from "./absolute-refs.ts";
 import type { Flags } from "./args.ts";
 import { ApiError, type Client } from "./client.ts";
 import { packBundle } from "./pack.ts";
+import { pull } from "./pull.ts";
 import { say, table, warnAbsoluteRefs, type Writer } from "./output.ts";
 
 export type Context = {
@@ -148,4 +149,4 @@ export async function whoami(context: Context): Promise<void> {
   say(context.out, "scopes", me.scopes.join(", "));
 }
 
-export const COMMAND_TABLE = { whoami, push, ls, share, rotate, rm, open, prune } as const;
+export const COMMAND_TABLE = { whoami, push, ls, share, rotate, rm, open, prune, pull } as const;
