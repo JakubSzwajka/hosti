@@ -35,11 +35,6 @@ describe("gated two-image release workflow", () => {
       workflow,
       /notify:\n {8}description: Post the deployment result to Slack\n {8}type: boolean\n {8}default: true/,
     );
-    assert.ok(
-      workflow.includes(
-        `- name: Notify Slack\n        if: ${githubExpression(" always() && github.ref == 'refs/heads/main' && inputs.notify ")}`,
-      ),
-    );
     assert.match(
       workflow,
       /- name: Notify Slack\n        if: \$\{\{ always\(\) && github\.ref == 'refs\/heads\/main' && inputs\.notify \}\}\n        continue-on-error: true/,
@@ -51,7 +46,7 @@ describe("gated two-image release workflow", () => {
     );
     assert.match(workflow, /Authorization: Bearer \$SLACK_BOT_TOKEN/);
     assert.match(workflow, /jq -e \.ok/);
-    assert.doesNotMatch(workflow, /DISCORD|Discord/);
+    assert.doesNotMatch(workflow, /discord/i);
     assert.match(workflow, /if: \$\{\{ !cancelled\(\) && !inputs\.dry_run/);
   });
 

@@ -25,7 +25,7 @@ merge to main ──> CI only (static, test, image, landing, secrets). No push, 
 Create release (dispatch on main)   inputs: bump, dry_run, redeploy, notify
   │
   ├─ build-and-tag            skipped when redeploy is set
-  │    preflight: every variable and secret name is set
+  │    preflight: required deploy configuration is set
   │    CI gate: the newest push run of "CI" on this commit is green
   │    next vX.Y.Z from the newest v*.*.* tag (cli-v* tags are ignored)
   │    dry_run? ── yes ──> print version + commit subjects, stop
@@ -73,9 +73,7 @@ not depend on CI.
 
 The `notify` input defaults to `true`. Set `-f notify=false` to skip only the
 Slack notice. The build, deploy, health check and release gates still run.
-Dry runs do not deploy or post a notice, whatever `notify` is set to. You can
-inspect a dry run without posting to Slack by dispatching on `main` with
-`-f dry_run=true -f notify=true`.
+Dry runs do not deploy or post a notice, whatever `notify` is set to.
 
 Running the workflow is the approval. A private repo on GitHub Free gets no
 environment reviewers, so nothing else stands between a merge and prod.
@@ -181,13 +179,15 @@ then. Self-hosters who run `docker-compose.yml` get the newest release on each
 | Kind | Name | Note |
 |---|---|---|
 | Secret | `DOKPLOY_API_KEY` | Dokploy API key for the deploy. |
-| Secret | `SLACK_BOT_TOKEN` | Slack bot token with permission to post to the release channel. |
+| Secret | `SLACK_BOT_TOKEN` | Slack bot token with `chat:write` access to `#deploys` (`C0CN3MPU3J4`). |
 | Variable | `DOKPLOY_BASE_URL` | Dokploy URL. |
 | Variable | `DOKPLOY_APPLICATION_ID` | The Dokploy application that runs the Hosti app image. |
 | Variable | `APP_URL` | Public origin of the app. The deploy polls `APP_URL/api/health`. |
 
-A preflight step in both jobs fails with one line per missing name, before any
-tag exists. It never prints a value.
+A preflight step in both jobs checks the Dokploy settings and `APP_URL`. It
+fails with one line per missing name, before any tag exists, and never prints a
+value. It does not check `SLACK_BOT_TOKEN`. A missing or invalid token fails
+only the `Notify Slack` step, which has `continue-on-error: true`.
 
 These sit at repo level, with no `environment:`. The Dokploy application
 needs an image source that can pull from GHCR, with auto deploy off.
