@@ -29,6 +29,12 @@ export const removeBundle = Effect.fn("Bundles.removeBundle")(function* ({
   if (relative === ".." || relative.startsWith(`..${path.sep}`)) return true;
 
   yield* fs
+    .remove(path.join(path.dirname(root), "mcp-transfers", "revisions", bundle.slug), {
+      recursive: true,
+      force: true,
+    })
+    .pipe(Effect.mapError(internalBundlesError));
+  yield* fs
     .remove(target, { recursive: true, force: true })
     .pipe(Effect.mapError(internalBundlesError));
   return true;

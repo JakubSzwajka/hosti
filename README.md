@@ -20,6 +20,8 @@ are defined in [CONTEXT.md](./CONTEXT.md).
   everyone who has the old address.
 - Agent login approved in your browser: no token passes through the clipboard
   or the chat. Tokens carry scopes (`publish`, `share`, `delete`).
+- Clerk OAuth MCP at `/mcp`, with metadata tools and curl upload/download grants.
+  See [MCP setup](./docs/mcp.md) for configuration and local proof.
 - The `hosti-publish` skill, so an agent knows how to push and share.
 - One container, one `/data` volume: the bundles and a SQLite file.
 

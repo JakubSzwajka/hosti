@@ -65,9 +65,19 @@ It carries scopes, and the server checks them on every `/api/v1/bundles` route.
 The catalog creates one only when the owner approves an agent connection. The
 agent made the secret, so Hosti only ever holds its digest. The owner's shell
 can still make one with `pnpm token:new`. A revision records the name of the
-push token that wrote it, or nothing when the owner uploaded the archive
-through the catalog.
+push token that wrote it, the declared MCP client name, or nothing when the
+owner uploaded the archive through the catalog.
 _Avoid_: API key, access token.
+
+**MCP client**:
+An OAuth client acting as the owner, with publish and share scopes and an
+explicitly granted delete scope. Its declared name gives revision attribution,
+not a verified bot identity.
+
+**Transfer grant**:
+A ten-minute capability URL for one single-use MCP archive upload or one exact
+revision download. A failed upload consumes its grant; a download remains
+usable until expiry or removal of that exact revision.
 
 **Agent connection**:
 A short-lived request from an agent to receive a push token. It waits for the

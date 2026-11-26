@@ -66,6 +66,16 @@ export const writeRevision = Effect.fnUntraced(function* (
 ): Effect.fn.Return<UnpackStats, StorageError> {
   const { archiveCodec, fileSystem: fs, path, crypto } = dependencies;
   const dir = revisionDir(path, input.bundlesRoot, input.bundleSlug, input.seq);
+  const identityFile = path.join(
+    path.dirname(input.bundlesRoot),
+    "mcp-transfers",
+    "revisions",
+    input.bundleSlug,
+    `r${input.seq}`,
+  );
+  yield* fs
+    .remove(identityFile, { force: true })
+    .pipe(Effect.mapError(() => storageError("storage_io", "Cannot clear revision identity", 500)));
   yield* fs
     .remove(dir, { recursive: true, force: true })
     .pipe(Effect.mapError((cause) => storageError("storage_io", String(cause), 500)));
@@ -74,6 +84,21 @@ export const writeRevision = Effect.fnUntraced(function* (
   const operation = Effect.gen(function* () {
     const stats = yield* unpack(archiveCodec, fs, path, input.source, dir, input.limits);
     yield* ensureEntryFile(fs, path, dir);
+    yield* fs
+      .makeDirectory(path.dirname(identityFile), { recursive: true, mode: 0o700 })
+      .pipe(
+        Effect.mapError(() =>
+          storageError("storage_io", "Cannot create revision identity directory", 500),
+        ),
+      );
+    const identity = yield* crypto.randomUUIDv4.pipe(
+      Effect.mapError(() => storageError("storage_io", "Cannot create revision identity", 500)),
+    );
+    yield* fs
+      .writeFileString(identityFile, identity, { mode: 0o600 })
+      .pipe(
+        Effect.mapError(() => storageError("storage_io", "Cannot store revision identity", 500)),
+      );
     yield* flipCurrent(fs, path, crypto, input.bundlesRoot, input.bundleSlug, input.seq);
     return stats;
   });

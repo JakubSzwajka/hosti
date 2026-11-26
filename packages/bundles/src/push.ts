@@ -14,7 +14,7 @@ import { describeSharing, shareUrl } from "./sharing";
 import { catalogBundlesError, storageBundlesError } from "./internal/errors";
 import { pruneRevisions } from "./retention";
 
-export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD;
+export type RevisionSource = PushIdentity | typeof CATALOG_UPLOAD | { kind: "mcp"; name: string };
 
 export type StoreRevisionInput = {
   slug: string;
