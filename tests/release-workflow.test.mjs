@@ -40,6 +40,10 @@ describe("gated two-image release workflow", () => {
         `- name: Notify Slack\n        if: ${githubExpression(" always() && github.ref == 'refs/heads/main' && inputs.notify ")}`,
       ),
     );
+    assert.match(
+      workflow,
+      /- name: Notify Slack\n        if: \$\{\{ always\(\) && github\.ref == 'refs\/heads\/main' && inputs\.notify \}\}\n        continue-on-error: true/,
+    );
     assert.match(workflow, /SLACK_BOT_TOKEN: \$\{\{ secrets\.SLACK_BOT_TOKEN \}\}/);
     assert.match(
       workflow,
