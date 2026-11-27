@@ -4,7 +4,22 @@ import { IdentityInputError } from "@hosti/identity";
 import { StorageError } from "@hosti/storage";
 import { PushError, WRITER_PAUSED } from "@/server/errors";
 import { admitWriter, releaseWriter, runUseCase, type UseCaseRequirements } from "@/server/runtime";
-import type { Effect } from "effect";
+import { type Effect, Schema } from "effect";
+
+function typedFailure<S extends Schema.Top & { readonly fields: Schema.Struct.Fields }>(
+  schema: S,
+): (error: unknown) => error is S["Type"] {
+  const branded = Schema.is(schema);
+  const shaped = Schema.is(Schema.Struct(schema.fields));
+  return (error): error is S["Type"] => branded(error) && shaped(error);
+}
+
+const isBundlesError = typedFailure(BundlesError);
+const isStorageError = typedFailure(StorageError);
+const isIdentityInputError = typedFailure(IdentityInputError);
+const isFenceRejected = typedFailure(FenceRejected);
+const isWriterUnavailable = typedFailure(WriterUnavailable);
+const isCatalogError = typedFailure(CatalogError);
 
 export async function runAppUseCase<A, E, R extends UseCaseRequirements>(
   effect: Effect.Effect<A, E, R>,
@@ -13,20 +28,16 @@ export async function runAppUseCase<A, E, R extends UseCaseRequirements>(
   if (result.ok) return result.value;
 
   const error = result.error;
-  if (
-    error instanceof BundlesError ||
-    error instanceof StorageError ||
-    error instanceof IdentityInputError
-  ) {
+  if (isBundlesError(error) || isStorageError(error) || isIdentityInputError(error)) {
     throw new PushError(error.code, error.message, error.status);
   }
-  if (error instanceof FenceRejected) {
+  if (isFenceRejected(error)) {
     throw new PushError(error.code, error.message, error.code === "invalid_epoch" ? 400 : 409);
   }
-  if (error instanceof WriterUnavailable) {
+  if (isWriterUnavailable(error)) {
     throw new PushError(WRITER_PAUSED, error.message, 503);
   }
-  if (error instanceof CatalogError) {
+  if (isCatalogError(error)) {
     throw new PushError("internal_error", error.message, 500);
   }
   throw error;
