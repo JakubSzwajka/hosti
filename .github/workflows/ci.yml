@@ -15,9 +15,6 @@ concurrency:
 permissions:
   contents: read
 
-# Per-project knobs live here. Here we run every job on GitHub-hosted ubuntu-24.04. A job moves to
-# `boat` only with a reason recorded under "Allowed deviations" in docs/ci/README.md (board-app: test).
-# Projects rename or drop the steps they lack: no lint, no typecheck, no tests.
 # Node comes from .nvmrc, the same line the Dockerfile and package.json engines follow.
 # hosti has one guard script, `pnpm check`: pins, env schema, Biome, ESLint, typecheck, Dependency Cruiser.
 env:
@@ -34,7 +31,7 @@ jobs:
   # static and test run in parallel, each with its own install. Jobs stay independent (no needs:).
   # A project may add a notify job with `needs: [static, test, image, landing, secrets]` and `if: failure()`.
   static:
-    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    runs-on: boat
     timeout-minutes: 15
     steps:
       # Shallow checkout: this job reads no history.
@@ -53,7 +50,7 @@ jobs:
         run: pnpm run "$CHECK_SCRIPT"
 
   test:
-    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    runs-on: boat
     timeout-minutes: 15
     steps:
       # Shallow checkout: this job reads no history.
@@ -72,7 +69,7 @@ jobs:
         run: pnpm run "$TEST_SCRIPT"
 
   image:
-    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    runs-on: boat
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,7 +89,7 @@ jobs:
   # hosti deviation: the landing image is built and smoke-tested in CI too, because the
   # release ships it. Reads its own cache scope, writes none.
   landing:
-    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    runs-on: boat
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,7 +132,7 @@ jobs:
           grep -F 'location: https://hosti-private.kubaszwajka.com/v/example?x=y' <<<"${headers,,}"
 
   secrets:
-    runs-on: ubuntu-24.04 # GitHub-hosted. See docs/ci/README.md for the one exception.
+    runs-on: boat
     timeout-minutes: 15
     permissions:
       contents: read
