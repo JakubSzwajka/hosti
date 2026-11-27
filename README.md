@@ -204,7 +204,6 @@ To make a token from the server instead, run this where the container runs:
 
 ```bash
 docker compose stop web
-# Run only after every Hosti process using this data directory has stopped.
 docker compose run --rm web node scripts/new-token.mjs --name laptop
 docker compose start web
 ```
