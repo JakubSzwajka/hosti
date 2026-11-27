@@ -83,6 +83,22 @@ Dependency Cruiser uses SWC to parse TypeScript 7, and the house-rules ESLint pl
 
 Do not run a command that opens or migrates `data/hosti.db` unless you have checked whether the database needs a backup. See the current [STATUS.md](./STATUS.md) before database work.
 
+## Single-writer handover
+
+Acquire the exclusive data-volume writer lease before database initialization, migrations,
+catalog repair, or file mutation. Never steal a lease or infer ownership from health alone.
+Read-only startup must not create schema, change journal mode, migrate, repair data, or run jobs.
+Fence-on must deny new mutations, drain admitted work, and close every writable handle before
+reporting `drained: true`. This includes token bookkeeping, grants, uploads, and retention.
+All mutation boundaries must return HTTP 503 with `Retry-After` while fenced.
+
+Keep startup migrations and new writes readable by the previous version. Prefer additive
+schema changes. Do not remove, rename, or reinterpret fields that version reads. Extend the
+previous-version compatibility test whenever the schema or stored write shape changes.
+Keep a real previous-version reader fixture, not a copy generated from the current schema.
+A failing compatibility test blocks automatic handover. Require a separately reviewed plan
+for incompatible changes. Never restore an old backup over writes made by the new writer.
+
 ## Safe without asking
 
 - Make code changes that keep the configured checks and tests green.

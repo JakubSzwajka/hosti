@@ -37,9 +37,16 @@ v0.4.0 replaces `HOSTI_OWNER_PASSWORD` with `HOSTI_OWNER_PASSWORD_HASH`. See
   work is parked and unbuilt.
 - **No backup or restore tooling.** Back up the `/data` volume yourself. See
   [Backups](./README.md#backups).
-- **Forward-only database upgrades.** `hosti.db` is upgraded in place when Hosti
-  opens it. An older image cannot open a newer file, so roll back by restoring a
-  backup.
+- **Automatic rollback requires compatibility.** A handover may roll back only
+  when the previous version can read the migrated schema and every write made
+  by the new version. An incompatible migration blocks automatic handover. Never
+  restore an older backup over writes made by the new writer. Outside a proved
+  compatible handover, database upgrades remain forward-only. See
+  [single-writer handover](./docs/handover.md).
+- **Handover activation is blocked.** Private health and control hooks reject
+  the current public release poll and non-loopback ingress probes. Resolve that
+  probe-channel conflict before activation. No live cutover or zero-downtime
+  result is proved.
 - **In-memory counters.** Login and pin rate limits and pending agent
   connections live in server memory, and a restart clears them.
 
