@@ -29,7 +29,13 @@ export function openReadOnlyDatabase(databaseFile: string): Database.Database | 
   try {
     database = new Database(databaseFile, { readonly: true, fileMustExist: true });
   } catch (cause) {
-    if (sqliteCode(cause) === "SQLITE_CANTOPEN") return null;
+    if (
+      sqliteCode(cause) === "SQLITE_CANTOPEN" ||
+      (cause instanceof TypeError &&
+        cause.message === "Cannot open database because the directory does not exist")
+    ) {
+      return null;
+    }
     throw cause;
   }
   database.pragma("busy_timeout = 5000");
