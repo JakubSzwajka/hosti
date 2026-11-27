@@ -82,9 +82,13 @@ jobs:
         with:
           context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.DOCKERFILE }}
+          load: true
           push: false
+          tags: hosti-ci:handover
           build-args: APP_COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=release
+      - name: Smoke-test image handover
+        run: bash scripts/handover-image-smoke.sh hosti-ci:handover
 
   # hosti deviation: the landing image is built and smoke-tested in CI too, because the
   # release ships it. Reads its own cache scope, writes none.
