@@ -68,4 +68,4 @@ ENV APP_COMMIT=$APP_COMMIT
 USER node
 EXPOSE 3000
 VOLUME ["/data"]
-CMD ["node", "server.js"]
+CMD ["node", "--import", "./scripts/private-channel-preload.mjs", "server.js"]

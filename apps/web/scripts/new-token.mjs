@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { catalogSchemaSql, catalogSchemaVersion } from "@hosti/catalog/schema";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -18,9 +18,52 @@ const name = nameFlag === -1 ? "unnamed" : (args[nameFlag + 1] ?? "unnamed");
 const scopes = args.includes("--allow-delete") ? "delete,publish,share" : "publish,share";
 const dataDir = path.resolve(process.env.HOSTI_DATA_DIR ?? "./data");
 const databaseFile = path.join(dataDir, "hosti.db");
+const writerLeaseFile = path.join(dataDir, "hosti-writer.lease");
+const writerStateFile = path.join(dataDir, "hosti-writer.json");
+
+function assertNotFenced() {
+  let contents;
+  try {
+    contents = readFileSync(writerStateFile, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  const state = JSON.parse(contents);
+  if (typeof state !== "object" || state === null || state.version !== 1) {
+    throw new Error(`Writer state in ${writerStateFile} is unreadable. Refusing to write.`);
+  }
+  if (state.fence !== null) {
+    throw new Error(
+      "Writes to this data directory are fenced for a handover. Retry after it ends.",
+    );
+  }
+}
+
+function acquireWriterLease() {
+  const lease = new Database(writerLeaseFile, { timeout: 0 });
+  try {
+    lease.pragma("locking_mode = EXCLUSIVE");
+    lease.transaction(() => undefined).exclusive();
+    return lease;
+  } catch (error) {
+    lease.close();
+    if (error?.code === "SQLITE_BUSY") {
+      throw new Error(
+        `A running Hosti server owns ${dataDir}. Stop it first, or let an agent run \`hosti login\` instead.`,
+      );
+    }
+    throw error;
+  }
+}
+
 let db;
+let lease;
 try {
   mkdirSync(dataDir, { recursive: true });
+  assertNotFenced();
+  lease = acquireWriterLease();
+  assertNotFenced();
   db = new Database(databaseFile);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
@@ -67,4 +110,5 @@ try {
   process.exitCode = 1;
 } finally {
   db?.close();
+  lease?.close();
 }

@@ -98,6 +98,15 @@ const toolkit = Toolkit.make(
   }),
 );
 
+export const MCP_WRITE_TOOLS: ReadonlySet<string> = new Set([
+  "push",
+  "get_download_link",
+  "set_sharing",
+  "rotate_link",
+  "prune",
+  "delete_bundle",
+]);
+
 function required<A>(value: A | null): A {
   if (value === null) throw new PushError("not_found", "Bundle unavailable", 404);
   return value;

@@ -37,3 +37,7 @@ export function baseUrlFromHeaders(headers: Headers): string {
   const proto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "http";
   return `${proto}://${host}`;
 }
+
+export function writerEpoch(): string | undefined {
+  return process.env.SMALL_APP_WRITER_EPOCH;
+}

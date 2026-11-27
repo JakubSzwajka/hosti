@@ -3,7 +3,8 @@ import { McpProtocol, McpServer } from "effect/unstable/ai";
 import { HttpRouter } from "effect/unstable/http";
 import { McpAuthError, verifyMcpBearer, type McpPrincipal } from "./mcp-auth";
 import { mcpResource } from "./mcp-capability";
-import { mcpTools } from "./mcp-tools";
+import { MCP_WRITE_TOOLS, mcpTools } from "./mcp-tools";
+import { writerRoute } from "./writer-route";
 
 type Session = {
   principal: McpPrincipal;
@@ -17,6 +18,11 @@ const Initialization = Schema.Struct({
   method: Schema.Literal("initialize"),
   params: Schema.Struct({ clientInfo: Schema.Struct({ name: Schema.String }) }),
 });
+const ToolCall = Schema.Struct({
+  method: Schema.Literal("tools/call"),
+  params: Schema.Struct({ name: Schema.String }),
+});
+const isToolCall = Schema.is(ToolCall);
 const MAX_REQUEST_BYTES = 64 * 1024;
 const SESSION_TTL = 30 * 60_000;
 let initializing = 0;
@@ -82,6 +88,31 @@ async function boundedBody(request: Request): Promise<string | null> {
   }
 }
 
+function callsWriteTool(body: string): boolean {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return false;
+  }
+  const messages: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+  return messages.some(
+    (message) => isToolCall(message) && MCP_WRITE_TOOLS.has(message.params.name),
+  );
+}
+
+function buffered(forward: () => Promise<Response>): () => Promise<Response> {
+  return async () => {
+    const response = await forward();
+    const bytes = await response.arrayBuffer();
+    return new Response(bytes, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  };
+}
+
 async function dispatchMcp(request: Request): Promise<Response> {
   let principal: McpPrincipal;
   try {
@@ -119,9 +150,13 @@ async function dispatchMcp(request: Request): Promise<Response> {
       return new Response(null, { status: 405, headers: { Allow: "POST, DELETE" } });
     const body = await boundedBody(request);
     if (body === null) return new Response(null, { status: 413 });
-    const response = await session.transport.handler(
-      new Request(request.url, { method: "POST", headers: request.headers, body }),
-    );
+    const forward = () =>
+      session.transport.handler(
+        new Request(request.url, { method: "POST", headers: request.headers, body }),
+      );
+    const response = callsWriteTool(body)
+      ? await writerRoute(buffered(forward))()
+      : await forward();
     response.headers.set("Cache-Control", "no-store");
     return response;
   }

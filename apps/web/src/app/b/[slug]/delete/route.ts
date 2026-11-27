@@ -2,11 +2,12 @@ import { runAppUseCase } from "@/app/_http/run-use-case";
 import { backTo, guardMutation } from "@/server/auth/admin";
 import { bundlesDir } from "@/server/config";
 import { deleteBundle } from "@/use-cases/delete-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function post(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
@@ -19,3 +20,5 @@ export async function POST(
   if (!gone) return new Response("No such bundle", { status: 404 });
   return backTo("/");
 }
+
+export const POST = writerRoute(post);

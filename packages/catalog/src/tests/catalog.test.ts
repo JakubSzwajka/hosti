@@ -4,7 +4,7 @@ import * as NodePath from "@effect/platform-node/NodePath";
 import { expect, it } from "@effect/vitest";
 import Database from "better-sqlite3";
 import { Effect, FileSystem, Layer, Path } from "effect";
-import { Catalog, catalogSchemaSql } from "../index";
+import { Catalog, WriterStateStore, catalogSchemaSql } from "../index";
 
 const platformLayer = Layer.mergeAll(NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer);
 type TestServices = Catalog | FileSystem.FileSystem | Path.Path | import("effect/Crypto").Crypto;
@@ -17,7 +17,10 @@ function withTemporaryCatalog<A, E>(test: (dataDir: string) => Effect.Effect<A, 
     const schemaFile = path.resolve(import.meta.dirname, "../../schema.sql");
     const schemaSql = yield* fs.readFileString(schemaFile);
     expect(schemaSql).toBe(catalogSchemaSql);
-    const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(Layer.provideMerge(platformLayer));
+    const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(
+      Layer.provide(WriterStateStore.memory()),
+      Layer.provideMerge(platformLayer),
+    );
     return yield* test(dataDir).pipe(Effect.provide(catalogLayer));
   }).pipe(Effect.provide(platformLayer));
 }

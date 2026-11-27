@@ -6,6 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { create, extract } from "tar";
 
@@ -67,7 +68,16 @@ export async function setupProof() {
     env.HOSTI_MCP_DELETE_CLIENT_IDS = allowDelete ? "proof-client" : "";
     server = spawn(
       process.execPath,
-      [nextBin, "start", "--hostname", "0.0.0.0", "--port", String(appAddress.port)],
+      [
+        "--import",
+        pathToFileURL(path.resolve(import.meta.dirname, "private-channel-preload.mjs")).href,
+        nextBin,
+        "start",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        String(appAddress.port),
+      ],
       {
         cwd: path.resolve(import.meta.dirname, ".."),
         env,

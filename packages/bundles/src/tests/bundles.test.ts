@@ -3,7 +3,7 @@ import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { assert, expect, it } from "@effect/vitest";
 import { CATALOG_UPLOAD, IdentityCrypto } from "@hosti/identity";
-import { Catalog } from "@hosti/catalog";
+import { Catalog, WriterStateStore } from "@hosti/catalog";
 import { ROTATED_ALPHABET, ROTATED_LENGTH } from "@hosti/shared";
 import { ArchiveCodec, Storage } from "@hosti/storage";
 import { Effect, FileSystem, Layer, Path, Ref, Stream } from "effect";
@@ -84,7 +84,7 @@ function withBundleServices<A, E>(
     yield* fs.makeDirectory(dataDir, { recursive: true });
     const bundlesRoot = path.join(tempDir, "bundles");
     const servicesLayer = Layer.mergeAll(
-      Catalog.layer(dataDir, schemaSql),
+      Catalog.layer(dataDir, schemaSql).pipe(Layer.provide(WriterStateStore.memory())),
       Storage.layer,
       identityCryptoLayer,
     ).pipe(Layer.provideMerge(platformLayer));

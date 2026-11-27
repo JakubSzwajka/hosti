@@ -13,11 +13,12 @@ import { errorResponse, failureResponse, jsonResponse } from "@/server/api-respo
 import { guardMutation, guardSession } from "@/server/auth/admin";
 import { baseUrlFromHeaders, bundlesDir, keepRevisions } from "@/server/config";
 import { uploadArchive } from "@/use-cases/upload-archive";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request): Promise<Response> {
+async function post(request: Request): Promise<Response> {
   const signedIn = guardSession(request);
   if (!signedIn.ok) return asJson(signedIn.response);
 
@@ -101,3 +102,5 @@ async function asJson(refusal: Response): Promise<Response> {
     refusal.status,
   );
 }
+
+export const POST = writerRoute(post);

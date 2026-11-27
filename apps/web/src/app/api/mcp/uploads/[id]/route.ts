@@ -12,12 +12,13 @@ import { jsonResponse } from "@/server/api-responses";
 import { PushError } from "@/server/errors";
 import { reserveMcpUpload } from "@/use-cases/reserve-mcp-upload";
 import { pushBundle } from "@/use-cases/push-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ id: string }> };
 
-export async function PUT(request: Request, context: Context): Promise<Response> {
+async function put(request: Request, context: Context): Promise<Response> {
   let source: Readable | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -59,3 +60,5 @@ export async function PUT(request: Request, context: Context): Promise<Response>
     source?.destroy();
   }
 }
+
+export const PUT = writerRoute(put);

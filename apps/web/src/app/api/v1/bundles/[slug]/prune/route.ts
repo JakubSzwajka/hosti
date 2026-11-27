@@ -5,13 +5,14 @@ import { errorResponse, failureResponse, jsonResponse } from "@/server/api-respo
 import { bundlesDir, keepRevisions } from "@/server/config";
 import { pruneBundle } from "@/use-cases/prune-bundle";
 import { showBundle } from "@/use-cases/show-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-export async function POST(request: Request, context: Context): Promise<Response> {
+async function post(request: Request, context: Context): Promise<Response> {
   const access = await requirePushScope(request, "publish");
   if (!access.ok) return access.response;
   const { slug } = await context.params;
@@ -32,3 +33,5 @@ export async function POST(request: Request, context: Context): Promise<Response
     return failureResponse(error);
   }
 }
+
+export const POST = writerRoute(post);

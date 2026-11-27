@@ -172,11 +172,17 @@ export function makePushTokenOperations(dependencies: {
     );
     if (!row) return null;
     const lastUsedAt = yield* catalog.nowIso;
-    yield* databaseOperation("markPushTokenUsed", () =>
-      database
-        .prepare("UPDATE push_tokens SET last_used_at = ? WHERE id = ?")
-        .run(lastUsedAt, row.id),
-    );
+    yield* catalog
+      .whenWriter((writable) => {
+        writable
+          .prepare("UPDATE push_tokens SET last_used_at = ? WHERE id = ?")
+          .run(lastUsedAt, row.id);
+      })
+      .pipe(
+        Effect.mapError(
+          (cause) => new IdentityDatabaseError({ operation: "markPushTokenUsed", cause }),
+        ),
+      );
     return { id: row.id, name: row.name, scopes: parseStoredScopes(row.scopes) };
   });
 

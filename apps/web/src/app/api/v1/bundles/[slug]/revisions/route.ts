@@ -8,13 +8,14 @@ import { failureResponse, jsonResponse } from "@/server/api-responses";
 import { bundlesDir, keepRevisions, publicBaseUrl } from "@/server/config";
 import { PushError } from "@/server/errors";
 import { pushBundle } from "@/use-cases/push-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-export async function POST(request: Request, context: Context): Promise<Response> {
+async function post(request: Request, context: Context): Promise<Response> {
   const access = await requirePushScope(request, "publish");
   if (!access.ok) return access.response;
   const pushedBy = access.identity;
@@ -71,3 +72,5 @@ function headerText(request: Request, name: string): string | null {
   }
   return trimmed || null;
 }
+
+export const POST = writerRoute(post);

@@ -24,6 +24,23 @@ export const openDatabaseAt = Effect.fn("openDatabaseAt")(function* (
   }).pipe(Effect.tapError(() => Effect.sync(() => database.close())));
 });
 
+export function openReadOnlyDatabase(databaseFile: string): Database.Database | null {
+  let database: Database.Database;
+  try {
+    database = new Database(databaseFile, { readonly: true, fileMustExist: true });
+  } catch (cause) {
+    if (sqliteCode(cause) === "SQLITE_CANTOPEN") return null;
+    throw cause;
+  }
+  database.pragma("busy_timeout = 5000");
+  return database;
+}
+
+export function sqliteCode(cause: unknown): string | undefined {
+  if (typeof cause !== "object" || cause === null || !("code" in cause)) return undefined;
+  return typeof cause.code === "string" ? cause.code : undefined;
+}
+
 function createSchema(database: Database.Database, schemaSql: string): void {
   database.transaction(() => database.exec(schemaSql))();
 }
@@ -34,7 +51,7 @@ function setSchemaVersion(database: Database.Database, version: number): void {
   database.prepare("UPDATE meta SET value = ? WHERE key = 'schema_version'").run(String(version));
 }
 
-function schemaVersion(database: Database.Database): number {
+export function schemaVersion(database: Database.Database): number {
   const row = database.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
     | { value?: string }
     | undefined;

@@ -2,6 +2,7 @@ import { describeSharing, pruneRevisions as pruneRevisionsEffect } from "@hosti/
 import { ALL_SCOPES, type AgentConnectionRequest, CATALOG_UPLOAD } from "@hosti/identity";
 import type { PushScope } from "@hosti/shared";
 import { PREVIEW_TOKEN_TTL_MS } from "@hosti/serving";
+import { PRIVATE_CHANNEL_HEADER, PRIVATE_CHANNEL_SECRET } from "@/app/_http/private-channel";
 import { bundlesDir, keepRevisions } from "@/server/config";
 import { signingSecret } from "@/server/auth/config";
 import {
@@ -14,6 +15,19 @@ import {
 } from "@/server/runtime";
 
 export { CATALOG_UPLOAD, PREVIEW_TOKEN_TTL_MS, describeSharing };
+
+const TEST_PRIVATE_CHANNEL_SECRET = "test-private-channel-secret-0123456789abcdef";
+
+export function privateRequest(url: string, init: RequestInit = {}): Request {
+  Reflect.set(globalThis, PRIVATE_CHANNEL_SECRET, TEST_PRIVATE_CHANNEL_SECRET);
+  const headers = new Headers(init.headers);
+  headers.set(PRIVATE_CHANNEL_HEADER, TEST_PRIVATE_CHANNEL_SECRET);
+  return new Request(url, { ...init, headers });
+}
+
+export function restartCatalog(detachedDataDir: string): void {
+  runCatalogSync((catalog) => catalog.setDataDir(detachedDataDir));
+}
 
 export const SESSION_COOKIE = "hosti_admin";
 

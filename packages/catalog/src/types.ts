@@ -3,6 +3,15 @@ import type Database from "better-sqlite3";
 import type { Effect } from "effect";
 import type { Crypto } from "effect/Crypto";
 import type { CatalogError } from "./catalog-error";
+import type {
+  FenceOffResult,
+  FenceOnResult,
+  FenceRejected,
+  WriterPermit,
+  WriterObservation,
+  WriterStatus,
+  WriterUnavailable,
+} from "./writer";
 
 export type BundleRecord = {
   id: number;
@@ -43,6 +52,15 @@ export type CatalogMethods = {
   readonly database: Effect.Effect<Database.Database, CatalogError>;
   readonly nowIso: Effect.Effect<string>;
   readonly setDataDir: (dataDir: string) => Effect.Effect<void, CatalogError>;
+  readonly writerStatus: Effect.Effect<WriterStatus, CatalogError>;
+  readonly observeWriter: Effect.Effect<WriterObservation, CatalogError>;
+  readonly admitWriter: Effect.Effect<WriterPermit, WriterUnavailable | CatalogError>;
+  readonly releaseWriter: (permit: WriterPermit) => Effect.Effect<void>;
+  readonly whenWriter: (
+    run: (database: Database.Database) => void,
+  ) => Effect.Effect<void, CatalogError>;
+  readonly fenceOn: (epoch: string) => Effect.Effect<FenceOnResult, FenceRejected | CatalogError>;
+  readonly fenceOff: (epoch: string) => Effect.Effect<FenceOffResult, FenceRejected | CatalogError>;
   readonly findBundle: (slug: string) => Effect.Effect<BundleRecord | null, CatalogError>;
   readonly createBundle: (input: {
     slug: string;

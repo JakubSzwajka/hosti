@@ -1,5 +1,5 @@
 import type { ErrorResponse, MissingScopeResponse, PushScope } from "@hosti/shared";
-import { PushError } from "@/server/errors";
+import { PushError, WRITER_PAUSED, WRITER_RETRY_AFTER_SECONDS } from "@/server/errors";
 
 export function jsonResponse(body: unknown, status = 200, extra: HeadersInit = {}): Response {
   const headers = new Headers(extra);
@@ -32,8 +32,18 @@ export const missingScope = (scope: PushScope): Response =>
 export const noSuchConnection = (): Response =>
   errorResponse("not_found", "No such agent connection", 404);
 
+export function writerPausedResponse(
+  message = "Writes are paused while Hosti hands over its data",
+): Response {
+  return jsonResponse({ error: WRITER_PAUSED, message } satisfies ErrorResponse, 503, {
+    "Retry-After": String(WRITER_RETRY_AFTER_SECONDS),
+    "Cache-Control": "no-store",
+  });
+}
+
 export function failureResponse(error: unknown): Response {
   if (error instanceof PushError) {
+    if (error.status === 503) return writerPausedResponse(error.message);
     return errorResponse(error.code, error.message, error.status);
   }
   const message = error instanceof Error ? error.message : String(error);

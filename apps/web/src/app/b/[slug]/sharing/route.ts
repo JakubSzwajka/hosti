@@ -3,11 +3,12 @@ import { backTo, guardMutation } from "@/server/auth/admin";
 import { PushError } from "@/server/errors";
 import { setBundleSharing } from "@/use-cases/set-sharing";
 import { showBundle } from "@/use-cases/show-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(
+async function post(
   request: Request,
   context: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
@@ -35,3 +36,5 @@ export async function POST(
   }
   return backTo(`/b/${slug}`);
 }
+
+export const POST = writerRoute(post);
