@@ -2,7 +2,7 @@
 # Debian rather than Alpine: better-sqlite3 ships glibc prebuilds, and the
 # fallback node-gyp build needs a toolchain that Alpine would also need.
 # Keep the tag in step with .nvmrc. Tag plus digest, literal so Dependabot bumps both.
-FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS base
+FROM node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS base
 WORKDIR /app
 ENV COREPACK_HOME=/corepack
 RUN corepack enable
