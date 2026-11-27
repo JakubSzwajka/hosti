@@ -162,7 +162,7 @@ export function makeWriterControl(options: WriterControlOptions) {
       slot.inFlight -= 1;
       const current = slot.role;
       if (slot.inFlight === 0 && current.kind === "fencing") {
-        yield* Deferred.succeed(current.drained, true);
+        yield* Deferred.succeed(current.wake, undefined);
       }
     });
 
@@ -183,7 +183,10 @@ export function makeWriterControl(options: WriterControlOptions) {
     if (current.kind === "closed") return;
     closeQuietly(current.database);
     if (current.kind === "writer" || current.kind === "fencing") closeQuietly(current.lease);
-    if (current.kind === "fencing") yield* Deferred.succeed(current.drained, false);
+    if (current.kind === "fencing") {
+      if (current.outcome.state === "pending") current.outcome.state = "cancelled";
+      yield* Deferred.succeed(current.wake, undefined);
+    }
   });
 
   return {

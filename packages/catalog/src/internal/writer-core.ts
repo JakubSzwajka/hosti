@@ -11,6 +11,8 @@ import { tryCatalog } from "./catalog-errors";
 import { openReadOnlyDatabase } from "./open-database";
 import { tryAcquireWriterLease } from "./writer-lease";
 
+export type FenceOutcome = { state: "pending" | "fenced" | "cancelled" };
+
 export type Role =
   | { readonly kind: "closed" }
   | { readonly kind: "reader"; readonly database: Database.Database | null }
@@ -24,7 +26,8 @@ export type Role =
       readonly database: Database.Database;
       readonly lease: Database.Database;
       readonly epoch: string;
-      readonly drained: Deferred.Deferred<boolean>;
+      readonly wake: Deferred.Deferred<void>;
+      readonly outcome: FenceOutcome;
     };
 
 export type StateRead =

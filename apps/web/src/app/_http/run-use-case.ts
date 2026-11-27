@@ -1,9 +1,16 @@
 import { BundlesError } from "@hosti/bundles";
-import { CatalogError, FenceRejected, WriterUnavailable } from "@hosti/catalog";
+import { type Catalog, CatalogError, FenceRejected, WriterUnavailable } from "@hosti/catalog";
 import { IdentityInputError } from "@hosti/identity";
 import { StorageError } from "@hosti/storage";
 import { PushError, WRITER_PAUSED } from "@/server/errors";
-import { admitWriter, releaseWriter, runUseCase, type UseCaseRequirements } from "@/server/runtime";
+import {
+  admitWriter,
+  releaseWriter,
+  runObservation,
+  runUseCase,
+  type UseCaseRequirements,
+  type UseCaseResult,
+} from "@/server/runtime";
 import { type Effect, Schema } from "effect";
 
 function typedFailure<S extends Schema.Top & { readonly fields: Schema.Struct.Fields }>(
@@ -24,7 +31,14 @@ const isCatalogError = typedFailure(CatalogError);
 export async function runAppUseCase<A, E, R extends UseCaseRequirements>(
   effect: Effect.Effect<A, E, R>,
 ): Promise<A> {
-  const result = await runUseCase(effect);
+  return settle(await runUseCase(effect));
+}
+
+export async function runAppObservation<A, E>(effect: Effect.Effect<A, E, Catalog>): Promise<A> {
+  return settle(await runObservation(effect));
+}
+
+function settle<A, E>(result: UseCaseResult<A, E>): A {
   if (result.ok) return result.value;
 
   const error = result.error;

@@ -2,7 +2,17 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import Database from "better-sqlite3";
-import { Context, Effect, Exit, FileSystem, Layer, type Path, Schema, Scope } from "effect";
+import {
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  type Path,
+  Schema,
+  Scope,
+} from "effect";
 import { Catalog, CatalogError, catalogSchemaSql, FenceRejected, WriterStateStore } from "../index";
 
 const platformLayer = Layer.mergeAll(NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer);
@@ -11,6 +21,7 @@ export type Volume = {
   readonly dataDir: string;
   readonly files: Map<string, string>;
   readonly failAfterNextWrite: () => void;
+  readonly holdNextWrite: () => Deferred.Deferred<void>;
   readonly start: (
     epoch?: string,
   ) => Effect.Effect<{ catalog: Catalog["Service"]; stop: Effect.Effect<void> }>;
@@ -24,19 +35,26 @@ export const withVolume = <A, E>(
     const dataDir = yield* fs.makeTempDirectoryScoped({ prefix: "hosti-writer-" });
     const files = new Map<string, string>();
     let failAfterWrite = false;
+    let heldWrite: Deferred.Deferred<void> | undefined;
     const store = Layer.succeed(
       WriterStateStore,
       WriterStateStore.of({
         read: (dir) => Effect.sync(() => files.get(dir) ?? null),
         write: (dir, contents) =>
           Effect.suspend(() => {
-            files.set(dir, contents);
-            if (!failAfterWrite) return Effect.void;
-            failAfterWrite = false;
-            return Effect.fail(
-              new CatalogError({ operation: "syncWriterState", message: "fsync failed" }),
-            );
-          }),
+            const gate = heldWrite;
+            heldWrite = undefined;
+            return gate === undefined ? Effect.void : Deferred.await(gate);
+          }).pipe(
+            Effect.andThen(() => {
+              files.set(dir, contents);
+              if (!failAfterWrite) return Effect.void;
+              failAfterWrite = false;
+              return Effect.fail(
+                new CatalogError({ operation: "syncWriterState", message: "fsync failed" }),
+              );
+            }),
+          ),
       }),
     );
     const start = (epoch?: string) =>
@@ -53,7 +71,11 @@ export const withVolume = <A, E>(
     const failAfterNextWrite = () => {
       failAfterWrite = true;
     };
-    return yield* test({ dataDir, files, failAfterNextWrite, start });
+    const holdNextWrite = () => {
+      heldWrite = Deferred.makeUnsafe<void>();
+      return heldWrite;
+    };
+    return yield* test({ dataDir, files, failAfterNextWrite, holdNextWrite, start });
   }).pipe(Effect.scoped, Effect.provide(platformLayer));
 
 export const state = (volume: Volume) => JSON.parse(volume.files.get(volume.dataDir) ?? "null");

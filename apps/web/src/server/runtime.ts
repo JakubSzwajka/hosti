@@ -68,6 +68,19 @@ export function runUseCase<A, E, R extends UseCaseRequirements>(
 ): Promise<UseCaseResult<A, E | CatalogError>> {
   const activeDataDir = dataDir();
   mkdirSync(activeDataDir, { recursive: true });
+  return runInDataDir(effect, activeDataDir);
+}
+
+export function runObservation<A, E>(
+  effect: Effect.Effect<A, E, Catalog>,
+): Promise<UseCaseResult<A, E | CatalogError>> {
+  return runInDataDir(effect, dataDir());
+}
+
+function runInDataDir<A, E, R extends UseCaseRequirements>(
+  effect: Effect.Effect<A, E, R>,
+  activeDataDir: string,
+): Promise<UseCaseResult<A, E | CatalogError>> {
   const configured = Catalog.use((catalog) =>
     Effect.gen(function* () {
       // Production fixes the data dir per process; only tests switch it.

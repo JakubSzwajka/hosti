@@ -32,16 +32,18 @@ export function makeFenceOperations(
     becomeReader,
   } = core;
 
-  const completeFence = (fencing: Extract<Role, { kind: "fencing" }>) =>
-    transition.withPermit(
-      Effect.gen(function* () {
-        if (slot.role !== fencing) return;
-        yield* closeHandle("closeFencedDatabase", fencing.database);
-        yield* closeHandle("releaseWriterLease", fencing.lease);
-        slot.role = { kind: "closed" };
-        yield* becomeReader(null);
-      }),
-    );
+  const completeFence = Effect.fnUntraced(function* (fencing: Extract<Role, { kind: "fencing" }>) {
+    if (fencing.outcome.state === "fenced") return;
+    if (fencing.outcome.state === "cancelled" || slot.role !== fencing) {
+      fencing.outcome.state = "cancelled";
+      return yield* rejected("fence_cancelled", "Fence-off cancelled this fence");
+    }
+    yield* closeHandle("closeFencedDatabase", fencing.database);
+    yield* closeHandle("releaseWriterLease", fencing.lease);
+    fencing.outcome.state = "fenced";
+    slot.role = { kind: "closed" };
+    yield* becomeReader(null);
+  });
 
   const rollsBack = (state: WriterState, epoch: string) =>
     state.fence === null
@@ -51,9 +53,8 @@ export function makeFenceOperations(
   const fenceResult = (epoch: string): FenceOnResult => ({ fenced: true, drained: true, epoch });
 
   const awaitFence = Effect.fnUntraced(function* (fencing: Extract<Role, { kind: "fencing" }>) {
-    const drained = yield* Deferred.await(fencing.drained);
-    if (!drained) return yield* rejected("fence_cancelled", "Fence-off cancelled this fence");
-    yield* completeFence(fencing);
+    yield* Deferred.await(fencing.wake);
+    yield* transition.withPermit(completeFence(fencing));
     return fenceResult(fencing.epoch);
   });
 
@@ -93,16 +94,17 @@ export function makeFenceOperations(
     if (current.kind !== "writer") {
       return yield* rejected("not_writer", "This instance does not own the writer lease");
     }
-    const drained = yield* Deferred.make<boolean>();
-    const fencing = {
+    const wake = yield* Deferred.make<void>();
+    const fencing: Extract<Role, { kind: "fencing" }> = {
       kind: "fencing",
       database: current.database,
       lease: current.lease,
       epoch,
-      drained,
-    } as const;
+      wake,
+      outcome: { state: "pending" },
+    };
     slot.role = fencing;
-    if (slot.inFlight === 0) yield* Deferred.succeed(drained, true);
+    if (slot.inFlight === 0) yield* Deferred.succeed(wake, undefined);
     yield* writeState(fencedState);
     return fencing;
   });
@@ -155,9 +157,10 @@ export function makeFenceOperations(
     const current = slot.role;
     if (current.kind === "fencing") {
       if (current.epoch !== epoch) return yield* rejected("epoch_stale", "Epoch is not active");
+      current.outcome.state = "cancelled";
+      yield* Deferred.succeed(current.wake, undefined);
       yield* writeState(settledState(state, ownEpoch, null, [...state.spent, epoch]));
       slot.role = { kind: "writer", database: current.database, lease: current.lease };
-      yield* Deferred.succeed(current.drained, false);
       return result;
     }
     if (state.spent.includes(epoch)) {
