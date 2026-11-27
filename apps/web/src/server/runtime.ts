@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import { Catalog, CatalogError, catalogSchemaSql } from "@hosti/catalog";
+import { Catalog, CatalogError, catalogSchemaSql, type WriterPermit } from "@hosti/catalog";
 import { BundlesError } from "@hosti/bundles";
 import { Storage, StorageError, Transfers, type RevisionIdentity } from "@hosti/storage";
 import { Identity, IdentityInputError, LoginThrottle } from "@hosti/identity";
@@ -9,7 +9,8 @@ import { Serving } from "@hosti/serving";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 import { mkdirSync } from "node:fs";
 import { PushError } from "@/server/errors";
-import { dataDir } from "@/server/config";
+import { dataDir, writerEpoch } from "@/server/config";
+import { NodeWriterStateStore } from "@/server/node-writer-state";
 import { NodeIdentityCrypto } from "@/server/node-crypto";
 import { NodeArchiveCodec } from "@/server/storage/node-archive-codec";
 import { NodeRevisionIdentity } from "@/server/storage/node-revision-identity";
@@ -22,7 +23,9 @@ const platformLayer = Layer.mergeAll(
   NodeIdentityCrypto,
   NodeRevisionIdentity,
 );
-const catalogLayer = Catalog.layer(dataDir(), catalogSchemaSql);
+const catalogLayer = Catalog.layer(dataDir(), catalogSchemaSql, { writerEpoch }).pipe(
+  Layer.provide(NodeWriterStateStore),
+);
 const identityLayer = Identity.layer.pipe(Layer.provideMerge(catalogLayer));
 const identityAndLoginLayer = LoginThrottle.layer.pipe(Layer.provideMerge(identityLayer));
 const runtimeLayer = Layer.mergeAll(
@@ -65,6 +68,19 @@ export function runUseCase<A, E, R extends UseCaseRequirements>(
 ): Promise<UseCaseResult<A, E | CatalogError>> {
   const activeDataDir = dataDir();
   mkdirSync(activeDataDir, { recursive: true });
+  return runInDataDir(effect, activeDataDir);
+}
+
+export function runObservation<A, E>(
+  effect: Effect.Effect<A, E, Catalog>,
+): Promise<UseCaseResult<A, E | CatalogError>> {
+  return runInDataDir(effect, dataDir());
+}
+
+function runInDataDir<A, E, R extends UseCaseRequirements>(
+  effect: Effect.Effect<A, E, R>,
+  activeDataDir: string,
+): Promise<UseCaseResult<A, E | CatalogError>> {
   const configured = Catalog.use((catalog) =>
     Effect.gen(function* () {
       // Production fixes the data dir per process; only tests switch it.
@@ -93,6 +109,23 @@ export function runCatalogSync<A, E>(use: (catalog: Catalog["Service"]) => Effec
       }),
     ),
   );
+}
+
+export function admitWriter(): Promise<WriterPermit | null> {
+  const activeDataDir = dataDir();
+  mkdirSync(activeDataDir, { recursive: true });
+  return runtime.runPromise(
+    Catalog.use((catalog) =>
+      Effect.gen(function* () {
+        yield* catalog.setDataDir(activeDataDir);
+        return yield* catalog.admitWriter;
+      }),
+    ).pipe(Effect.catchTag("WriterUnavailable", () => Effect.succeed(null))),
+  );
+}
+
+export function releaseWriter(permit: WriterPermit): void {
+  runtime.runSync(Catalog.use((catalog) => catalog.releaseWriter(permit)));
 }
 
 export function runStorageSync<A, E>(use: (storage: Storage["Service"]) => Effect.Effect<A, E>): A {

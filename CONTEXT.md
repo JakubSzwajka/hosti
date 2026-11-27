@@ -239,3 +239,11 @@ login with `hosti login`, so no instance value is written into the skill.
     create another one. The agent makes the secret and sends only its digest,
     so the server never holds a clear push token and has nothing to show once.
     No response, page or log carries a clear push token or polling secret.
+17. A handover pauses writes, not reads. Only one writer may own a data volume.
+    Fencing denies new writes and drains every admitted write before ownership
+    moves. A fenced reader never writes through startup work or background work.
+18. Automatic handover requires schema-compatible rollback. Startup migrations
+    and new writes must remain readable by the previous version. Never drop or
+    reinterpret data that version needs. An incompatible migration blocks
+    automatic handover until a separately reviewed compatibility plan exists.
+    Rollback never restores an older backup over newer writes.

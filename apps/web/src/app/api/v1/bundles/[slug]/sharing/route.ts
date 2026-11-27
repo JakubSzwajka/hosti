@@ -5,13 +5,14 @@ import { errorResponse, failureResponse, jsonResponse } from "@/server/api-respo
 import { publicBaseUrl } from "@/server/config";
 import { setBundleSharing } from "@/use-cases/set-sharing";
 import { showBundle } from "@/use-cases/show-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ slug: string }> };
 
-export async function PUT(request: Request, context: Context): Promise<Response> {
+async function put(request: Request, context: Context): Promise<Response> {
   const access = await requirePushScope(request, "share");
   if (!access.ok) return access.response;
   const { slug } = await context.params;
@@ -33,3 +34,5 @@ export async function PUT(request: Request, context: Context): Promise<Response>
 function noSuchBundle(slug: string): Response {
   return errorResponse("no_such_bundle", `No bundle is called "${slug}"`, 404);
 }
+
+export const PUT = writerRoute(put);

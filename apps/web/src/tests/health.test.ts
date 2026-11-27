@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appCommit } from "@/app/api/health/app-commit";
 import { GET } from "@/app/api/health/route";
+import { privateRequest } from "./support";
+
+const HEALTH_URL = "http://localhost:3000/api/health";
+const health = () => GET(privateRequest(HEALTH_URL));
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 
@@ -14,8 +18,8 @@ afterEach(() => {
 });
 
 describe("GET /api/health", () => {
-  it("answers 200 ok with no-store and no login", async () => {
-    const response = GET();
+  it("answers 200 ok with no-store and no login on the private channel", async () => {
+    const response = await health();
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("content-type")).toContain("application/json");
@@ -24,14 +28,23 @@ describe("GET /api/health", () => {
 
   it("reports the first 12 characters of APP_COMMIT", async () => {
     vi.stubEnv("APP_COMMIT", SHA);
-    expect(await GET().json()).toEqual({ status: "ok", commit: "0123456789ab" });
+    expect(await (await health()).json()).toEqual({ status: "ok", commit: "0123456789ab" });
   });
 
   it("reads APP_COMMIT per request, not once at load", async () => {
     vi.stubEnv("APP_COMMIT", "aaaaaaaaaaaaaaaa");
-    expect((await GET().json()).commit).toBe("aaaaaaaaaaaa");
+    expect((await (await health()).json()).commit).toBe("aaaaaaaaaaaa");
     vi.stubEnv("APP_COMMIT", "bbbbbbbbbbbbbbbb");
-    expect((await GET().json()).commit).toBe("bbbbbbbbbbbb");
+    expect((await (await health()).json()).commit).toBe("bbbbbbbbbbbb");
+  });
+
+  it("answers the public 404 to a connection outside the private channel", async () => {
+    const spoofed = new Request(HEALTH_URL, {
+      headers: { Host: "localhost:3000", "X-Forwarded-For": "127.0.0.1" },
+    });
+    const response = await GET(spoofed);
+    expect(response.status).toBe(404);
+    expect(await response.text()).not.toContain("commit");
   });
 });
 

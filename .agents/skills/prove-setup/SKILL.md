@@ -35,8 +35,7 @@ an owner password or use a saved personal CLI login.
 
 Run `pnpm --filter @hosti/web dev --hostname 0.0.0.0` with the chosen `PORT`,
 `HOSTI_DATA_DIR`, and `HOSTI_KEEP_REVISIONS=2`. Save the PID and a local log.
-Ready means `GET http://127.0.0.1:<port>/api/health` returns 200.
-Use only this origin for the proof. Run the CLI with
+Ready means `GET http://127.0.0.1:<port>/login` returns 200. The health route is private in the production image and returns 404 from this unwrapped `next dev` process. Use only this origin for the proof. Run the CLI with
 `node apps/cli/src/index.ts <command>` and the isolated CLI environment.
 
 ## Acceptance data
@@ -59,6 +58,23 @@ release, use real tokens, or delete directories this proof did not create.
 Stop only the server and stub processes this proof started. Remove only the
 temporary data directory this proof created. Keep safe transcripts and the
 proof table in the durable proof folder. Never retain clear tokens there.
+
+## Isolated single-writer handover proof
+
+This image proof uses a fresh Docker volume and synthetic epochs. It does not use the primary checkout's database, a release image, platform credentials, or live infrastructure. Run from the task worktree. Do not enable shell tracing because the smoke script holds a synthetic push token in a shell variable.
+
+Build a local image with the commit value expected by the smoke runner, then run its isolated proof:
+
+```bash
+docker build --file apps/web/Dockerfile --build-arg APP_COMMIT=handoverlocal --tag hosti:handover-proof .
+proof_dir="$HOME/.pi/agent/proof/hosti/single-writer-handover"
+mkdir -p "$proof_dir"
+scripts/handover-image-smoke.sh hosti:handover-proof | tee "$proof_dir/image-smoke.txt"
+```
+
+The script creates a uniquely named Docker volume and containers, then removes only those resources and its temporary directory. It checks private-hook rejection over a non-loopback connection, unmanaged writer startup, token creation refusal while serving, writes and reads while fenced, candidate promotion with `SMALL_APP_WRITER_EPOCH`, old-reader continuity, and rejection of a late fence-on. Retain only the safe `ok` lines and final pass line. If it fails, inspect output locally and do not retain raw container logs or credentials.
+
+The smoke restarts the old process and checks that it remains a reader under the persisted fence. It does not test spent-epoch rejection after candidate restart. It also does not cover an admitted-write drain race, every fenced mutation route, malformed sidecar recovery, a migration across versions, ingress, or a live handover. Run the focused writer and private-channel tests for those local contracts. The proof does not establish platform integration, live cutover, or zero downtime.
 
 ## Isolated MCP proof
 

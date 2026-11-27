@@ -3,13 +3,14 @@ import { runAppUseCase } from "@/app/_http/run-use-case";
 import { errorResponse, failureResponse, jsonResponse } from "@/server/api-responses";
 import { publicBaseUrl } from "@/server/config";
 import { createAgentConnection } from "@/use-cases/create-agent-connection";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 4096;
 
-export async function POST(request: Request): Promise<Response> {
+async function post(request: Request): Promise<Response> {
   // No credential: only digests arrive, and nothing is usable until the owner approves.
   const body = await readJsonObject(request);
   if (!body) {
@@ -55,3 +56,5 @@ async function readJsonObject(request: Request): Promise<Record<string, unknown>
     return null;
   }
 }
+
+export const POST = writerRoute(post);

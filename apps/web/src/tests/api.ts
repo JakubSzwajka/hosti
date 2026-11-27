@@ -30,6 +30,18 @@ export function push(
   return PUSH(request, { params: Promise.resolve({ slug }) });
 }
 
+export function pushStream(
+  token: string,
+  slug: string,
+  body: ReadableStream<Uint8Array>,
+): Promise<Response> {
+  const headers = auth(token);
+  headers.set("Content-Type", "application/gzip");
+  const init: RequestInit & { duplex: "half" } = { method: "POST", headers, body, duplex: "half" };
+  const request = new Request(`${ORIGIN}/api/v1/bundles/${slug}/revisions`, init);
+  return PUSH(request, { params: Promise.resolve({ slug }) });
+}
+
 export function setSharing(
   token: string,
   slug: string,

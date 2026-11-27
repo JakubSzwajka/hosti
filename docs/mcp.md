@@ -159,24 +159,9 @@ See [the proof setup skill](../.agents/skills/prove-setup/SKILL.md) for the exac
 This implementation requires no database migration.
 Do not deploy or change production during local proof.
 
-Majster must use the existing normal Dokploy release path or a rolling/start-first deployment.
-Zero downtime is required. Run a continuous health probe before, during and after deployment.
-Record every failed probe and verify uninterrupted service before accepting the release.
-Run this in a separate terminal until deployment and post-deployment checks finish:
+The current single-writer implementation makes `/api/health` private. The public release workflow poll and the PR73 ingress-container probes therefore receive 404. The public health curl used by earlier MCP deployment guidance is not a valid check for this configuration. See [single-writer handover](./handover.md#activation-blockers-and-proof-limits). Resolve the probe-channel conflict before activation. Local MCP proof does not prove a live deployment or zero downtime.
 
-```bash
-while true; do
-  printf '%s ' "$(date -u +%FT%TZ)"
-  curl --silent --show-error --fail --max-time 3 \
-    --output /dev/null --write-out '%{http_code}\n' \
-    https://hosti-private.kubaszwajka.com/api/health || printf 'FAILED\n'
-  sleep 1
-done
-```
-
-Stop the probe with Ctrl-C and keep its transcript.
-Do not replace a running instance with a stop-first manual restart.
-Before release, Majster must check one real Clerk OAuth access token without retaining its clear value.
+Before any separately approved release, the release owner must check one real Clerk OAuth access token without retaining its clear value.
 Confirm string `aud` equals the exact resource, no `sid` or delegation claim exists, and `email` is present.
 Do not loosen RS256, audience or session-credential checks without a separate policy decision.
 After release, Majster must prove real Clerk/OpenBot OAuth and curl transfer on deployed Hosti.

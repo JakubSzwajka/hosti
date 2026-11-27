@@ -2,7 +2,7 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { expect, it } from "@effect/vitest";
-import { Catalog } from "@hosti/catalog";
+import { Catalog, WriterStateStore } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { Identity, IdentityCrypto } from "../index";
 
@@ -50,6 +50,7 @@ const testIdentityLayer = Layer.unwrap(
       path.resolve(import.meta.dirname, "../../../catalog/schema.sql"),
     );
     const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(
+      Layer.provide(WriterStateStore.memory()),
       Layer.provideMerge(catalogPlatform),
     );
     return Identity.layer.pipe(

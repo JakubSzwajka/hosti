@@ -23,7 +23,7 @@ are defined in [CONTEXT.md](./CONTEXT.md).
 - Clerk OAuth MCP at `/mcp`, with metadata tools and curl upload/download grants.
   See [MCP setup](./docs/mcp.md) for configuration and local proof.
 - The `hosti-publish` skill, so an agent knows how to push and share.
-- One container, one `/data` volume: the bundles and a SQLite file.
+- One container, one `/data` volume: the bundles and a SQLite file. See [single-writer handover](./docs/handover.md) for the private control hooks, writer lease and compatibility rules.
 
 ## Quick start
 
@@ -161,8 +161,10 @@ admin page and `/login` names the missing variable.
    clone) warns while it is still set.
 
 Before any upgrade, back up `/data` (see [Backups](#backups)). Hosti upgrades
-`hosti.db` in place when it opens it, forward only, so an older image cannot
-open a newer file.
+`hosti.db` in place when it opens it. These upgrades remain forward-only unless
+a handover proves that the previous version can read the migrated schema and
+all writes from the new version. An incompatible migration blocks automatic
+handover. Never restore an older backup over writes made by a new writer.
 
 ## Connect an agent
 
@@ -201,13 +203,18 @@ secret stops opening `/api/v1/` from the next request on. Nothing under
 To make a token from the server instead, run this where the container runs:
 
 ```bash
-docker compose exec web node scripts/new-token.mjs --name laptop
+docker compose stop web
+docker compose run --rm web node scripts/new-token.mjs --name laptop
+docker compose start web
 ```
 
-Add `--allow-delete` for the `delete` scope. From a clone, run
-`pnpm token:new -- --name laptop` with `HOSTI_DATA_DIR` pointing at the data
-directory. Either way it prints the secret once. Hosti stores only the digest,
-in `hosti.db`. `hosti login` stays the recommended path.
+Add `--allow-delete` for the `delete` scope. Token creation takes the same
+writer lease as the server. Stop every Hosti process using the data directory
+before running the command. From a clone, run `pnpm token:new -- --name laptop`
+with `HOSTI_DATA_DIR` pointing at that directory. It refuses while a server
+owns the lease or a fence is active. Use `hosti login` on a running writer
+instead. Either method prints the secret once. Hosti stores only its digest in
+`hosti.db`.
 
 ### The hosti-publish skill
 

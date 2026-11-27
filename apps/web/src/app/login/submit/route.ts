@@ -5,6 +5,7 @@ import { isSecureRequest, sessionCookie } from "@/server/auth/cookie";
 import { checkLoginAttempt } from "@/use-cases/check-login-attempt";
 import { login } from "@/use-cases/login";
 import { showLoginSetup } from "@/use-cases/show-login-setup";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ function back(error?: string, returnTo?: string | null): Response {
   return new Response(null, { status: 303, headers: { Location: location } });
 }
 
-export async function POST(request: Request): Promise<Response> {
+async function post(request: Request): Promise<Response> {
   const missing = await runAppUseCase(showLoginSetup());
   if (missing.length > 0) return back();
 
@@ -40,3 +41,5 @@ export async function POST(request: Request): Promise<Response> {
   );
   return response;
 }
+
+export const POST = writerRoute(post);

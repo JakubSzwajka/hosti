@@ -15,9 +15,6 @@ concurrency:
 permissions:
   contents: read
 
-# Per-project knobs live here. Here we run every job on GitHub-hosted ubuntu-24.04. A job moves to
-# `boat` only with a reason recorded under "Allowed deviations" in docs/ci/README.md (board-app: test).
-# Projects rename or drop the steps they lack: no lint, no typecheck, no tests.
 # Node comes from .nvmrc, the same line the Dockerfile and package.json engines follow.
 # hosti has one guard script, `pnpm check`: pins, env schema, Biome, ESLint, typecheck, Dependency Cruiser.
 env:
@@ -85,9 +82,13 @@ jobs:
         with:
           context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.DOCKERFILE }}
+          load: true
           push: false
+          tags: hosti-ci:handover
           build-args: APP_COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=release
+      - name: Smoke-test image handover
+        run: bash scripts/handover-image-smoke.sh hosti-ci:handover
 
   # hosti deviation: the landing image is built and smoke-tested in CI too, because the
   # release ships it. Reads its own cache scope, writes none.

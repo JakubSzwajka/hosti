@@ -6,6 +6,7 @@ import { errorResponse, failureResponse, jsonResponse } from "@/server/api-respo
 import { bundlesDir, publicBaseUrl } from "@/server/config";
 import { deleteBundle } from "@/use-cases/delete-bundle";
 import { showBundle } from "@/use-cases/show-bundle";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
   }
 }
 
-export async function DELETE(request: Request, context: Context): Promise<Response> {
+async function remove(request: Request, context: Context): Promise<Response> {
   const access = await requirePushScope(request, "delete");
   if (!access.ok) return access.response;
   const { slug } = await context.params;
@@ -42,3 +43,5 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
     return failureResponse(error);
   }
 }
+
+export const DELETE = writerRoute(remove);

@@ -3,13 +3,14 @@ import { connectPath } from "@/app/_http/return-path";
 import { runAppUseCase } from "@/app/_http/run-use-case";
 import { guardMutation } from "@/server/auth/admin";
 import { denyAgentConnection } from "@/use-cases/deny-agent-connection";
+import { writerRoute } from "@/app/_http/writer-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, context: Context): Promise<Response> {
+async function post(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   const form = await request.formData();
   const guard = guardMutation(request, form);
@@ -20,3 +21,5 @@ export async function POST(request: Request, context: Context): Promise<Response
   await runAppUseCase(denyAgentConnection(id));
   return connectRedirect(path);
 }
+
+export const POST = writerRoute(post);

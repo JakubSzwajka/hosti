@@ -9,3 +9,6 @@ export class PushError extends Error {
     this.status = status;
   }
 }
+
+export const WRITER_PAUSED = "writer_paused";
+export const WRITER_RETRY_AFTER_SECONDS = 5;

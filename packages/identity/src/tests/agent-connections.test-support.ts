@@ -1,7 +1,7 @@
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import { Catalog } from "@hosti/catalog";
+import { Catalog, WriterStateStore } from "@hosti/catalog";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { makeAgentConnectionStore, type TokenStore } from "../agent-connections";
 import { Identity, IdentityCrypto } from "../index";
@@ -43,6 +43,7 @@ export const freshIdentity = Layer.unwrap(
       path.resolve(import.meta.dirname, "../../../catalog/schema.sql"),
     );
     const catalogLayer = Catalog.layer(dataDir, schemaSql).pipe(
+      Layer.provide(WriterStateStore.memory()),
       Layer.provideMerge(catalogPlatform),
     );
     return Identity.layer.pipe(
