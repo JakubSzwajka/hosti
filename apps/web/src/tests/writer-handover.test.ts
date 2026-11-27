@@ -174,6 +174,7 @@ describe("fence, drain and handover", () => {
       owner: null,
       fence: "proof-epoch-a",
       spent: [],
+      retired: [],
     });
 
     const before = support.listCatalog().map((bundle) => bundle.slug);
@@ -246,6 +247,7 @@ describe("fence, drain and handover", () => {
       owner: null,
       fence: null,
       spent: ["proof-epoch-a"],
+      retired: [],
     });
   });
 

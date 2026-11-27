@@ -19,9 +19,21 @@ Hosti stores writer state in `HOSTI_DATA_DIR`, which defaults to `/data` in the 
 | File | Purpose |
 | --- | --- |
 | `hosti-writer.lease` | SQLite file whose exclusive lock grants one process write ownership. |
-| `hosti-writer.json` | Atomically written `{version:1,owner,fence,spent[]}` handover state. |
+| `hosti-writer.json` | Atomically written `{version:1,owner,fence,spent[],retired[],previous?}` handover state. |
 
 The lease uses SQLite exclusive locking. The process holds it until fencing closes the writable database and releases the lease, or the process exits. There is no timeout or automatic stale-lease takeover. Never remove or replace either file to recover a lock.
+
+The state fields are:
+
+| Field | Meaning |
+| --- | --- |
+| `owner` | Epoch of the process that last took write ownership. `null` means an unmanaged process. |
+| `fence` | Epoch of the active fence, or `null`. |
+| `spent` | Epochs that a fence-off has used. A spent epoch cannot fence or promote again. |
+| `retired` | Owner epochs that a later handover replaced. A retired epoch cannot start a fence. Its process can still take ownership back through the rollback rule below. |
+| `previous` | Owner that the current owner replaced in its handover. Present only from that promotion until the next fence-on, fence-off or takeback. `null` means an unmanaged process. |
+
+State written before `retired` and `previous` existed stays readable. A missing `retired` reads as an empty list. A missing `previous` means no process may roll back the current owner, so fence-off by owner epoch fails closed with `epoch_stale`.
 
 An absent state file means an unmanaged volume. A malformed state file leaves the process read-only. Readiness reports `ready: false`, and fence requests fail with `state_invalid`.
 
@@ -72,9 +84,16 @@ Content-Type: application/json
 
 Fence-on first denies new writes. It persists the fence, waits for admitted writes to finish, closes the writable database, releases the lease, then reopens read-only. It returns HTTP 200 with `{fenced:true,drained:true,epoch}` only after that sequence completes. A same-epoch retry is idempotent and waits for an in-progress drain.
 
-Fence-off accepts the active fence epoch or the recorded owner epoch when another process owns the volume. It acquires the lease before opening the writable database. It then records this process as owner, clears the fence and adds the supplied epoch to `spent`. A retry returns HTTP 200. If it arrives while this process is draining, it cancels the fence; the pending fence-on returns `fence_cancelled`.
+Fence-off accepts only the process that the handover replaced:
 
-A spent epoch cannot fence again. Stale epochs, an epoch owned by the current process, another active fence, and attempts by a non-writer return HTTP 409. If the lease is busy during fence-off, Hosti returns `lease_busy`. Do not retry with a new epoch to bypass a refusal. Resolve ownership from the current durable state first.
+- While a fence is active, the epoch must equal that fence, and this process must be the recorded owner that the fence drained.
+- With no active fence, the epoch must equal the recorded owner, and this process must match `previous`. This is a rollback after the candidate promoted and stopped.
+
+Fence-on applies the same rule when a non-writer acknowledges a fence. A stale process that an older handover replaced therefore cannot acknowledge, clear or take over a newer fence or owner. Fence-off acquires the lease before opening the writable database. It then records this process as owner, clears the fence and adds the supplied epoch to `spent`. A retry returns HTTP 200. If it arrives while this process is draining, it cancels the fence; the pending fence-on returns `fence_cancelled`.
+
+A spent epoch cannot fence again. A retired owner epoch cannot start a fence and gets `epoch_stale`. Stale epochs, an epoch owned by the current process, another active fence, and attempts by a non-writer return HTTP 409. If the lease is busy during fence-off, Hosti returns `lease_busy`. Do not retry with a new epoch to bypass a refusal. Resolve ownership from the current durable state first.
+
+A fence-on waits for every admitted write. Each write route takes its writer permit before it authenticates the caller and reads the request body. A client that sends its body slowly holds that permit until the request ends, which can exceed the receiver's fence-on timeout. The receiver then treats the fence as uncertain and rolls back with fence-off. This fails closed: no second writer starts, but the handover does not complete. Hosti does not limit upload duration for this. Changing that is a separate product decision.
 
 ## Writes and reads while fenced
 

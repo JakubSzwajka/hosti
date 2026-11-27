@@ -8,6 +8,8 @@ import {
   closeQuietly,
   isWriterEpoch,
   rejected,
+  retiredEpochs,
+  settledState,
   type Role,
   type WriterCore,
 } from "./writer-core";
@@ -41,6 +43,11 @@ export function makeFenceOperations(
       }),
     );
 
+  const rollsBack = (state: WriterState, epoch: string) =>
+    state.fence === null
+      ? state.owner === epoch && epoch !== ownEpoch && state.previous === ownEpoch
+      : state.fence === epoch && state.owner === ownEpoch;
+
   const fenceResult = (epoch: string): FenceOnResult => ({ fenced: true, drained: true, epoch });
 
   const awaitFence = Effect.fnUntraced(function* (fencing: Extract<Role, { kind: "fencing" }>) {
@@ -59,14 +66,18 @@ export function makeFenceOperations(
     if (!stateRead.valid) return yield* rejected("state_invalid", "Writer state is unreadable");
     const state = stateRead.state;
     if (state.spent.includes(epoch)) return yield* rejected("epoch_spent", "Epoch already spent");
+    if (retiredEpochs(state).includes(epoch)) {
+      return yield* rejected("epoch_stale", "Epoch belongs to a retired writer");
+    }
+    const fencedState = settledState(state, state.owner, epoch, state.spent);
     const current = slot.role;
     if (current.kind === "fencing") {
       if (current.epoch !== epoch)
         return yield* rejected("fence_active", "Another fence is active");
-      if (state.fence !== epoch) yield* writeState({ ...state, fence: epoch });
+      if (state.fence !== epoch) yield* writeState(fencedState);
       return current;
     }
-    if (state.fence === epoch || state.owner === epoch) {
+    if (rollsBack(state, epoch)) {
       if (current.kind === "writer") {
         return yield* rejected("state_invalid", "Writer state conflicts with this instance");
       }
@@ -74,6 +85,9 @@ export function makeFenceOperations(
         return yield* rejected("lease_busy", "A writer still holds the volume lease");
       }
       return fenceResult(epoch);
+    }
+    if (state.fence === epoch || state.owner === epoch) {
+      return yield* rejected("epoch_stale", "Epoch is not this instance's handover");
     }
     if (state.fence !== null) return yield* rejected("fence_active", "Another fence is active");
     if (current.kind !== "writer") {
@@ -89,7 +103,7 @@ export function makeFenceOperations(
     } as const;
     slot.role = fencing;
     if (slot.inFlight === 0) yield* Deferred.succeed(drained, true);
-    yield* writeState({ ...state, fence: epoch });
+    yield* writeState(fencedState);
     return fencing;
   });
 
@@ -104,9 +118,7 @@ export function makeFenceOperations(
     epoch: string,
     reader: Database.Database | null,
   ) {
-    const accepts = (state: WriterState) =>
-      !state.spent.includes(epoch) &&
-      (state.fence === epoch || (state.owner === epoch && epoch !== ownEpoch));
+    const accepts = (state: WriterState) => !state.spent.includes(epoch) && rollsBack(state, epoch);
     const lease = yield* acquireLease;
     if (lease === null)
       return yield* rejected("lease_busy", "Another process holds the writer lease");
@@ -120,12 +132,9 @@ export function makeFenceOperations(
     const database = yield* openDatabaseAt(databaseFile, schemaSql).pipe(
       Effect.tapError(() => Effect.sync(() => lease.close())),
     );
-    yield* writeState({
-      ...fresh.state,
-      owner: ownEpoch,
-      fence: null,
-      spent: [...fresh.state.spent, epoch],
-    }).pipe(
+    yield* writeState(
+      settledState(fresh.state, ownEpoch, null, [...fresh.state.spent, epoch]),
+    ).pipe(
       Effect.tapError(() =>
         Effect.sync(() => {
           closeQuietly(database);
@@ -146,7 +155,7 @@ export function makeFenceOperations(
     const current = slot.role;
     if (current.kind === "fencing") {
       if (current.epoch !== epoch) return yield* rejected("epoch_stale", "Epoch is not active");
-      yield* writeState({ ...state, owner: ownEpoch, fence: null, spent: [...state.spent, epoch] });
+      yield* writeState(settledState(state, ownEpoch, null, [...state.spent, epoch]));
       slot.role = { kind: "writer", database: current.database, lease: current.lease };
       yield* Deferred.succeed(current.drained, false);
       return result;
@@ -160,7 +169,7 @@ export function makeFenceOperations(
     if (ownEpoch !== null && state.spent.includes(ownEpoch)) {
       return yield* rejected("epoch_spent", "This instance's epoch is spent");
     }
-    if (!(state.fence === epoch || (state.owner === epoch && epoch !== ownEpoch))) {
+    if (!rollsBack(state, epoch)) {
       return yield* rejected("epoch_stale", "Epoch is not the active fence");
     }
     if (current.kind === "writer") return yield* rejected("epoch_stale", "Already the writer");

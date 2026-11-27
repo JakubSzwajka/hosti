@@ -72,6 +72,15 @@ export const rejected = (code: FenceRejected["code"], message: string) =>
 
 export type WriterSlot = { role: Role; inFlight: number };
 
+export const retiredEpochs = (state: WriterState): ReadonlyArray<string> => state.retired ?? [];
+
+export const settledState = (
+  state: WriterState,
+  owner: string | null,
+  fence: string | null,
+  spent: ReadonlyArray<string>,
+): WriterState => ({ version: 1, owner, fence, spent, retired: retiredEpochs(state) });
+
 export function makeWriterCore(options: WriterControlOptions) {
   const { dataDir, databaseFile, leaseFile, schemaSql, store } = options;
   const mine = processEpoch(options.writerEpoch);

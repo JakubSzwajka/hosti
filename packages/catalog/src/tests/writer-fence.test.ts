@@ -43,6 +43,8 @@ describe("writer fence and handover", () => {
           owner: "attempt-1",
           fence: null,
           spent: [],
+          retired: [],
+          previous: null,
         });
         yield* createBundle(candidate.catalog, "from-candidate");
         expect(yield* slugs(old.catalog)).toEqual([
@@ -83,6 +85,7 @@ describe("writer fence and handover", () => {
           owner: "attempt-0",
           fence: null,
           spent: ["attempt-1"],
+          retired: ["attempt-0"],
         });
 
         expect(yield* rejection(old.catalog.fenceOn("attempt-1"))).toBe("epoch_spent");

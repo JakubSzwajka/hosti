@@ -107,8 +107,36 @@ expect "candidate push" "$(public "$candidate" -X POST -H "Authorization: Bearer
   http://hosti.test:3000/api/v1/bundles/smoke-new/revisions)" '^201$'
 expect "old reads candidate write" "$(public "$old" -H "Authorization: Bearer $token" \
   http://hosti.test:3000/api/v1/bundles/smoke-new)" '^200$'
-expect "late fence-on on candidate" "$(hook "$candidate" POST /internal/deploy/fence/on proof-epoch-a)" '^409 '
+expect "late fence-on on candidate" "$(hook "$candidate" POST /internal/deploy/fence/on proof-epoch-a)" \
+  '^409 \{"error":"epoch_owned"'
+
+expect "second fence-on" "$(hook "$candidate" POST /internal/deploy/fence/on proof-epoch-b)" \
+  '^200 \{"fenced":true,"drained":true,"epoch":"proof-epoch-b"\}$'
+expect "stale fence-off" "$(hook "$old" POST /internal/deploy/fence/off proof-epoch-a)" \
+  '^409 \{"error":"epoch_stale"'
+expect "stale fence-on" "$(hook "$old" POST /internal/deploy/fence/on proof-epoch-a)" \
+  '^409 \{"error":"epoch_stale"'
+expect "old stays reader after stale hooks" "$(hook "$old" GET /internal/deploy/ready)" '"writer":false'
+expect "rollback fence-off" "$(hook "$candidate" POST /internal/deploy/fence/off proof-epoch-b)" \
+  '^200 \{"fenced":false,"epoch":"proof-epoch-b"\}$'
+expect "candidate writer after rollback" "$(hook "$candidate" GET /internal/deploy/ready)" '"writer":true'
+expect "spent fence-on" "$(hook "$candidate" POST /internal/deploy/fence/on proof-epoch-b)" \
+  '^409 \{"error":"epoch_spent"'
 
 docker restart "$old" >/dev/null
 expect "restarted old stays reader" "$(wait_ready "$old" '"ready":true')" '"writer":false'
+
+docker rm -f "$candidate" >/dev/null
+docker stop "$old" >/dev/null
+docker run --rm -v "$volume:/data" "$image" \
+  node -e 'require("node:fs").writeFileSync("/data/hosti-writer.json", "{not-json")'
+docker start "$old" >/dev/null
+expect "malformed state readiness" "$(wait_ready "$old" '"ready":false')" '"writer":false'
+for kind in on off; do
+  expect "malformed state fence-$kind" "$(hook "$old" POST "/internal/deploy/fence/$kind" proof-epoch-c)" \
+    '^409 \{"error":"state_invalid"'
+done
+expect "malformed state push" "$(public "$old" -X POST -H "Authorization: Bearer $token" \
+  -H 'Content-Type: application/gzip' --data-binary "@$work/bundle.tar.gz" \
+  http://hosti.test:3000/api/v1/bundles/smoke-malformed/revisions)" '^503$'
 printf 'handover image smoke passed\n'

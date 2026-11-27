@@ -2,10 +2,20 @@ import type Database from "better-sqlite3";
 import { Deferred, Effect } from "effect";
 import { catalogSchemaVersion } from "../schema.mjs";
 import { CatalogError } from "../catalog-error";
-import { type WriterPermit, type WriterStatus, WriterUnavailable } from "../writer";
+import {
+  type WriterPermit,
+  type WriterState,
+  type WriterStatus,
+  WriterUnavailable,
+} from "../writer";
 import { tryCatalog } from "./catalog-errors";
 import { openDatabaseAt, schemaVersion } from "./open-database";
-import { closeQuietly, makeWriterCore, type WriterControlOptions } from "./writer-core";
+import {
+  closeQuietly,
+  makeWriterCore,
+  settledState,
+  type WriterControlOptions,
+} from "./writer-core";
 import { makeFenceOperations } from "./writer-fence";
 
 export function makeWriterControl(options: WriterControlOptions) {
@@ -24,6 +34,18 @@ export function makeWriterControl(options: WriterControlOptions) {
     becomeReader,
   } = core;
 
+  const promotedState = (state: WriterState): WriterState => {
+    const settled = settledState(state, ownEpoch, null, state.spent);
+    if (state.fence === null) return settled;
+    const retired = settled.retired ?? [];
+    return {
+      ...settled,
+      retired:
+        state.owner === null || retired.includes(state.owner) ? retired : [...retired, state.owner],
+      previous: state.owner,
+    };
+  };
+
   const promote = Effect.fnUntraced(function* (reader: Database.Database | null) {
     const before = yield* readState;
     if (!before.valid || !eligible(before.state)) return yield* becomeReader(reader);
@@ -40,7 +62,7 @@ export function makeWriterControl(options: WriterControlOptions) {
       Effect.tapError(() => Effect.sync(() => lease.close())),
     );
     if (fresh.state.owner !== ownEpoch || fresh.state.fence !== null) {
-      yield* writeState({ ...fresh.state, owner: ownEpoch, fence: null }).pipe(
+      yield* writeState(promotedState(fresh.state)).pipe(
         Effect.tapError(() =>
           Effect.sync(() => {
             closeQuietly(database);

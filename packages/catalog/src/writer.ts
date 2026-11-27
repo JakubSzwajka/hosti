@@ -11,6 +11,8 @@ export const WriterState = Schema.Struct({
   owner: Schema.NullOr(WriterEpoch),
   fence: Schema.NullOr(WriterEpoch),
   spent: Schema.Array(WriterEpoch),
+  retired: Schema.optionalKey(Schema.Array(WriterEpoch)),
+  previous: Schema.optionalKey(Schema.NullOr(WriterEpoch)),
 });
 export type WriterState = typeof WriterState.Type;
 
@@ -19,6 +21,7 @@ export const UNMANAGED_WRITER_STATE: WriterState = {
   owner: null,
   fence: null,
   spent: [],
+  retired: [],
 };
 
 export type WriterStatus = {
